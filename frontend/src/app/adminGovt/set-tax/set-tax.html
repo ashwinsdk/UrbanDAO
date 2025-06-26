@@ -1,1 +1,128 @@
-<p>set-tax works!</p>
+<div class="admin-container set-tax-container">
+  <!-- Header with wallet status -->
+  <div class="admin-header">
+    <h1>Set Property Tax Rates</h1>
+    <div class="wallet-status">
+      <span class="wallet-label">Wallet:</span>
+      <span class="wallet-address" [class.not-connected]="!walletAddress">{{ formatWalletAddress(walletAddress ?? '') || 'Not connected' }}</span>
+    </div>
+  </div>
+
+  <!-- Success and error alerts -->
+  <div class="alert alert-success" *ngIf="showSuccessAlert">
+    <span class="alert-icon">✓</span>
+    Tax rate successfully updated!
+  </div>
+
+  <div class="alert alert-error" *ngIf="showErrorAlert">
+    <span class="alert-icon">⚠</span>
+    {{ errorMessage }}
+  </div>
+
+  <div class="set-tax-content">
+    <!-- Form section -->
+    <div class="form-section">
+      <div class="card">
+        <h2>Set New Tax Rate</h2>
+        <p class="form-description">Set property tax rates for specific wards. Tax rates are set annually and stored on the blockchain for transparency.</p>
+        
+        <form (ngSubmit)="openConfirmModal()">
+          <div class="form-group">
+            <label for="ward" class="form-label">Ward</label>
+            <select id="ward" class="form-control" [(ngModel)]="newTaxRate.ward" name="ward" required>
+              <option value="" disabled selected>Select ward</option>
+              <option *ngFor="let ward of wards" [value]="ward">{{ ward }}</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="year" class="form-label">Tax Year</label>
+            <select id="year" class="form-control" [(ngModel)]="newTaxRate.year" name="year" required>
+              <option *ngFor="let year of availableYears" [value]="year">{{ year }}</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="amount" class="form-label">Tax Amount (SOL)</label>
+            <input type="number" id="amount" class="form-control" [(ngModel)]="newTaxRate.amount" name="amount" min="0.01" step="0.01" required>
+            <small class="form-text">Enter the tax amount in SOL (Solana)</small>
+          </div>
+          
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" [disabled]="isLoading">
+              <span *ngIf="!isLoading">Set Tax Rate</span>
+              <span *ngIf="isLoading">Processing...</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    
+    <!-- Existing tax rates section -->
+    <div class="existing-rates-section">
+      <div class="card">
+        <h2>Current Tax Rates</h2>
+        <p class="section-description">List of currently set tax rates by ward and year.</p>
+        
+        <div class="tax-rates-list" *ngIf="taxRates.length > 0">
+          <div class="tax-rate-item" *ngFor="let rate of taxRates; let i = index">
+            <div class="rate-details">
+              <div class="ward-badge">{{ rate.ward }}</div>
+              <div class="year-badge">{{ rate.year }}</div>
+              <div class="amount-display">{{ formatCurrency(rate.amount) }}</div>
+              <div class="date-info">
+                <span class="date-label">Last Updated:</span>
+                <span class="date-value">{{ formatDate(rate.lastUpdated) }}</span>
+              </div>
+            </div>
+            <div class="rate-actions">
+              <button class="btn btn-sm btn-danger" (click)="deleteTaxRate(i)">
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="empty-state" *ngIf="taxRates.length === 0">
+          <div class="empty-icon">💰</div>
+          <p>No tax rates have been set</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal-overlay" *ngIf="showConfirmModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Confirm Tax Rate</h3>
+    </div>
+    <div class="modal-body">
+      <p>You are about to set the following tax rate:</p>
+      <div class="confirmation-details">
+        <div class="confirmation-item">
+          <span class="label">Ward:</span>
+          <span class="value">{{ newTaxRate.ward }}</span>
+        </div>
+        <div class="confirmation-item">
+          <span class="label">Year:</span>
+          <span class="value">{{ newTaxRate.year }}</span>
+        </div>
+        <div class="confirmation-item">
+          <span class="label">Amount:</span>
+          <span class="value">{{ formatCurrency(newTaxRate.amount) }}</span>
+        </div>
+      </div>
+      <p class="confirmation-warning">This action will be recorded on the blockchain and cannot be easily reversed.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="closeConfirmModal()">Cancel</button>
+      <button class="btn btn-primary" (click)="setTaxRate()" [disabled]="isLoading">
+        <span class="spinner" *ngIf="isLoading"></span>
+        <span *ngIf="!isLoading">Confirm</span>
+        <span *ngIf="isLoading">Processing...</span>
+      </button>
+    </div>
+  </div>
+</div>

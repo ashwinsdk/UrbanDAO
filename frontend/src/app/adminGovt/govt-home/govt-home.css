@@ -1,0 +1,289 @@
+/* Government Officer Dashboard Styles */
+
+.govt-dashboard {
+  padding: var(--spacing-lg);
+  background-color: var(--surface-alt);
+  border-radius: var(--border-radius);
+}
+
+/* Dashboard header */
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 2px solid var(--primary-light);
+}
+
+.dashboard-header h1 {
+  color: var(--primary-dark);
+  margin-bottom: 0;
+}
+
+.wallet-status {
+  display: flex;
+  align-items: center;
+  background-color: var(--surface);
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--border-radius-full);
+  box-shadow: var(--shadow-sm);
+}
+
+.wallet-label {
+  font-weight: 600;
+  margin-right: var(--spacing-xs);
+  color: var(--text-secondary);
+}
+
+.wallet-address {
+  font-family: 'Source Code Pro', monospace;
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.wallet-address.not-connected {
+  color: var(--error);
+}
+
+/* Loading state */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-2xl);
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(0, 102, 255, 0.1);
+  border-left-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: var(--spacing-md);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Stats overview */
+.stats-overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xl);
+}
+
+.stat-card {
+  background-color: var(--surface);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-md);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  align-items: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+}
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--border-radius-sm);
+  margin-right: var(--spacing-md);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 28px;
+}
+
+.tax-icon {
+  background-color: rgba(255, 204, 0, 0.15);
+  background-image: url('/assets/icons/tax.svg');
+}
+
+.projects-icon {
+  background-color: rgba(0, 102, 255, 0.15);
+  background-image: url('/assets/icons/project.svg');
+}
+
+.grievances-icon {
+  background-color: rgba(255, 59, 48, 0.15);
+  background-image: url('/assets/icons/grievance.svg');
+}
+
+.wards-icon {
+  background-color: rgba(52, 199, 89, 0.15);
+  background-image: url('/assets/icons/location.svg');
+}
+
+.assign-head-icon {
+  background-color: rgba(90, 200, 250, 0.15);
+  background-image: url('/assets/icons/user.svg');
+}
+
+.stat-content {
+  flex: 1;
+}
+
+.stat-content h3 {
+  font-size: 1rem;
+  margin-bottom: var(--spacing-xs);
+  color: var(--text-secondary);
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.stat-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+/* Admin actions */
+.admin-actions {
+  margin-top: var(--spacing-xl);
+}
+
+.admin-actions h2 {
+  margin-bottom: var(--spacing-md);
+  color: var(--text-primary);
+  font-size: 1.5rem;
+}
+
+.action-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--spacing-lg);
+}
+
+.action-card {
+  background-color: var(--surface);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.action-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--primary-gradient);
+}
+
+.action-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+}
+
+.action-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--border-radius-sm);
+  margin-bottom: var(--spacing-md);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 32px;
+}
+
+.action-card h3 {
+  font-size: 1.25rem;
+  margin-bottom: var(--spacing-xs);
+  color: var(--text-primary);
+}
+
+.action-card p {
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-lg);
+  flex-grow: 1;
+}
+
+.action-status {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: var(--spacing-md);
+  display: inline-block;
+}
+
+.action-button {
+  align-self: flex-end;
+}
+
+/* Status badges */
+.badge {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.status-pending {
+  background-color: rgba(255, 204, 0, 0.15);
+  color: #b38600;
+}
+
+.status-progress, .status-ongoing {
+  background-color: rgba(90, 200, 250, 0.15);
+  color: #0071a4;
+}
+
+.status-success, .status-done {
+  background-color: rgba(52, 199, 89, 0.15);
+  color: #1d7a3e;
+}
+
+.status-error, .status-rejected {
+  background-color: rgba(255, 59, 48, 0.15);
+  color: #c41e3a;
+}
+
+.status-planning {
+  background-color: rgba(172, 142, 252, 0.15);
+  color: #6a5acd;
+}
+
+.status-default, .status-info {
+  background-color: rgba(0, 102, 255, 0.15);
+  color: var(--primary-dark);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .wallet-status {
+    margin-top: var(--spacing-sm);
+  }
+  
+  .stats-overview {
+    grid-template-columns: 1fr;
+  }
+  
+  .action-cards {
+    grid-template-columns: 1fr;
+  }
+}

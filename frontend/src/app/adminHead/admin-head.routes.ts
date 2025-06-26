@@ -9,17 +9,22 @@ export const ADMIN_HEAD_ROUTES: Routes = [
     {
         path: '',
         component: AdminHome,
-        title: 'Department Head Dashboard',
+        title: 'Municipal Head Dashboard',
     },
     {
-        path: 'edit-grievance/:id', // Assuming you'd edit a specific grievance
+        path: 'grievances',
+        component: EditGrievance,
+        title: 'Manage Grievances',
+    },
+    {
+        path: 'grievances/:id',
         component: EditGrievance,
         title: 'Edit Grievance',
     },
     {
-        path: 'allocate-project',
+        path: 'projects',
         component: ProjectAlloc,
-        title: 'Allocate Project',
+        title: 'Manage Projects',
     },
     {
         path: '**',

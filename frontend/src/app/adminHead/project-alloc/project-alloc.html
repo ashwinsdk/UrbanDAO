@@ -1,1 +1,306 @@
-<p>project-alloc works!</p>
+<div class="project-allocation">
+  <!-- Header Section -->
+  <div class="page-header">
+    <div class="header-content">
+      <h1>Project Allocation</h1>
+      <p class="subtitle">Create and manage municipal projects</p>
+    </div>
+    <div class="wallet-info">
+      <div class="wallet-address">
+        <span class="label">Connected as:</span>
+        <span class="address">{{ formatWalletAddress(walletAddress) }}</span>
+      </div>
+      <div class="role-badge">Municipal Head</div>
+    </div>
+  </div>
+
+  <!-- Loading Spinner -->
+  <div *ngIf="isLoading" class="loading-container">
+    <div class="loading-spinner"></div>
+    <p>Loading projects...</p>
+  </div>
+
+  <!-- Main Content -->
+  <div *ngIf="!isLoading" class="project-content">
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+      <button class="btn btn-primary" (click)="startCreateProject()" *ngIf="!isCreatingProject">
+        <span class="icon">+</span> Create New Project
+      </button>
+    </div>
+
+    <!-- Project Creation Form -->
+    <div *ngIf="isCreatingProject" class="project-form-container">
+      <div class="form-card">
+        <div class="card-header">
+          <h3>Create New Project</h3>
+          <button class="btn btn-sm btn-outline" (click)="cancelCreateProject()">Cancel</button>
+        </div>
+        <div class="card-body">
+          <div class="form-group">
+            <label for="projectName">Project Name</label>
+            <input 
+              type="text" 
+              id="projectName" 
+              [(ngModel)]="newProject.name" 
+              class="form-control" 
+              placeholder="Enter project name"
+            />
+          </div>
+          
+          <div class="form-group">
+            <label for="projectDescription">Description</label>
+            <textarea 
+              id="projectDescription" 
+              [(ngModel)]="newProject.description" 
+              class="form-control" 
+              rows="3" 
+              placeholder="Describe the project"
+            ></textarea>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group half">
+              <label for="projectLocation">Location</label>
+              <input 
+                type="text" 
+                id="projectLocation" 
+                [(ngModel)]="newProject.location" 
+                class="form-control" 
+                placeholder="Project location"
+              />
+            </div>
+            
+            <div class="form-group half">
+              <label for="projectWard">Ward</label>
+              <input 
+                type="text" 
+                id="projectWard" 
+                [(ngModel)]="newProject.ward" 
+                class="form-control" 
+                placeholder="Ward number/name"
+              />
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group half">
+              <label for="projectBudget">Budget (USD)</label>
+              <input 
+                type="number" 
+                id="projectBudget" 
+                [(ngModel)]="newProject.budget" 
+                class="form-control" 
+                placeholder="0.00"
+                min="0"
+              />
+            </div>
+            
+            <div class="form-group half">
+              <label for="projectStartDate">Start Date</label>
+              <input 
+                type="date" 
+                id="projectStartDate" 
+                [(ngModel)]="newProject.startDate" 
+                class="form-control"
+              />
+            </div>
+          </div>
+        </div>
+        <div class="card-footer">
+          <button class="btn btn-primary" (click)="saveNewProject()">Create Project</button>
+          <button class="btn btn-outline" (click)="cancelCreateProject()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Two Column Layout (when not creating) -->
+    <div *ngIf="!isCreatingProject" class="two-column-layout">
+      <!-- Left Column: Project List -->
+      <div class="column">
+        <div class="filter-controls">
+          <div class="search-box">
+            <input 
+              type="text" 
+              [(ngModel)]="searchTerm" 
+              (ngModelChange)="applyFilters()" 
+              placeholder="Search projects..."
+              class="search-input"
+            />
+          </div>
+          <div class="status-filter">
+            <select [(ngModel)]="statusFilter" (ngModelChange)="applyFilters()" class="filter-select">
+              <option value="all">All Status</option>
+              <option value="Planning">Planning</option>
+              <option value="Ongoing">Ongoing</option>
+              <option value="Done">Done</option>
+            </select>
+          </div>
+        </div>
+
+        <div *ngIf="filteredProjects.length === 0" class="empty-state">
+          <p>No projects match your current filters.</p>
+        </div>
+
+        <div *ngIf="filteredProjects.length > 0" class="project-list">
+          <div 
+            *ngFor="let project of filteredProjects" 
+            class="project-card" 
+            [class.selected]="selectedProject?.id === project.id"
+            (click)="selectProject(project)"
+          >
+            <div class="card-header">
+              <span class="project-id">{{ project.id }}</span>
+              <span class="status-badge" [ngClass]="getStatusClass(project.status)">{{ project.status }}</span>
+            </div>
+            <div class="card-body">
+              <h4>{{ project.name }}</h4>
+              <p class="description">{{ project.description }}</p>
+              <div class="project-meta">
+                <div class="meta-item">
+                  <span class="meta-label">Budget:</span>
+                  <span class="meta-value">{{ formatCurrency(project.budget) }}</span>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Start:</span>
+                  <span class="meta-value">{{ formatDate(project.startDate) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Project Details -->
+      <div class="column">
+        <div *ngIf="!selectedProject" class="empty-state">
+          <p>Select a project from the list to view details or create a new project.</p>
+        </div>
+
+        <div *ngIf="selectedProject" class="project-detail-card">
+          <div class="card-header">
+            <h3>Project Details</h3>
+            <button class="btn btn-sm btn-outline" (click)="clearSelection()">Close</button>
+          </div>
+          
+          <div class="card-body">
+            <div class="detail-row">
+              <span class="label">ID:</span>
+              <span class="value id-value">{{ selectedProject.id }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Name:</span>
+              <input 
+                type="text" 
+                [(ngModel)]="selectedProject.name" 
+                class="form-control inline-edit"
+              />
+            </div>
+            <div class="detail-row">
+              <span class="label">Status:</span>
+              <span class="value status-badge" [ngClass]="getStatusClass(selectedProject.status)">
+                {{ selectedProject.status }}
+              </span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Start Date:</span>
+              <input 
+                type="date" 
+                [(ngModel)]="selectedProject.startDate" 
+                class="form-control inline-edit date-input"
+              />
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group half">
+                <label>Location</label>
+                <input 
+                  type="text" 
+                  [(ngModel)]="selectedProject.location" 
+                  class="form-control"
+                />
+              </div>
+              <div class="form-group half">
+                <label>Ward</label>
+                <input 
+                  type="text" 
+                  [(ngModel)]="selectedProject.ward" 
+                  class="form-control"
+                />
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label>Budget (USD)</label>
+              <input 
+                type="number" 
+                [(ngModel)]="selectedProject.budget" 
+                class="form-control"
+                min="0"
+              />
+            </div>
+            
+            <div class="form-group">
+              <label>Description</label>
+              <textarea 
+                [(ngModel)]="selectedProject.description" 
+                rows="4" 
+                class="form-control"
+              ></textarea>
+            </div>
+          </div>
+          
+          <div class="card-actions">
+            <div class="status-update">
+              <h4>Update Status</h4>
+              <div class="status-actions">
+                <button 
+                  class="btn status-btn status-planning" 
+                  [class.active]="selectedProject.status === 'Planning'"
+                  (click)="updateProjectStatus(selectedProject, 'Planning')"
+                >Planning</button>
+                <button 
+                  class="btn status-btn status-ongoing" 
+                  [class.active]="selectedProject.status === 'Ongoing'"
+                  (click)="updateProjectStatus(selectedProject, 'Ongoing')"
+                >Ongoing</button>
+                <button 
+                  class="btn status-btn status-done" 
+                  [class.active]="selectedProject.status === 'Done'"
+                  (click)="updateProjectStatus(selectedProject, 'Done')"
+                >Done</button>
+              </div>
+            </div>
+            
+            <div class="save-actions">
+              <button class="btn btn-primary" (click)="updateProject()">Save Changes</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div *ngIf="showModal" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3>{{ modalTitle }}</h3>
+      </div>
+      <div class="modal-body">
+        <p>{{ modalMessage }}</p>
+      </div>
+      <div class="modal-footer">
+        <ng-container *ngIf="modalAction === 'updateProject'">
+          <button class="btn btn-outline" (click)="closeModal()">Cancel</button>
+          <button class="btn btn-primary" (click)="confirmUpdateProject(); closeModal()">
+            Confirm
+          </button>
+        </ng-container>
+        <ng-container *ngIf="modalAction === 'success' || modalAction === 'error'">
+          <button class="btn btn-primary" (click)="closeModal()">OK</button>
+        </ng-container>
+      </div>
+    </div>
+  </div>
+</div>

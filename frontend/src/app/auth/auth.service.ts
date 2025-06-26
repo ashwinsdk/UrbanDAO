@@ -32,8 +32,8 @@ declare global {
 // This is a mock database of wallet addresses to roles.
 // In a real app, this logic would be on your Anchor program.
 const MOCK_WALLET_ROLES: Record<string, UserRole> = {
-    'phantom1': UserRole.AdminGovt,
-    'phantom2': UserRole.AdminHead,
+    'FVTUBAwwMY3mpzNmR8QEncdi5HCR3fawxL38svymmnps': UserRole.AdminGovt, // Admin Govt
+    'C4ZsZRzr6kCqVXPzGhDXsUaoFuBR1cnFXkwSksCH5xSk': UserRole.AdminHead, // Admin Head
     'phantom3': UserRole.User,
 };
 

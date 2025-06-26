@@ -1,1 +1,208 @@
-<p>view-projects works!</p>
+<div class="view-projects-container">
+  <!-- Page header -->
+  <div class="page-header">
+    <h1>Municipal Projects</h1>
+    <p class="page-description">Browse and learn about ongoing and upcoming municipal projects in your community.</p>
+  </div>
+  
+  <!-- Loading state -->
+  <div *ngIf="isLoading" class="loading-container">
+    <div class="loading-spinner"></div>
+    <p>Loading projects...</p>
+  </div>
+  
+  <!-- Main content when loaded -->
+  <div *ngIf="!isLoading" class="content-container">
+    <!-- Filters section -->
+    <div class="filters-section">
+      <div class="filters-header">
+        <h2>Filters</h2>
+        <button class="text-button" (click)="resetFilters()">Reset</button>
+      </div>
+      
+      <div class="filters-grid">
+        <!-- Status filter -->
+        <div class="filter-group">
+          <label for="statusFilter">Status</label>
+          <select id="statusFilter" [(ngModel)]="statusFilter" (change)="applyFilters()">
+            <option value="all">All Statuses</option>
+            <option value="Planning">Planning</option>
+            <option value="Ongoing">Ongoing</option>
+            <option value="Done">Completed</option>
+          </select>
+        </div>
+        
+        <!-- Ward filter -->
+        <div class="filter-group">
+          <label for="wardFilter">Ward</label>
+          <select id="wardFilter" [(ngModel)]="wardFilter" (change)="applyFilters()">
+            <option value="all">All Wards</option>
+            <option *ngFor="let ward of wards" [value]="ward">{{ ward }}</option>
+          </select>
+        </div>
+        
+        <!-- Search filter -->
+        <div class="filter-group search-group">
+          <label for="searchFilter">Search</label>
+          <div class="search-input-wrapper">
+            <input 
+              type="text" 
+              id="searchFilter" 
+              [(ngModel)]="searchQuery" 
+              (input)="applyFilters()" 
+              placeholder="Search by name, description or location"
+            />
+            <span class="search-icon">🔍</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Projects list -->
+    <div class="projects-section">
+      <div *ngIf="filteredProjects.length === 0" class="no-projects">
+        <p>No projects match your current filters. Try adjusting your search criteria.</p>
+        <button class="secondary-button" (click)="resetFilters()">Reset Filters</button>
+      </div>
+      
+      <div *ngIf="filteredProjects.length > 0" class="projects-grid">
+        <div *ngFor="let project of filteredProjects" class="project-card" (click)="viewProjectDetails(project)">
+          <div class="project-header">
+            <h3 class="project-name">{{ project.name }}</h3>
+            <span class="project-status" [ngClass]="getStatusClass(project.status)">{{ project.status }}</span>
+          </div>
+          
+          <div class="project-location">
+            <span class="location-icon">📍</span>
+            <span>{{ project.location }}</span>
+            <span class="project-ward">{{ project.ward }}</span>
+          </div>
+          
+          <p class="project-description">{{ project.description }}</p>
+          
+          <div class="project-progress">
+            <div class="progress-label">
+              <span>Progress</span>
+              <span>{{ calculateProgress(project) }}%</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" [style.width.%]="calculateProgress(project)"></div>
+            </div>
+          </div>
+          
+          <div class="project-footer">
+            <div class="project-dates">
+              <div>
+                <span class="date-label">Start:</span>
+                <span class="date-value">{{ formatDate(project.startDate) }}</span>
+              </div>
+              <div *ngIf="project.endDate">
+                <span class="date-label">End:</span>
+                <span class="date-value">{{ formatDate(project.endDate) }}</span>
+              </div>
+            </div>
+            <div class="project-budget">
+              <span class="budget-label">Budget:</span>
+              <span class="budget-value">{{ formatCurrency(project.budget) }}</span>
+            </div>
+          </div>
+          
+          <button class="view-details-button">View Details</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Project details modal -->
+    <div *ngIf="showProjectDetails && selectedProject" class="project-details-overlay">
+      <div class="project-details-modal">
+        <button class="close-button" (click)="closeProjectDetails()">&times;</button>
+        
+        <div class="modal-header">
+          <h2>{{ selectedProject.name }}</h2>
+          <span class="project-status" [ngClass]="getStatusClass(selectedProject.status)">{{ selectedProject.status }}</span>
+        </div>
+        
+        <div class="modal-body">
+          <div class="detail-section">
+            <h3>Project Details</h3>
+            <div class="detail-grid">
+              <div class="detail-item">
+                <span class="detail-label">Location:</span>
+                <span class="detail-value">{{ selectedProject.location }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Ward:</span>
+                <span class="detail-value">{{ selectedProject.ward }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Start Date:</span>
+                <span class="detail-value">{{ formatDate(selectedProject.startDate) }}</span>
+              </div>
+              <div class="detail-item" *ngIf="selectedProject.endDate">
+                <span class="detail-label">End Date:</span>
+                <span class="detail-value">{{ formatDate(selectedProject.endDate) }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Budget:</span>
+                <span class="detail-value">{{ formatCurrency(selectedProject.budget) }}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="detail-section">
+            <h3>Description</h3>
+            <p class="project-full-description">{{ selectedProject.description }}</p>
+          </div>
+          
+          <div class="detail-section">
+            <h3>Progress</h3>
+            <div class="project-progress">
+              <div class="progress-label">
+                <span>Completion</span>
+                <span>{{ calculateProgress(selectedProject) }}%</span>
+              </div>
+              <div class="progress-bar large">
+                <div class="progress-fill" [style.width.%]="calculateProgress(selectedProject)"></div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="detail-section">
+            <h3>Project Updates</h3>
+            <div class="project-updates">
+              <!-- In a real app, these would come from the blockchain or backend -->
+              <div class="update-item" *ngIf="selectedProject.status === 'Ongoing' || selectedProject.status === 'Done'">
+                <div class="update-date">{{ formatDate(selectedProject.startDate) }}</div>
+                <div class="update-content">
+                  <h4>Project Started</h4>
+                  <p>Initial work has begun on the project site. Equipment and materials are being moved into position.</p>
+                </div>
+              </div>
+              <div class="update-item" *ngIf="selectedProject.status === 'Ongoing' && calculateProgress(selectedProject) > 30">
+                <div class="update-date">{{ formatDate(getProgressUpdateDate(selectedProject.startDate)) }}</div>
+                <div class="update-content">
+                  <h4>Progress Update</h4>
+                  <p>Project is proceeding according to schedule. Foundation work is complete and construction is underway.</p>
+                </div>
+              </div>
+              <div class="update-item" *ngIf="selectedProject.status === 'Done'">
+                <div class="update-date">{{ formatDate(selectedProject.endDate || getCurrentDate()) }}</div>
+                <div class="update-content">
+                  <h4>Project Completed</h4>
+                  <p>All work has been completed and final inspections have been passed. The project is now open to the public.</p>
+                </div>
+              </div>
+              <div class="no-updates" *ngIf="selectedProject.status === 'Planning'">
+                <p>No updates yet. This project is still in the planning phase.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button class="secondary-button" (click)="closeProjectDetails()">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

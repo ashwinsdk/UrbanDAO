@@ -1,1 +1,166 @@
-<p>file-grievance works!</p>
+<div class="page-container">
+  <div class="d-flex justify-between align-center">
+    <h1 class="page-title">File a Grievance</h1>
+    <div *ngIf="isSubmitting" class="loading-spinner"></div>
+  </div>
+  
+  <!-- Success message -->
+  <div *ngIf="submitSuccess" class="alert alert-success">
+    <div class="alert-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M22 11.08V12C21.9988 14.1564 21.3005 16.2547 20.0093 17.9818C18.7182 19.709 16.9033 20.9725 14.8354 21.5839C12.7674 22.1953 10.5573 22.1219 8.53447 21.3746C6.51168 20.6273 4.78465 19.2461 3.61096 17.4371C2.43727 15.628 1.87979 13.4881 2.02168 11.3363C2.16356 9.18455 2.99721 7.13631 4.39828 5.49706C5.79935 3.85781 7.69279 2.71537 9.79619 2.24013C11.8996 1.7649 14.1003 1.98232 16.07 2.85999" stroke="#22C55E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M22 4L12 14.01L9 11.01" stroke="#22C55E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="alert-content">
+      <h4>Grievance Submitted Successfully!</h4>
+      <p>Your grievance has been recorded. You will be redirected to the status page shortly.</p>
+    </div>
+  </div>
+  
+  <!-- Error message -->
+  <div *ngIf="submitError" class="alert alert-error">
+    <div class="alert-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 9V13M12 17H12.01M8.21 3.32001L1.59 15C1.22 15.6944 1.02783 16.4752 1.03 17.2684C1.03217 18.0616 1.22956 18.8412 1.60557 19.533C1.98157 20.2248 2.52485 20.8054 3.17919 21.2215C3.83352 21.6375 4.57691 21.8754 5.34 21.91H18.67C19.433 21.8754 20.1764 21.6375 20.8308 21.2215C21.4851 20.8054 22.0284 20.2248 22.4044 19.533C22.7804 18.8412 22.9778 18.0616 22.98 17.2684C22.9822 16.4752 22.79 15.6944 22.42 15L15.79 3.32001C15.3992 2.61747 14.8297 2.02622 14.1439 1.61353C13.4581 1.20084 12.6813 0.98072 11.89 0.980001C11.1005 0.97775 10.3248 1.19584 9.63987 1.60657C8.95496 2.01729 8.38505 2.6065 7.99 3.31001L8.21 3.32001Z" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="alert-content">
+      <h4>Error</h4>
+      <p>{{ submitError }}</p>
+    </div>
+  </div>
+  
+  <!-- Grievance Form -->
+  <div class="card">
+    <div class="card-content">
+      <form (ngSubmit)="submitGrievance()" #grievanceForm="ngForm">
+        <!-- Category -->
+        <div class="form-group">
+          <label for="category" class="form-label">Category <span class="required">*</span></label>
+          <select 
+            id="category" 
+            name="category" 
+            class="form-control" 
+            [(ngModel)]="grievanceData.category" 
+            required>
+            <option value="" disabled selected>Select a category</option>
+            <option *ngFor="let category of categories" [value]="category">{{ category }}</option>
+          </select>
+        </div>
+        
+        <!-- Ward -->
+        <div class="form-group">
+          <label for="ward" class="form-label">Ward <span class="required">*</span></label>
+          <select 
+            id="ward" 
+            name="ward" 
+            class="form-control" 
+            [(ngModel)]="grievanceData.ward" 
+            required>
+            <option value="" disabled selected>Select your ward</option>
+            <option *ngFor="let ward of wards" [value]="ward">{{ ward }}</option>
+          </select>
+        </div>
+        
+        <!-- Location -->
+        <div class="form-group">
+          <label for="location" class="form-label">Specific Location <span class="required">*</span></label>
+          <input 
+            type="text" 
+            id="location" 
+            name="location" 
+            class="form-control" 
+            placeholder="Enter specific location (e.g., Street name, Landmark)" 
+            [(ngModel)]="grievanceData.location" 
+            required
+            minlength="5">
+        </div>
+        
+        <!-- Description -->
+        <div class="form-group">
+          <label for="description" class="form-label">Description <span class="required">*</span></label>
+          <textarea 
+            id="description" 
+            name="description" 
+            class="form-control" 
+            rows="5" 
+            placeholder="Describe the issue in detail" 
+            [(ngModel)]="grievanceData.description" 
+            required
+            minlength="20"></textarea>
+          <div class="form-hint">
+            Please provide a detailed description of the issue (minimum 20 characters)
+          </div>
+        </div>
+        
+        <!-- Attachments -->
+        <div class="form-group">
+          <label class="form-label">Attachments (Optional)</label>
+          <div class="file-upload">
+            <label for="attachments" class="file-upload-label">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M17 8L12 3L7 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 3V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Upload Photos/Documents</span>
+            </label>
+            <input 
+              type="file" 
+              id="attachments" 
+              name="attachments" 
+              accept="image/*,.pdf,.doc,.docx" 
+              multiple 
+              (change)="onFileSelected($event)" 
+              class="file-input">
+          </div>
+          <div class="form-hint">
+            Maximum 3 files. Accepted formats: Images, PDF, DOC
+          </div>
+          
+          <!-- Attachment Preview -->
+          <div *ngIf="grievanceData.attachments.length > 0" class="attachment-preview">
+            <div *ngFor="let file of grievanceData.attachments; let i = index" class="attachment-item">
+              <span class="attachment-name">{{ file.name }}</span>
+              <button type="button" class="btn-icon" (click)="removeAttachment(i)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Submit Button -->
+        <div class="form-actions">
+          <button type="button" class="btn btn-outline" (click)="resetForm()">Clear Form</button>
+          <button 
+            type="submit" 
+            class="btn btn-primary" 
+            [disabled]="isSubmitting">
+            <span *ngIf="isSubmitting">Submitting...</span>
+            <span *ngIf="!isSubmitting">Submit Grievance</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <!-- Information Card -->
+  <div class="info-card">
+    <div class="info-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M12 16V12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="info-content">
+      <h3>How Grievance Filing Works</h3>
+      <p>Your grievance will be recorded on the Solana blockchain for transparency and immutability. Municipal officials will review your submission and update the status as they work on resolving the issue.</p>
+      <p>You can track the status of your grievance in the <a routerLink="/user/status">Status</a> section.</p>
+    </div>
+  </div>
+</div>

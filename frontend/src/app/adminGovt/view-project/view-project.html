@@ -1,1 +1,230 @@
-<p>view-project works!</p>
+<div class="admin-container view-project-container">
+  <!-- Header with wallet status -->
+  <div class="admin-header">
+    <h1>View Projects</h1>
+    <div class="wallet-status">
+      <span class="wallet-label">Wallet:</span>
+      <span class="wallet-address" [class.not-connected]="!walletAddress">{{ formatWalletAddress(walletAddress ?? '') || 'Not connected' }}</span>
+    </div>
+  </div>
+
+  <!-- Filter section -->
+  <div class="filter-section">
+    <div class="filter-controls">
+      <div class="filter-group">
+        <label for="statusFilter">Status</label>
+        <select id="statusFilter" [(ngModel)]="selectedStatusFilter" (change)="onFilterChange()">
+          <option value="all">All Statuses</option>
+          <option value="proposed">Proposed</option>
+          <option value="approved">Approved</option>
+          <option value="in progress">In Progress</option>
+          <option value="completed">Completed</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label for="wardFilter">Ward</label>
+        <select id="wardFilter" [(ngModel)]="selectedWardFilter" (change)="onFilterChange()">
+          <option value="all">All Wards</option>
+          <option *ngFor="let ward of wards" [value]="ward">{{ ward }}</option>
+        </select>
+      </div>
+      
+      <div class="filter-group search-group">
+        <label for="searchQuery">Search</label>
+        <input type="text" id="searchQuery" [(ngModel)]="searchQuery" (input)="onSearch($event)" placeholder="Search projects...">
+      </div>
+      
+      <button class="btn btn-secondary" (click)="clearFilters()">
+        Clear Filters
+      </button>
+    </div>
+    
+    <div class="results-count">
+      {{ filteredProjects.length }} projects found
+    </div>
+  </div>
+
+  <!-- Loading spinner -->
+  <div class="loading-container" *ngIf="isLoading">
+    <div class="spinner"></div>
+    <p>Loading projects...</p>
+  </div>
+
+  <!-- Projects list -->
+  <div class="projects-list" *ngIf="!isLoading">
+    <div class="empty-state" *ngIf="filteredProjects.length === 0">
+      <div class="empty-icon">🏗️</div>
+      <p>No projects found matching your filters</p>
+      <button class="btn btn-secondary" (click)="clearFilters()">Clear Filters</button>
+    </div>
+    
+    <div class="project-card" *ngFor="let project of filteredProjects">
+      <div class="project-header" (click)="toggleExpand(project.id)">
+        <div class="project-title-section">
+          <h3 class="project-title">{{ project.title }}</h3>
+          <div class="project-badges">
+            <span class="badge" [ngClass]="getStatusClass(project.status)">{{ project.status }}</span>
+            <span class="badge badge-ward">{{ project.ward }}</span>
+            <span class="badge badge-budget">{{ formatCurrency(project.budget) }}</span>
+          </div>
+        </div>
+        <div class="project-meta">
+          <span class="project-date">{{ formatDate(project.dateSubmitted) }}</span>
+          <span class="project-id">{{ project.id }}</span>
+          <span class="expand-icon" [class.expanded]="isExpanded(project.id)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </span>
+        </div>
+      </div>
+      
+      <div class="project-details" [class.expanded]="isExpanded(project.id)">
+        <div class="details-section">
+          <h4>Description</h4>
+          <p class="project-description">{{ project.description }}</p>
+        </div>
+        
+        <div class="details-section">
+          <h4>Additional Information</h4>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">ID:</span>
+              <span class="info-value">{{ project.id }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Ward:</span>
+              <span class="info-value">{{ project.ward }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Status:</span>
+              <span class="info-value" [ngClass]="getStatusClass(project.status)">{{ project.status }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Budget:</span>
+              <span class="info-value">{{ formatCurrency(project.budget) }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Date Submitted:</span>
+              <span class="info-value">{{ formatDate(project.dateSubmitted) }}</span>
+            </div>
+            <div class="info-item" *ngIf="project.dateUpdated">
+              <span class="info-label">Last Updated:</span>
+              <span class="info-value">{{ formatDate(project.dateUpdated) }}</span>
+            </div>
+            <div class="info-item" *ngIf="project.votes !== undefined">
+              <span class="info-label">Votes:</span>
+              <span class="info-value">{{ project.votes }}</span>
+            </div>
+            <div class="info-item" *ngIf="project.submitter">
+              <span class="info-label">Submitter:</span>
+              <span class="info-value">{{ project.submitter }}</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="details-section" *ngIf="project.documents && project.documents.length > 0">
+          <h4>Documents</h4>
+          <div class="document-list">
+            <div class="document-item" *ngFor="let doc of project.documents">
+              <span class="document-icon">📄</span>
+              <span class="document-name">{{ doc }}</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="details-actions">
+          <button class="btn btn-primary" (click)="openDetailsModal(project)">
+            View Full Details
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Project Details Modal -->
+<div class="modal-overlay" *ngIf="showDetailsModal && selectedProject">
+  <div class="modal-content project-modal">
+    <div class="modal-header">
+      <h3>Project Details</h3>
+      <button class="close-button" (click)="closeDetailsModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="project-modal-header">
+        <h2 class="project-modal-title">{{ selectedProject.title }}</h2>
+        <div class="project-modal-badges">
+          <span class="badge" [ngClass]="getStatusClass(selectedProject.status)">{{ selectedProject.status }}</span>
+          <span class="badge badge-ward">{{ selectedProject.ward }}</span>
+        </div>
+      </div>
+      
+      <div class="project-modal-section">
+        <h4>Description</h4>
+        <p>{{ selectedProject.description }}</p>
+      </div>
+      
+      <div class="project-modal-section">
+        <h4>Project Details</h4>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">ID:</span>
+            <span class="info-value">{{ selectedProject.id }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Ward:</span>
+            <span class="info-value">{{ selectedProject.ward }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Status:</span>
+            <span class="info-value" [ngClass]="getStatusClass(selectedProject.status)">{{ selectedProject.status }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Budget:</span>
+            <span class="info-value">{{ formatCurrency(selectedProject.budget) }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Date Submitted:</span>
+            <span class="info-value">{{ formatDate(selectedProject.dateSubmitted) }}</span>
+          </div>
+          <div class="info-item" *ngIf="selectedProject.dateUpdated">
+            <span class="info-label">Last Updated:</span>
+            <span class="info-value">{{ formatDate(selectedProject.dateUpdated) }}</span>
+          </div>
+          <div class="info-item" *ngIf="selectedProject.votes !== undefined">
+            <span class="info-label">Votes:</span>
+            <span class="info-value">{{ selectedProject.votes }}</span>
+          </div>
+          <div class="info-item" *ngIf="selectedProject.submitter">
+            <span class="info-label">Submitter:</span>
+            <span class="info-value">{{ selectedProject.submitter }}</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="project-modal-section" *ngIf="selectedProject.documents && selectedProject.documents.length > 0">
+        <h4>Documents</h4>
+        <div class="document-list">
+          <div class="document-item" *ngFor="let doc of selectedProject.documents">
+            <span class="document-icon">📄</span>
+            <span class="document-name">{{ doc }}</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="project-modal-section" *ngIf="selectedProject.images && selectedProject.images.length > 0">
+        <h4>Images</h4>
+        <div class="image-gallery">
+          <div class="image-item" *ngFor="let img of selectedProject.images">
+            <div class="image-placeholder">{{ img }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="closeDetailsModal()">Close</button>
+    </div>
+  </div>
+</div>

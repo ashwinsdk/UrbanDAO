@@ -1,1 +1,104 @@
-<p>assign-head works!</p>
+<div class="admin-container assign-head-container">
+  <!-- Header with wallet status -->
+  <div class="admin-header">
+    <h1>Assign Department Head</h1>
+    <div class="wallet-status">
+      <span class="wallet-label">Wallet:</span>
+      <span class="wallet-address" [class.not-connected]="!walletAddress">{{ formatWalletAddress(walletAddress ?? '') ||
+        'Not connected' }}</span>
+      <button *ngIf="!walletAddress" class="btn btn-sm btn-primary" (click)="connectWallet()">Connect</button>
+    </div>
+  </div>
+
+  <!-- Success and error alerts -->
+  <div class="alert alert-success" *ngIf="showSuccessAlert">
+    <span class="alert-icon">✓</span>
+    Department head successfully assigned!
+  </div>
+
+  <div class="alert alert-error" *ngIf="showErrorAlert">
+    <span class="alert-icon">⚠</span>
+    {{ errorMessage }}
+  </div>
+
+  <div class="assign-head-content">
+    <!-- Form section -->
+    <div class="form-section">
+      <div class="card">
+        <h2>Assign New Department Head</h2>
+        <p class="form-description">Assign a new department head with Solana wallet authentication. The assigned head
+          will have administrative privileges for their department.</p>
+
+        <form (ngSubmit)="assignHead()">
+          <div class="form-group">
+            <label for="name" class="form-label">Full Name</label>
+            <input type="text" id="name" class="form-control" [(ngModel)]="newHead.name" name="name"
+              placeholder="Enter full name" required>
+          </div>
+
+          <div class="form-group">
+            <label for="department" class="form-label">Department</label>
+            <select id="department" class="form-control" [(ngModel)]="newHead.department" name="department" required>
+              <option value="" disabled selected>Select department</option>
+              <option *ngFor="let dept of departments" [value]="dept">{{ dept }}</option>
+            </select>
+          </div>
+
+          <div class="form-group wallet-input-group">
+            <label for="walletAddress" class="form-label">Solana Wallet Address</label>
+            <div class="input-with-button">
+              <input type="text" id="walletAddress" class="form-control" [(ngModel)]="newHead.walletAddress"
+                name="walletAddress" placeholder="Enter Solana wallet address" required>
+              <button type="button" class="btn btn-sm btn-secondary" [disabled]="!walletAddress"
+                (click)="useConnectedWallet()" title="Use your connected wallet address">Use Mine</button>
+            </div>
+            <small class="form-text">Enter a valid Solana wallet address or use your connected wallet</small>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" [disabled]="isLoading">
+              <span class="spinner" *ngIf="isLoading"></span>
+              <span *ngIf="!isLoading">Assign Department Head</span>
+              <span *ngIf="isLoading">Processing...</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Existing heads section -->
+    <div class="existing-heads-section">
+      <div class="card">
+        <h2>Current Department Heads</h2>
+        <p class="section-description">List of currently assigned department heads and their details.</p>
+
+        <div class="heads-list" *ngIf="adminHeads.length > 0">
+          <div class="head-item" *ngFor="let head of adminHeads; let i = index">
+            <div class="head-details">
+              <h3>{{ head.name }}</h3>
+              <div class="department-badge">{{ head.department }}</div>
+              <div class="wallet-info">
+                <span class="wallet-label">Wallet:</span>
+                <span class="wallet-value">{{ formatWalletAddress(head.walletAddress) }}</span>
+              </div>
+              <div class="date-info">
+                <span class="date-label">Assigned:</span>
+                <span class="date-value">{{ formatDate(head.dateAssigned) }}</span>
+              </div>
+            </div>
+            <div class="head-actions">
+              <button class="btn btn-sm btn-danger" (click)="removeHead(i)">
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="empty-state" *ngIf="adminHeads.length === 0">
+          <div class="empty-icon">👤</div>
+          <p>No department heads assigned yet</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

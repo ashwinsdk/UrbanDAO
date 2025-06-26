@@ -1,1 +1,259 @@
-<p>status works!</p>
+<div class="status-container">
+  <!-- Page header -->
+  <div class="page-header">
+    <h1>My Submissions</h1>
+    <p class="page-description">Track the status of your grievances, payments, and feedback submissions.</p>
+  </div>
+  
+  <!-- Wallet connection required notice -->
+  <div *ngIf="!isConnected" class="wallet-notice">
+    <div class="notice-icon">⚠️</div>
+    <div class="notice-content">
+      <h3>Wallet Connection Required</h3>
+      <p>Please connect your wallet to view your submission history. This allows us to securely retrieve your data from the blockchain.</p>
+    </div>
+  </div>
+  
+  <!-- Loading state -->
+  <div *ngIf="isConnected && isLoading" class="loading-container">
+    <div class="loading-spinner"></div>
+    <p>Loading your submissions...</p>
+  </div>
+  
+  <!-- Main content when loaded -->
+  <div *ngIf="isConnected && !isLoading" class="content-container">
+    <!-- Wallet info -->
+    <div class="wallet-info-bar">
+      <span class="wallet-label">Connected Wallet:</span>
+      <span class="wallet-address">{{ formatWalletAddress(publicKey) }}</span>
+    </div>
+    
+    <!-- Tabs navigation -->
+    <div class="tabs-container">
+      <div class="tabs-header">
+        <button 
+          class="tab-button" 
+          [class.active]="activeTab === 'grievances'" 
+          (click)="setActiveTab('grievances')"
+        >
+          Grievances
+        </button>
+        <button 
+          class="tab-button" 
+          [class.active]="activeTab === 'payments'" 
+          (click)="setActiveTab('payments')"
+        >
+          Payments
+        </button>
+        <button 
+          class="tab-button" 
+          [class.active]="activeTab === 'feedback'" 
+          (click)="setActiveTab('feedback')"
+        >
+          Feedback
+        </button>
+      </div>
+      
+      <!-- Filters section -->
+      <div class="filters-section">
+        <div class="filters-row">
+          <!-- Search filter -->
+          <div class="filter-group search-group">
+            <div class="search-input-wrapper">
+              <input 
+                type="text" 
+                [(ngModel)]="searchQuery" 
+                (input)="applyFilters()" 
+                placeholder="Search by ID, subject, or description"
+              />
+              <span class="search-icon">🔍</span>
+            </div>
+          </div>
+          
+          <!-- Status filter -->
+          <div class="filter-group">
+            <select [(ngModel)]="statusFilter" (change)="applyFilters()">
+              <option value="all">All Statuses</option>
+              <option value="Pending">Pending</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Resolved">Resolved</option>
+              <option value="Rejected">Rejected</option>
+              <option value="Paid">Paid</option>
+              <option value="Failed">Failed</option>
+              <option value="Acknowledged">Acknowledged</option>
+            </select>
+          </div>
+          
+          <!-- Date filter -->
+          <div class="filter-group">
+            <select [(ngModel)]="dateFilter" (change)="applyFilters()">
+              <option value="all">All Time</option>
+              <option value="today">Today</option>
+              <option value="week">Last 7 Days</option>
+              <option value="month">Last 30 Days</option>
+            </select>
+          </div>
+          
+          <!-- Reset filters -->
+          <button class="text-button" (click)="resetFilters()">
+            Reset Filters
+          </button>
+          
+          <!-- Create new button -->
+          <button class="primary-button create-button" (click)="createNew()">
+            <span *ngIf="activeTab === 'grievances'">File New Grievance</span>
+            <span *ngIf="activeTab === 'payments'">Make Payment</span>
+            <span *ngIf="activeTab === 'feedback'">Submit Feedback</span>
+          </button>
+        </div>
+      </div>
+      
+      <!-- Tab content -->
+      <div class="tab-content">
+        <!-- Grievances tab -->
+        <div *ngIf="activeTab === 'grievances'" class="tab-pane">
+          <div *ngIf="filteredGrievances.length === 0" class="no-data">
+            <p>No grievances found matching your filters.</p>
+          </div>
+          
+          <div *ngIf="filteredGrievances.length > 0" class="data-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Category</th>
+                  <th>Description</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                  <th>Response</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of filteredGrievances">
+                  <td class="id-cell">{{ item.id }}</td>
+                  <td>{{ item.category }}</td>
+                  <td class="description-cell">{{ item.description }}</td>
+                  <td>{{ formatDate(item.date) }}</td>
+                  <td>
+                    <span class="status-badge" [ngClass]="getStatusClass(item.status)">
+                      {{ item.status }}
+                    </span>
+                  </td>
+                  <td class="response-cell">
+                    <span *ngIf="item.response">{{ item.response }}</span>
+                    <span *ngIf="!item.response" class="no-response">No response yet</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- Payments tab -->
+        <div *ngIf="activeTab === 'payments'" class="tab-pane">
+          <div *ngIf="filteredPayments.length === 0" class="no-data">
+            <p>No payments found matching your filters.</p>
+          </div>
+          
+          <div *ngIf="filteredPayments.length > 0" class="data-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Transaction ID</th>
+                  <th>Amount</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                  <th>Type</th>
+                  <th>Block Explorer</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of filteredPayments">
+                  <td class="id-cell">{{ item.id }}</td>
+                  <td class="amount-cell">${{ item.amount.toFixed(2) }}</td>
+                  <td>{{ formatDate(item.date) }}</td>
+                  <td>
+                    <span class="status-badge" [ngClass]="getStatusClass(item.status)">
+                      {{ item.status }}
+                    </span>
+                  </td>
+                  <td>{{ item.type }}</td>
+                  <td>
+                    <a href="#" class="explorer-link" *ngIf="item.txHash">
+                      View on Explorer
+                    </a>
+                    <span *ngIf="!item.txHash" class="no-response">Not available</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- Feedback tab -->
+        <div *ngIf="activeTab === 'feedback'" class="tab-pane">
+          <div *ngIf="filteredFeedback.length === 0" class="no-data">
+            <p>No feedback submissions found matching your filters.</p>
+          </div>
+          
+          <div *ngIf="filteredFeedback.length > 0" class="data-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Subject</th>
+                  <th>Category</th>
+                  <th>Rating</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                  <th>Response</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of filteredFeedback">
+                  <td class="id-cell">{{ item.id }}</td>
+                  <td>{{ item.subject }}</td>
+                  <td>{{ item.category }}</td>
+                  <td class="rating-cell">
+                    <div class="star-rating-small">
+                      <span *ngFor="let star of [1, 2, 3, 4, 5]" class="star" [class.filled]="star <= item.rating">★</span>
+                    </div>
+                  </td>
+                  <td>{{ formatDate(item.submittedDate) }}</td>
+                  <td>
+                    <span class="status-badge" [ngClass]="getStatusClass(item.status)">
+                      {{ item.status }}
+                    </span>
+                  </td>
+                  <td class="response-cell">
+                    <span *ngIf="item.response">{{ item.response }}</span>
+                    <span *ngIf="!item.response" class="no-response">No response yet</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Info section -->
+    <div class="info-section">
+      <div class="info-card">
+        <div class="info-icon">🔄</div>
+        <div class="info-content">
+          <h3>Status Updates</h3>
+          <p>Status updates are processed within 24 hours. All submissions are stored on the blockchain for transparency.</p>
+        </div>
+      </div>
+      
+      <div class="info-card">
+        <div class="info-icon">📈</div>
+        <div class="info-content">
+          <h3>Transaction History</h3>
+          <p>Your complete transaction history is available for the last 12 months. Older records can be requested separately.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

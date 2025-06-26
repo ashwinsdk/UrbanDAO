@@ -1,1 +1,174 @@
-<p>edit-grievance works!</p>
+<div class="grievance-management">
+  <!-- Header Section -->
+  <div class="page-header">
+    <div class="header-content">
+      <h1>Grievance Management</h1>
+      <p class="subtitle">Review and respond to citizen grievances</p>
+    </div>
+    <div class="wallet-info">
+      <div class="wallet-address">
+        <span class="label">Connected as:</span>
+        <span class="address">{{ formatWalletAddress(walletAddress) }}</span>
+      </div>
+      <div class="role-badge">Municipal Head</div>
+    </div>
+  </div>
+
+  <!-- Loading Spinner -->
+  <div *ngIf="isLoading" class="loading-container">
+    <div class="loading-spinner"></div>
+    <p>Loading grievances...</p>
+  </div>
+
+  <!-- Main Content -->
+  <div *ngIf="!isLoading" class="grievance-content">
+    <!-- Two Column Layout -->
+    <div class="two-column-layout">
+      <!-- Left Column: Grievance List -->
+      <div class="column">
+        <div class="filter-controls">
+          <div class="search-box">
+            <input 
+              type="text" 
+              [(ngModel)]="searchTerm" 
+              (ngModelChange)="applyFilters()" 
+              placeholder="Search grievances..."
+              class="search-input"
+            />
+          </div>
+          <div class="status-filter">
+            <select [(ngModel)]="statusFilter" (ngModelChange)="applyFilters()" class="filter-select">
+              <option value="all">All Status</option>
+              <option value="Pending">Pending</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Resolved">Resolved</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+          </div>
+        </div>
+
+        <div *ngIf="filteredGrievances.length === 0" class="empty-state">
+          <p>No grievances match your current filters.</p>
+        </div>
+
+        <div *ngIf="filteredGrievances.length > 0" class="grievance-list">
+          <div 
+            *ngFor="let grievance of filteredGrievances" 
+            class="grievance-card" 
+            [class.selected]="selectedGrievance?.id === grievance.id"
+            (click)="selectGrievance(grievance)"
+          >
+            <div class="card-header">
+              <span class="grievance-id">{{ grievance.id }}</span>
+              <span class="status-badge" [ngClass]="getStatusClass(grievance.status)">{{ grievance.status }}</span>
+            </div>
+            <div class="card-body">
+              <h4>{{ grievance.category }}</h4>
+              <p class="description">{{ grievance.description }}</p>
+              <p class="date">Submitted: {{ formatDate(grievance.dateSubmitted) }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Grievance Details -->
+      <div class="column">
+        <div *ngIf="!selectedGrievance" class="empty-state">
+          <p>Select a grievance from the list to view details and update status.</p>
+        </div>
+
+        <div *ngIf="selectedGrievance" class="grievance-detail-card">
+          <div class="card-header">
+            <h3>Grievance Details</h3>
+            <button class="btn btn-sm btn-outline" (click)="clearSelection()">Close</button>
+          </div>
+          
+          <div class="card-body">
+            <div class="detail-row">
+              <span class="label">ID:</span>
+              <span class="value id-value">{{ selectedGrievance.id }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Category:</span>
+              <span class="value">{{ selectedGrievance.category }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Status:</span>
+              <span class="value status-badge" [ngClass]="getStatusClass(selectedGrievance.status)">
+                {{ selectedGrievance.status }}
+              </span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Date Submitted:</span>
+              <span class="value">{{ formatDate(selectedGrievance.dateSubmitted) }}</span>
+            </div>
+            
+            <div class="description-box">
+              <h4>Description</h4>
+              <p>{{ selectedGrievance.description }}</p>
+            </div>
+            
+            <div class="response-box">
+              <h4>Official Response</h4>
+              <textarea 
+                [(ngModel)]="responseText" 
+                rows="4" 
+                placeholder="Enter your response to this grievance..."
+                class="response-textarea"
+              ></textarea>
+            </div>
+          </div>
+          
+          <div class="card-actions">
+            <h4>Update Status</h4>
+            <div class="status-actions">
+              <button 
+                class="btn status-btn status-pending" 
+                [class.active]="selectedGrievance.status === 'Pending'"
+                (click)="updateStatus('Pending')"
+              >Pending</button>
+              <button 
+                class="btn status-btn status-progress" 
+                [class.active]="selectedGrievance.status === 'In Progress'"
+                (click)="updateStatus('In Progress')"
+              >In Progress</button>
+              <button 
+                class="btn status-btn status-success" 
+                [class.active]="selectedGrievance.status === 'Resolved'"
+                (click)="updateStatus('Resolved')"
+              >Resolved</button>
+              <button 
+                class="btn status-btn status-error" 
+                [class.active]="selectedGrievance.status === 'Rejected'"
+                (click)="updateStatus('Rejected')"
+              >Rejected</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div *ngIf="showModal" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3>{{ modalTitle }}</h3>
+      </div>
+      <div class="modal-body">
+        <p>{{ modalMessage }}</p>
+      </div>
+      <div class="modal-footer">
+        <ng-container *ngIf="modalAction === 'updateStatus'">
+          <button class="btn btn-outline" (click)="closeModal()">Cancel</button>
+          <button class="btn btn-primary" (click)="confirmStatusUpdate(selectedGrievance!.status); closeModal()">
+            Confirm
+          </button>
+        </ng-container>
+        <ng-container *ngIf="modalAction === 'success'">
+          <button class="btn btn-primary" (click)="closeModal()">OK</button>
+        </ng-container>
+      </div>
+    </div>
+  </div>
+</div>

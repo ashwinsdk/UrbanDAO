@@ -1,0 +1,341 @@
+/* Set Tax Rates Styles */
+
+.set-tax-container {
+  padding: var(--spacing-lg);
+  background-color: var(--surface-alt);
+  border-radius: var(--border-radius);
+}
+
+/* Header styles */
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 2px solid var(--primary-light);
+}
+
+.admin-header h1 {
+  color: var(--primary-dark);
+  margin-bottom: 0;
+}
+
+.wallet-status {
+  display: flex;
+  align-items: center;
+  background-color: var(--surface);
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--border-radius-full);
+  box-shadow: var(--shadow-sm);
+}
+
+.wallet-label {
+  font-weight: 600;
+  margin-right: var(--spacing-xs);
+  color: var(--text-secondary);
+}
+
+.wallet-address {
+  font-family: 'Source Code Pro', monospace;
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.wallet-address.not-connected {
+  color: var(--error);
+}
+
+/* Alert styles */
+.alert {
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius);
+  margin-bottom: var(--spacing-lg);
+  display: flex;
+  align-items: center;
+}
+
+.alert-success {
+  background-color: rgba(52, 199, 89, 0.15);
+  color: #1d7a3e;
+  border-left: 4px solid var(--success);
+}
+
+.alert-error {
+  background-color: rgba(255, 59, 48, 0.15);
+  color: #c41e3a;
+  border-left: 4px solid var(--error);
+}
+
+.alert-icon {
+  font-size: 1.25rem;
+  margin-right: var(--spacing-sm);
+}
+
+/* Content layout */
+.set-tax-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
+}
+
+.card {
+  background-color: var(--surface);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.card h2 {
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-sm);
+  font-size: 1.5rem;
+}
+
+.form-description, .section-description {
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-lg);
+}
+
+/* Form styles */
+.form-group {
+  margin-bottom: var(--spacing-md);
+}
+
+.form-label {
+  display: block;
+  margin-bottom: var(--spacing-xs);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.form-control {
+  width: 100%;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  background-color: var(--surface);
+  color: var(--text-primary);
+  transition: border-color 0.2s ease;
+}
+
+.form-control:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 102, 255, 0.2);
+}
+
+.form-text {
+  display: block;
+  margin-top: var(--spacing-xs);
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.form-actions {
+  margin-top: var(--spacing-lg);
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Spinner for loading state */
+.spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 1s ease-in-out infinite;
+  margin-right: var(--spacing-xs);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Tax rates list */
+.tax-rates-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.tax-rate-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-md);
+  background-color: var(--surface-alt);
+  border-radius: var(--border-radius);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tax-rate-item:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.rate-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.ward-badge, .year-badge {
+  display: inline-block;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-right: var(--spacing-sm);
+}
+
+.ward-badge {
+  background-color: rgba(0, 102, 255, 0.15);
+  color: var(--primary-dark);
+}
+
+.year-badge {
+  background-color: rgba(255, 149, 0, 0.15);
+  color: #c25e00;
+}
+
+.amount-display {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: var(--spacing-xs) 0;
+}
+
+.date-info {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.date-label {
+  font-weight: 500;
+  margin-right: var(--spacing-xs);
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: var(--spacing-xl);
+  color: var(--text-secondary);
+}
+
+.empty-icon {
+  font-size: 3rem;
+  margin-bottom: var(--spacing-md);
+  opacity: 0.5;
+}
+
+/* Modal styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: var(--surface);
+  border-radius: var(--border-radius);
+  width: 90%;
+  max-width: 500px;
+  box-shadow: var(--shadow-lg);
+  animation: modal-appear 0.3s ease;
+}
+
+@keyframes modal-appear {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-header {
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.modal-body {
+  padding: var(--spacing-lg);
+}
+
+.confirmation-details {
+  background-color: var(--surface-alt);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-md);
+  margin: var(--spacing-md) 0;
+}
+
+.confirmation-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-sm);
+}
+
+.confirmation-item:last-child {
+  margin-bottom: 0;
+}
+
+.confirmation-item .label {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.confirmation-item .value {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.confirmation-warning {
+  color: var(--error);
+  font-size: 0.9rem;
+  margin-top: var(--spacing-md);
+}
+
+.modal-footer {
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-md);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .admin-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .wallet-status {
+    margin-top: var(--spacing-sm);
+  }
+  
+  .set-tax-content {
+    grid-template-columns: 1fr;
+  }
+  
+  .tax-rate-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .rate-actions {
+    margin-top: var(--spacing-md);
+    align-self: flex-end;
+  }
+}

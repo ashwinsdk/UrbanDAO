@@ -1,1 +1,126 @@
-<p>govt-home works!</p>
+<div class="admin-dashboard govt-dashboard">
+  <!-- Header with wallet status -->
+  <div class="dashboard-header">
+    <h1>Government Officer Dashboard</h1>
+    <div class="wallet-status">
+      <span class="wallet-label">Wallet:</span>
+      <span class="wallet-address" [class.not-connected]="!walletAddress">{{ formatWalletAddress(walletAddress) }}</span>
+    </div>
+  </div>
+
+  <!-- Loading state -->
+  <div class="loading-container" *ngIf="isLoading">
+    <div class="spinner"></div>
+    <p>Loading dashboard data...</p>
+  </div>
+
+  <!-- Dashboard content -->
+  <div class="dashboard-content" *ngIf="!isLoading">
+    <!-- Stats overview -->
+    <div class="stats-overview">
+      <div class="stat-card">
+        <div class="stat-icon tax-icon"></div>
+        <div class="stat-content">
+          <h3>Total Tax Collected</h3>
+          <p class="stat-value">{{ formatCurrency(totalTaxCollected) }}</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon projects-icon"></div>
+        <div class="stat-content">
+          <h3>Projects</h3>
+          <p class="stat-value">{{ totalProjects }}</p>
+          <div class="stat-details">
+            <span class="badge status-ongoing">{{ ongoingProjects }} Ongoing</span>
+            <span class="badge status-done">{{ completedProjects }} Completed</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon grievances-icon"></div>
+        <div class="stat-content">
+          <h3>Grievances</h3>
+          <p class="stat-value">{{ totalGrievances }}</p>
+          <div class="stat-details">
+            <span class="badge status-pending">{{ pendingGrievances }} Pending</span>
+            <span class="badge status-success">{{ resolvedGrievances }} Resolved</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon wards-icon"></div>
+        <div class="stat-content">
+          <h3>Configured Wards</h3>
+          <p class="stat-value">{{ configuredWards.length }}</p>
+          <div class="stat-details">
+            <span class="badge status-default" *ngFor="let ward of configuredWards.slice(0, 3)">{{ ward }}</span>
+            <span class="badge status-default" *ngIf="configuredWards.length > 3">+{{ configuredWards.length - 3 }} more</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin actions -->
+    <div class="admin-actions">
+      <h2>Administrative Actions</h2>
+      <div class="action-cards">
+        <div class="action-card" routerLink="/admin-govt/assign-head">
+          <div class="action-icon assign-head-icon"></div>
+          <h3>Assign Department Head</h3>
+          <p>Assign a new department head with wallet authentication</p>
+          <div class="action-status" [class.status-success]="adminHeadStatus" [class.status-error]="!adminHeadStatus">
+            {{ adminHeadStatus ? 'Head Assigned' : 'No Head Assigned' }}
+          </div>
+          <div class="action-button">
+            <button class="btn btn-primary">Manage</button>
+          </div>
+        </div>
+
+        <div class="action-card" routerLink="/admin-govt/set-tax">
+          <div class="action-icon tax-icon"></div>
+          <h3>Set Property Tax</h3>
+          <p>Configure property tax rates for different wards</p>
+          <div class="action-status status-info">
+            {{ configuredWards.length }} Wards Configured
+          </div>
+          <div class="action-button">
+            <button class="btn btn-primary">Configure</button>
+          </div>
+        </div>
+
+        <div class="action-card" routerLink="/admin-govt/view-grievance">
+          <div class="action-icon grievances-icon"></div>
+          <h3>View Grievances</h3>
+          <p>Review and monitor citizen grievances</p>
+          <div class="action-status status-warning" *ngIf="pendingGrievances > 0">
+            {{ pendingGrievances }} Pending Review
+          </div>
+          <div class="action-status status-success" *ngIf="pendingGrievances === 0">
+            No Pending Grievances
+          </div>
+          <div class="action-button">
+            <button class="btn btn-primary">View All</button>
+          </div>
+        </div>
+
+        <div class="action-card" routerLink="/admin-govt/view-project">
+          <div class="action-icon projects-icon"></div>
+          <h3>View Projects</h3>
+          <p>Monitor ongoing and completed projects</p>
+          <div class="action-status status-ongoing" *ngIf="ongoingProjects > 0">
+            {{ ongoingProjects }} Projects Ongoing
+          </div>
+          <div class="action-status status-info" *ngIf="ongoingProjects === 0">
+            No Active Projects
+          </div>
+          <div class="action-button">
+            <button class="btn btn-primary">View All</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

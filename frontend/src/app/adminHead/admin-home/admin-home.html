@@ -1,1 +1,182 @@
-<p>admin-home works!</p>
+<div class="admin-dashboard">
+  <!-- Header Section -->
+  <div class="dashboard-header">
+    <div class="header-content">
+      <h1>Municipal Head Dashboard</h1>
+      <p class="subtitle">Manage grievances and projects for your municipality</p>
+    </div>
+    <div class="wallet-info">
+      <div class="wallet-address">
+        <span class="label">Connected as:</span>
+        <span class="address">{{ formatWalletAddress(walletAddress) }}</span>
+      </div>
+      <div class="role-badge">Municipal Head</div>
+    </div>
+  </div>
+
+  <!-- Loading Spinner -->
+  <div *ngIf="isLoading" class="loading-container">
+    <div class="loading-spinner"></div>
+    <p>Loading dashboard data...</p>
+  </div>
+
+  <!-- Dashboard Content -->
+  <div *ngIf="!isLoading" class="dashboard-content">
+    <!-- Stats Overview -->
+    <div class="stats-overview">
+      <div class="stat-card">
+        <div class="stat-icon pending-icon">📝</div>
+        <div class="stat-content">
+          <h3>{{ pendingGrievances.length }}</h3>
+          <p>Pending Grievances</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon ongoing-icon">🏗️</div>
+        <div class="stat-content">
+          <h3>{{ ongoingProjects.length }}</h3>
+          <p>Ongoing Projects</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon planning-icon">📋</div>
+        <div class="stat-content">
+          <h3>{{ plannedProjects.length }}</h3>
+          <p>Planned Projects</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon completed-icon">✅</div>
+        <div class="stat-content">
+          <h3>{{ completedProjects.length }}</h3>
+          <p>Completed Projects</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+      <h2>Quick Actions</h2>
+      <div class="actions-container">
+        <a [routerLink]="['/admin-head/grievances']" class="action-card">
+          <div class="action-icon">📋</div>
+          <div class="action-content">
+            <h3>Manage Grievances</h3>
+            <p>Review and respond to citizen grievances</p>
+          </div>
+        </a>
+        <a [routerLink]="['/admin-head/projects']" class="action-card">
+          <div class="action-icon">🏗️</div>
+          <div class="action-content">
+            <h3>Manage Projects</h3>
+            <p>Allocate funds for new infrastructure projects</p>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <!-- Two Column Layout -->
+    <div class="two-column-layout">
+      <!-- Pending Grievances -->
+      <div class="column">
+        <div class="section-header">
+          <h2>Pending Grievances</h2>
+          <a [routerLink]="['/admin-head/grievances']" class="view-all">View All</a>
+        </div>
+
+        <div *ngIf="pendingGrievances.length === 0" class="empty-state">
+          <p>No pending grievances at this time.</p>
+        </div>
+
+        <div *ngIf="pendingGrievances.length > 0" class="grievance-list">
+          <div *ngFor="let grievance of pendingGrievances" class="grievance-card">
+            <div class="card-header">
+              <span class="grievance-id">{{ grievance.id }}</span>
+              <span class="status-badge" [ngClass]="getStatusClass(grievance.status)">{{ grievance.status }}</span>
+            </div>
+            <div class="card-body">
+              <h4>{{ grievance.category }}</h4>
+              <p class="description">{{ grievance.description }}</p>
+              <p class="date">Submitted: {{ formatDate(grievance.dateSubmitted) }}</p>
+            </div>
+            <div class="card-actions">
+              <a [routerLink]="['/admin-head/grievances', grievance.id]" class="btn btn-sm">Review</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Project Pipeline -->
+      <div class="column">
+        <div class="section-header">
+          <h2>Project Pipeline</h2>
+          <a [routerLink]="['/admin-head/projects']" class="view-all">View All</a>
+        </div>
+
+        <div *ngIf="ongoingProjects.length === 0 && plannedProjects.length === 0" class="empty-state">
+          <p>No active projects at this time.</p>
+        </div>
+
+        <div class="project-list">
+          <!-- Ongoing Projects -->
+          <div *ngFor="let project of ongoingProjects" class="project-card">
+            <div class="card-header">
+              <span class="project-id">{{ project.id }}</span>
+              <span class="status-badge" [ngClass]="getStatusClass(project.status)">{{ project.status }}</span>
+            </div>
+            <div class="card-body">
+              <h4>{{ project.name }}</h4>
+              <p class="description">{{ project.description }}</p>
+              <div class="project-details">
+                <div class="detail">
+                  <span class="label">Start:</span>
+                  <span class="value">{{ formatDate(project.startDate) }}</span>
+                </div>
+                <div class="detail">
+                  <span class="label">Budget:</span>
+                  <span class="value">{{ project.budget | currency }}</span>
+                </div>
+                <div class="detail">
+                  <span class="label">Ward:</span>
+                  <span class="value">{{ project.ward }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="card-actions">
+              <a [routerLink]="['/admin-head/projects']" class="btn btn-sm">Update</a>
+            </div>
+          </div>
+
+          <!-- Planned Projects -->
+          <div *ngFor="let project of plannedProjects" class="project-card">
+            <div class="card-header">
+              <span class="project-id">{{ project.id }}</span>
+              <span class="status-badge" [ngClass]="getStatusClass(project.status)">{{ project.status }}</span>
+            </div>
+            <div class="card-body">
+              <h4>{{ project.name }}</h4>
+              <p class="description">{{ project.description }}</p>
+              <div class="project-details">
+                <div class="detail">
+                  <span class="label">Start:</span>
+                  <span class="value">{{ formatDate(project.startDate) }}</span>
+                </div>
+                <div class="detail">
+                  <span class="label">Budget:</span>
+                  <span class="value">{{ project.budget | currency }}</span>
+                </div>
+                <div class="detail">
+                  <span class="label">Ward:</span>
+                  <span class="value">{{ project.ward }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="card-actions">
+              <a [routerLink]="['/admin-head/projects']" class="btn btn-sm">Update</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

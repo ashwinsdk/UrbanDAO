@@ -1,1 +1,122 @@
-<p>view-grievance works!</p>
+<div class="admin-container view-grievance-container">
+  <!-- Header with wallet status -->
+  <div class="admin-header">
+    <h1>View Grievances</h1>
+    <div class="wallet-status">
+      <span class="wallet-label">Wallet:</span>
+      <span class="wallet-address" [class.not-connected]="!walletAddress">{{ formatWalletAddress(walletAddress ?? '') || 'Not connected' }}</span>
+    </div>
+  </div>
+
+  <!-- Filter section -->
+  <div class="filter-section">
+    <div class="filter-controls">
+      <div class="filter-group">
+        <label for="statusFilter">Status</label>
+        <select id="statusFilter" [(ngModel)]="selectedStatusFilter" (change)="onFilterChange()">
+          <option value="all">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="in progress">In Progress</option>
+          <option value="resolved">Resolved</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label for="wardFilter">Ward</label>
+        <select id="wardFilter" [(ngModel)]="selectedWardFilter" (change)="onFilterChange()">
+          <option value="all">All Wards</option>
+          <option *ngFor="let ward of wards" [value]="ward">{{ ward }}</option>
+        </select>
+      </div>
+      
+      <div class="filter-group search-group">
+        <label for="searchQuery">Search</label>
+        <input type="text" id="searchQuery" [(ngModel)]="searchQuery" (input)="onSearch($event)" placeholder="Search grievances...">
+      </div>
+      
+      <button class="btn btn-secondary" (click)="clearFilters()">
+        Clear Filters
+      </button>
+    </div>
+    
+    <div class="results-count">
+      {{ filteredGrievances.length }} grievances found
+    </div>
+  </div>
+
+  <!-- Loading spinner -->
+  <div class="loading-container" *ngIf="isLoading">
+    <div class="spinner"></div>
+    <p>Loading grievances...</p>
+  </div>
+
+  <!-- Grievances list -->
+  <div class="grievances-list" *ngIf="!isLoading">
+    <div class="empty-state" *ngIf="filteredGrievances.length === 0">
+      <div class="empty-icon">📡</div>
+      <p>No grievances found matching your filters</p>
+      <button class="btn btn-secondary" (click)="clearFilters()">Clear Filters</button>
+    </div>
+    
+    <div class="grievance-card" *ngFor="let grievance of filteredGrievances">
+      <div class="grievance-header" (click)="toggleExpand(grievance.id)">
+        <div class="grievance-title-section">
+          <h3 class="grievance-title">{{ grievance.title || 'Grievance ' + grievance.id.substring(0, 5) }}</h3>
+          <div class="grievance-badges">
+            <span class="badge" [ngClass]="getStatusClass(grievance.status)">{{ grievance.status }}</span>
+            <span class="badge" [ngClass]="getPriorityClass(grievance.priority)" *ngIf="grievance.priority">{{ grievance.priority }}</span>
+            <span class="badge badge-ward" *ngIf="grievance.ward">{{ grievance.ward }}</span>
+          </div>
+        </div>
+        <div class="grievance-meta">
+          <span class="grievance-date">{{ formatDate(grievance.dateSubmitted) }}</span>
+          <span class="grievance-submitter" *ngIf="grievance.submitterName">{{ grievance.submitterName }}</span>
+          <span class="expand-icon" [class.expanded]="isExpanded(grievance.id)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </span>
+        </div>
+      </div>
+      
+      <div class="grievance-details" [class.expanded]="isExpanded(grievance.id)">
+        <div class="details-section">
+          <h4>Description</h4>
+          <p class="grievance-description">{{ grievance.description }}</p>
+        </div>
+        
+        <div class="details-section" *ngIf="grievance.response">
+          <h4>Official Response</h4>
+          <p class="grievance-response">{{ grievance.response }}</p>
+        </div>
+        
+        <div class="details-section">
+          <h4>Additional Information</h4>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">ID:</span>
+              <span class="info-value">{{ grievance.id }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Category:</span>
+              <span class="info-value">{{ grievance.category }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Status:</span>
+              <span class="info-value" [ngClass]="getStatusClass(grievance.status)">{{ grievance.status }}</span>
+            </div>
+            <div class="info-item" *ngIf="grievance.ward">
+              <span class="info-label">Ward:</span>
+              <span class="info-value">{{ grievance.ward }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Date Submitted:</span>
+              <span class="info-value">{{ formatDate(grievance.dateSubmitted) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

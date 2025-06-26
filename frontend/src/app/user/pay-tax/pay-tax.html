@@ -1,1 +1,125 @@
-<p>pay-tax works!</p>
+<div class="pay-tax-container">
+  <!-- Loading state -->
+  <div *ngIf="isLoading" class="loading-container">
+    <div class="loading-spinner"></div>
+    <p>Loading your tax information...</p>
+  </div>
+
+  <!-- Main content when loaded -->
+  <div *ngIf="!isLoading" class="content-container">
+    <!-- Welcome section -->
+    <div class="welcome-section">
+      <h1>Property Tax Payment</h1>
+      <p *ngIf="publicKey" class="wallet-info">
+        Connected Wallet: <span class="wallet-address">{{ formatWalletAddress(publicKey) }}</span>
+      </p>
+    </div>
+
+    <!-- Current tax due section -->
+    <div *ngIf="taxDue" class="tax-due-section">
+      <div class="section-header">
+        <h2>Current Tax Due</h2>
+      </div>
+      <div class="tax-card">
+        <div class="tax-details">
+          <div class="detail-row">
+            <span class="detail-label">Ward:</span>
+            <span class="detail-value">{{ taxDue.ward }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Year:</span>
+            <span class="detail-value">{{ taxDue.year }}</span>
+          </div>
+          <div class="detail-row amount-row">
+            <span class="detail-label">Amount Due:</span>
+            <span class="detail-value amount">{{ taxDue.amount }} SOL</span>
+          </div>
+        </div>
+        <div class="tax-actions">
+          <button class="primary-button" (click)="confirmPayment()" [disabled]="showConfirmation">Pay Now</button>
+        </div>
+      </div>
+
+      <!-- Payment confirmation overlay -->
+      <div *ngIf="showConfirmation" class="confirmation-overlay">
+        <div class="confirmation-card">
+          <h3>Confirm Payment</h3>
+          <p>You are about to pay <strong>{{ taxDue.amount }} SOL</strong> for property tax.</p>
+          <p>Ward: {{ taxDue.ward }}</p>
+          <p>Year: {{ taxDue.year }}</p>
+          <p class="confirmation-note">This transaction will be recorded on the Solana blockchain and cannot be reversed.</p>
+          <div class="confirmation-actions">
+            <button class="secondary-button" (click)="cancelPayment()">Cancel</button>
+            <button class="primary-button" (click)="payTax()" [disabled]="isSubmitting">
+              <span *ngIf="!isSubmitting">Confirm Payment</span>
+              <span *ngIf="isSubmitting" class="button-spinner"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- No tax due message -->
+    <div *ngIf="!taxDue && !isLoading && !submitSuccess" class="no-tax-section">
+      <div class="info-card">
+        <div class="info-icon">✓</div>
+        <h3>No Property Tax Due</h3>
+        <p>You have no pending property tax payments at this time.</p>
+      </div>
+    </div>
+
+    <!-- Success message -->
+    <div *ngIf="submitSuccess" class="success-section">
+      <div class="success-card">
+        <div class="success-icon">✓</div>
+        <h3>Payment Successful!</h3>
+        <p>Your property tax payment has been processed successfully.</p>
+        <p class="transaction-note">The transaction has been recorded on the Solana blockchain.</p>
+      </div>
+    </div>
+
+    <!-- Error message -->
+    <div *ngIf="submitError" class="error-section">
+      <div class="error-card">
+        <div class="error-icon">!</div>
+        <h3>Payment Failed</h3>
+        <p>{{ errorMessage }}</p>
+        <p>Please try again or contact support if the issue persists.</p>
+      </div>
+    </div>
+
+    <!-- Recent payments section -->
+    <div *ngIf="recentPayments && recentPayments.length > 0" class="payment-history-section">
+      <div class="section-header">
+        <h2>Recent Payment History</h2>
+      </div>
+      <div class="payment-list">
+        <div *ngFor="let payment of recentPayments" class="payment-item">
+          <div class="payment-info">
+            <div class="payment-primary">
+              <span class="payment-ward">{{ payment.ward }}</span>
+              <span class="payment-year">{{ payment.year }}</span>
+            </div>
+            <div class="payment-secondary">
+              <span class="payment-date">{{ payment.datePaid | date:'MMM d, y' }}</span>
+              <span class="payment-amount">{{ payment.amount }} SOL</span>
+            </div>
+          </div>
+          <div class="payment-status" [ngClass]="{'status-paid': payment.status === 'Paid', 'status-pending': payment.status === 'Pending', 'status-failed': payment.status === 'Failed'}">
+            {{ payment.status }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Information card -->
+    <div class="info-section">
+      <div class="info-card">
+        <h3>About Property Tax</h3>
+        <p>Property taxes fund essential municipal services such as infrastructure maintenance, public safety, and community development.</p>
+        <p>All payments are processed securely through the Solana blockchain, ensuring transparency and immutability.</p>
+        <p>For any questions regarding your property tax assessment, please contact the municipal office.</p>
+      </div>
+    </div>
+  </div>
+</div>

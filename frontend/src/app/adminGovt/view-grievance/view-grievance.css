@@ -1,0 +1,358 @@
+/* View Grievances Styles */
+
+.view-grievance-container {
+  padding: var(--spacing-lg);
+  background-color: var(--surface-alt);
+  border-radius: var(--border-radius);
+}
+
+/* Header styles */
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 2px solid var(--primary-light);
+}
+
+.admin-header h1 {
+  color: var(--primary-dark);
+  margin-bottom: 0;
+}
+
+.wallet-status {
+  display: flex;
+  align-items: center;
+  background-color: var(--surface);
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--border-radius-full);
+  box-shadow: var(--shadow-sm);
+}
+
+.wallet-label {
+  font-weight: 600;
+  margin-right: var(--spacing-xs);
+  color: var(--text-secondary);
+}
+
+.wallet-address {
+  font-family: 'Source Code Pro', monospace;
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.wallet-address.not-connected {
+  color: var(--error);
+}
+
+/* Filter section */
+.filter-section {
+  background-color: var(--surface);
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius);
+  margin-bottom: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.filter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 150px;
+}
+
+.filter-group label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: var(--spacing-xs);
+  color: var(--text-secondary);
+}
+
+.filter-group select,
+.filter-group input {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  background-color: var(--surface);
+  color: var(--text-primary);
+}
+
+.filter-group select:focus,
+.filter-group input:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 102, 255, 0.2);
+}
+
+.search-group {
+  flex-grow: 1;
+}
+
+.results-count {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+/* Loading state */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xl);
+}
+
+.spinner {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(0, 102, 255, 0.2);
+  border-radius: 50%;
+  border-top-color: var(--primary);
+  animation: spin 1s ease-in-out infinite;
+  margin-bottom: var(--spacing-md);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: var(--spacing-xl);
+  color: var(--text-secondary);
+}
+
+.empty-icon {
+  font-size: 3rem;
+  margin-bottom: var(--spacing-md);
+  opacity: 0.5;
+}
+
+/* Grievance cards */
+.grievances-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.grievance-card {
+  background-color: var(--surface);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: box-shadow 0.2s ease;
+}
+
+.grievance-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.grievance-header {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--spacing-md);
+  cursor: pointer;
+  background-color: var(--surface);
+  transition: background-color 0.2s ease;
+}
+
+.grievance-header:hover {
+  background-color: rgba(0, 102, 255, 0.05);
+}
+
+.grievance-title-section {
+  flex: 1;
+}
+
+.grievance-title {
+  margin: 0 0 var(--spacing-xs) 0;
+  color: var(--text-primary);
+  font-size: 1.1rem;
+}
+
+.grievance-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--border-radius-full);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.status-pending {
+  background-color: rgba(255, 149, 0, 0.15);
+  color: #c25e00;
+}
+
+.status-in-progress {
+  background-color: rgba(0, 122, 255, 0.15);
+  color: #0055b3;
+}
+
+.status-resolved {
+  background-color: rgba(52, 199, 89, 0.15);
+  color: #1d7a3e;
+}
+
+.status-rejected {
+  background-color: rgba(255, 59, 48, 0.15);
+  color: #c41e3a;
+}
+
+.priority-high {
+  background-color: rgba(255, 59, 48, 0.15);
+  color: #c41e3a;
+}
+
+.priority-medium {
+  background-color: rgba(255, 149, 0, 0.15);
+  color: #c25e00;
+}
+
+.priority-low {
+  background-color: rgba(52, 199, 89, 0.15);
+  color: #1d7a3e;
+}
+
+.badge-ward {
+  background-color: rgba(0, 102, 255, 0.15);
+  color: var(--primary-dark);
+}
+
+.grievance-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.grievance-date,
+.grievance-submitter {
+  white-space: nowrap;
+}
+
+.expand-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s ease;
+}
+
+.expand-icon.expanded {
+  transform: rotate(180deg);
+}
+
+/* Grievance details (expandable) */
+.grievance-details {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, padding 0.3s ease;
+  padding: 0 var(--spacing-md);
+  background-color: var(--surface-alt);
+}
+
+.grievance-details.expanded {
+  max-height: 1000px; /* Arbitrary large value */
+  padding: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+}
+
+.details-section {
+  margin-bottom: var(--spacing-md);
+}
+
+.details-section:last-child {
+  margin-bottom: 0;
+}
+
+.details-section h4 {
+  margin: 0 0 var(--spacing-xs) 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.grievance-description,
+.grievance-response {
+  margin: 0;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.grievance-response {
+  background-color: rgba(52, 199, 89, 0.05);
+  padding: var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  border-left: 3px solid var(--success);
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--spacing-sm);
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.info-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.info-value {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .admin-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .wallet-status {
+    margin-top: var(--spacing-sm);
+  }
+  
+  .filter-controls {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+  
+  .filter-group {
+    width: 100%;
+  }
+  
+  .grievance-header {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+  
+  .grievance-meta {
+    justify-content: space-between;
+  }
+  
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+}

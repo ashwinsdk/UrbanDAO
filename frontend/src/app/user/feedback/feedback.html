@@ -1,1 +1,175 @@
-<p>feedback works!</p>
+<div class="feedback-container">
+  <!-- Page header -->
+  <div class="page-header">
+    <h1>Community Feedback</h1>
+    <p class="page-description">Share your thoughts, suggestions, or concerns about municipal services and projects.</p>
+  </div>
+  
+  <!-- Wallet connection required notice -->
+  <div *ngIf="!isConnected" class="wallet-notice">
+    <div class="notice-icon">⚠️</div>
+    <div class="notice-content">
+      <h3>Wallet Connection Required</h3>
+      <p>Please connect your wallet to submit feedback. This helps us verify community membership and prevent spam.</p>
+    </div>
+  </div>
+  
+  <!-- Feedback form -->
+  <div class="feedback-form-container" [class.disabled]="!isConnected">
+    <div class="form-header">
+      <h2>Submit Feedback</h2>
+      <div class="wallet-info" *ngIf="isConnected">
+        <span class="wallet-label">Connected:</span>
+        <span class="wallet-address">{{ formatWalletAddress(publicKey) }}</span>
+      </div>
+    </div>
+    
+    <!-- Error message -->
+    <div *ngIf="submitError" class="alert alert-error">
+      <span class="alert-icon">❌</span>
+      <span>{{ errorMessage }}</span>
+    </div>
+    
+    <!-- Success message -->
+    <div *ngIf="submitSuccess" class="alert alert-success">
+      <span class="alert-icon">✅</span>
+      <span>Thank you for your feedback! Your input helps improve our community.</span>
+    </div>
+    
+    <form (submit)="$event.preventDefault(); submitFeedback()" [class.disabled]="isSubmitting">
+      <!-- Category selection -->
+      <div class="form-group">
+        <label for="category">Category <span class="required">*</span></label>
+        <select 
+          id="category" 
+          name="category" 
+          [(ngModel)]="feedbackForm.category" 
+          [disabled]="isSubmitting || !isConnected"
+          required
+        >
+          <option value="" disabled selected>Select a category</option>
+          <option *ngFor="let category of categories" [value]="category">{{ category }}</option>
+        </select>
+      </div>
+      
+      <!-- Subject field -->
+      <div class="form-group">
+        <label for="subject">Subject <span class="required">*</span></label>
+        <input 
+          type="text" 
+          id="subject" 
+          name="subject" 
+          [(ngModel)]="feedbackForm.subject" 
+          [disabled]="isSubmitting || !isConnected"
+          placeholder="Brief title for your feedback"
+          required
+        />
+      </div>
+      
+      <!-- Message field -->
+      <div class="form-group">
+        <label for="message">Your Feedback <span class="required">*</span></label>
+        <textarea 
+          id="message" 
+          name="message" 
+          [(ngModel)]="feedbackForm.message" 
+          [disabled]="isSubmitting || !isConnected"
+          placeholder="Please provide details about your feedback, suggestion, or concern..."
+          rows="5"
+          required
+        ></textarea>
+      </div>
+      
+      <!-- Star rating -->
+      <div class="form-group">
+        <label>Rating <span class="required">*</span></label>
+        <div class="star-rating">
+          <div 
+            *ngFor="let star of [1, 2, 3, 4, 5]" 
+            class="star" 
+            [class.filled]="isStarFilled(star)" 
+            (click)="setRating(star)"
+            [class.disabled]="isSubmitting || !isConnected"
+          >
+            ★
+          </div>
+          <span class="rating-text" *ngIf="feedbackForm.rating > 0">
+            {{ feedbackForm.rating }}/5
+          </span>
+        </div>
+      </div>
+      
+      <!-- File attachment option -->
+      <div class="form-group attachment-group">
+        <div class="checkbox-wrapper">
+          <input 
+            type="checkbox" 
+            id="attachFile" 
+            name="attachFile" 
+            [(ngModel)]="feedbackForm.attachFile" 
+            [disabled]="isSubmitting || !isConnected"
+          />
+          <label for="attachFile">Attach supporting files or images</label>
+        </div>
+        
+        <div *ngIf="feedbackForm.attachFile" class="file-upload">
+          <input 
+            type="file" 
+            id="fileInput" 
+            [disabled]="isSubmitting || !isConnected"
+            multiple
+          />
+          <p class="file-hint">Supported formats: JPG, PNG, PDF (Max 5MB each)</p>
+        </div>
+      </div>
+      
+      <!-- Form actions -->
+      <div class="form-actions">
+        <button 
+          type="button" 
+          class="secondary-button" 
+          (click)="resetForm()" 
+          [disabled]="isSubmitting || !isConnected"
+        >
+          Reset
+        </button>
+        <button 
+          type="submit" 
+          class="primary-button" 
+          [disabled]="isSubmitting || !isConnected"
+        >
+          <span *ngIf="isSubmitting" class="button-spinner"></span>
+          <span *ngIf="!isSubmitting">Submit Feedback</span>
+          <span *ngIf="isSubmitting">Submitting...</span>
+        </button>
+      </div>
+    </form>
+  </div>
+  
+  <!-- Info section -->
+  <div class="info-section">
+    <div class="info-card">
+      <div class="info-icon">💡</div>
+      <div class="info-content">
+        <h3>Why Your Feedback Matters</h3>
+        <p>Your feedback helps shape the future of our community. All submissions are stored on the blockchain for transparency and accountability.</p>
+      </div>
+    </div>
+    
+    <div class="info-card">
+      <div class="info-icon">🔒</div>
+      <div class="info-content">
+        <h3>Privacy & Security</h3>
+        <p>Your wallet address is used for verification only. Feedback can be submitted anonymously if preferred.</p>
+      </div>
+    </div>
+    
+    <div class="info-card">
+      <div class="info-icon">⏱️</div>
+      <div class="info-content">
+        <h3>Response Time</h3>
+        <p>We aim to address all feedback within 5 business days. Urgent matters are prioritized based on community impact.</p>
+      </div>
+    </div>
+  </div>
+</div>
