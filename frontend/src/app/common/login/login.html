@@ -1,1 +1,103 @@
-<p>login works!</p>
+<div class="auth-container">
+  <div class="auth-card">
+    <div class="auth-header">
+      <div class="logo">
+        <svg width="48" height="48" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16 2L2 10L16 18L30 10L16 2Z" fill="url(#paint0_linear)" />
+          <path d="M2 10V22L16 30V18L2 10Z" fill="url(#paint1_linear)" />
+          <path d="M30 10V22L16 30V18L30 10Z" fill="url(#paint2_linear)" />
+          <defs>
+            <linearGradient id="paint0_linear" x1="2" y1="10" x2="30" y2="10" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#0066FF" />
+              <stop offset="1" stop-color="#66CCFF" />
+            </linearGradient>
+            <linearGradient id="paint1_linear" x1="2" y1="20" x2="16" y2="20" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#0066FF" />
+              <stop offset="1" stop-color="#0052CC" />
+            </linearGradient>
+            <linearGradient id="paint2_linear" x1="30" y1="20" x2="16" y2="20" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#66CCFF" />
+              <stop offset="1" stop-color="#0066FF" />
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <h1>Login to UrbanDAO</h1>
+      <p class="subtitle">Connect your Solana wallet to access the platform</p>
+    </div>
+
+    <div class="wallet-section">
+      <ng-container *ngIf="!isConnected; else connectedWallet">
+        <div class="wallet-connect">
+          <p class="instruction">Click the button below to connect your Phantom wallet</p>
+          <button 
+            class="btn btn-primary btn-connect" 
+            (click)="connectWallet()"
+            [disabled]="loading"
+          >
+            <span *ngIf="!loading">Connect Wallet</span>
+            <span *ngIf="loading" class="loading-spinner"></span>
+          </button>
+          
+          <div *ngIf="error" class="error-message">
+            {{ error }}
+          </div>
+          
+          <div class="wallet-info">
+            <p>Don't have a wallet?</p>
+            <a href="https://phantom.app/" target="_blank" class="wallet-link">Get Phantom Wallet</a>
+          </div>
+        </div>
+      </ng-container>
+      
+      <ng-template #connectedWallet>
+        <div class="wallet-connected">
+          <div class="success-icon">
+            <span class="material-icons">check_circle</span>
+          </div>
+          <h2>Wallet Connected</h2>
+          
+          <div class="wallet-details">
+            <div class="detail-row">
+              <span class="label">Public Key:</span>
+              <span class="value key-value">{{ publicKey }}</span>
+            </div>
+            
+            <div *ngIf="userRole" class="detail-row">
+              <span class="label">Role:</span>
+              <span class="value">{{ userRole }}</span>
+            </div>
+          </div>
+          
+          <div *ngIf="userRole" class="action-buttons">
+            <button class="btn btn-primary" (click)="navigateToDashboard()">Go to Dashboard</button>
+          </div>
+          
+          <div *ngIf="!userRole" class="no-role-message">
+            <p>No role found for this wallet. Please register first.</p>
+            <a routerLink="/register" class="btn btn-outline">Register Now</a>
+          </div>
+        </div>
+      </ng-template>
+    </div>
+    
+    <div class="auth-footer">
+      <p>New to UrbanDAO? <a routerLink="/register">Register</a></p>
+      <p class="home-link"><a routerLink="/">Back to Home</a></p>
+    </div>
+    
+    <div class="future-auth-section">
+      <h3>Coming Soon</h3>
+      <div class="future-auth-options">
+        <div class="future-option">
+          <span class="material-icons">fingerprint</span>
+          <span>Biometric Verification</span>
+        </div>
+        <div class="future-option">
+          <span class="material-icons">verified_user</span>
+          <span>Civic Integration</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

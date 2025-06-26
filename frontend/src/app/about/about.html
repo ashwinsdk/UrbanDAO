@@ -1,0 +1,126 @@
+<div class="about-page">
+  <div class="hero-section">
+    <div class="container">
+      <h1 class="about-title">About UrbanDAO</h1>
+      <p class="about-subtitle">Transforming urban governance through blockchain technology</p>
+    </div>
+  </div>
+
+  <div class="container">
+    <section class="mission-section">
+      <div class="section-content">
+        <h2>Our Mission</h2>
+        <p>UrbanDAO aims to revolutionize urban governance by creating a transparent, efficient, and participatory platform that connects citizens, municipal authorities, and government administrators through blockchain technology.</p>
+        
+        <p>We believe in empowering communities to actively participate in urban decision-making processes, ensuring that public resources are allocated efficiently and transparently, and creating more responsive and accountable governance systems.</p>
+      </div>
+      
+      <div class="stats-container">
+        <div class="stat-card">
+          <div class="stat-number">12+</div>
+          <div class="stat-label">Cities Onboarded</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">50k+</div>
+          <div class="stat-label">Active Citizens</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">₹120Cr</div>
+          <div class="stat-label">Projects Tracked</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="features-section">
+      <h2>Key Features</h2>
+      
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <span class="material-icons">receipt_long</span>
+          </div>
+          <h3>Transparent Tax Management</h3>
+          <p>Secure and transparent collection and allocation of municipal taxes with complete traceability.</p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">
+            <span class="material-icons">record_voice_over</span>
+          </div>
+          <h3>Civic Grievance System</h3>
+          <p>Efficient filing and tracking of civic issues with transparent resolution processes.</p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">
+            <span class="material-icons">trending_up</span>
+          </div>
+          <h3>Project Tracking</h3>
+          <p>Real-time monitoring of municipal projects, budgets, timelines, and progress updates.</p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">
+            <span class="material-icons">how_to_vote</span>
+          </div>
+          <h3>Community Voting</h3>
+          <p>Secure blockchain-based voting system for community decisions and proposals.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="team-section">
+      <h2>Our Team</h2>
+      <div class="team-grid">
+        <div class="team-member" *ngFor="let member of teamMembers">
+          <div class="member-image">
+            <img [src]="member.image" [alt]="member.name">
+          </div>
+          <h3>{{member.name}}</h3>
+          <p class="member-role">{{member.role}}</p>
+          <p class="member-bio">{{member.bio}}</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="partners-section">
+      <h2>Our Partners</h2>
+      <div class="partners-list">
+        <div class="partner-item" *ngFor="let partner of partners">
+          <div class="partner-logo">
+            <div class="placeholder-logo">{{partner.charAt(0)}}</div>
+          </div>
+          <p class="partner-name">{{partner}}</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="contact-section">
+      <h2>Get in Touch</h2>
+      <div class="contact-container">
+        <div class="contact-info">
+          <p><strong>Email:</strong> info&#64;urbandao.org</p>
+          <p><strong>Phone:</strong> +91 11 2345 6789</p>
+          <p><strong>Address:</strong> Tech Hub, Sector 62, Noida, Uttar Pradesh, India</p>
+        </div>
+        <div class="contact-form">
+          <form>
+            <div class="form-group">
+              <label for="name">Name</label>
+              <input type="text" id="name" placeholder="Your name">
+            </div>
+            <div class="form-group">
+              <label for="email">Email</label>
+              <input type="email" id="email" placeholder="Your email">
+            </div>
+            <div class="form-group">
+              <label for="message">Message</label>
+              <textarea id="message" rows="4" placeholder="Your message"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Send Message</button>
+          </form>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>

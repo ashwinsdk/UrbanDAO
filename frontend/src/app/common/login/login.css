@@ -1,0 +1,317 @@
+/* Login Component Styles */
+
+.auth-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: var(--spacing-xl) var(--spacing-md);
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 480px;
+  background-color: var(--surface);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-xl);
+  overflow: hidden;
+}
+
+.auth-header {
+  text-align: center;
+  margin-bottom: var(--spacing-xl);
+}
+
+.auth-header .logo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.auth-header h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: var(--spacing-sm);
+  background: var(--primary-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.auth-header .subtitle {
+  color: var(--text-secondary);
+  font-size: 1rem;
+}
+
+/* Wallet Connect Section */
+.wallet-section {
+  margin: var(--spacing-xl) 0;
+}
+
+.wallet-connect {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.instruction {
+  text-align: center;
+  margin-bottom: var(--spacing-lg);
+  color: var(--text-secondary);
+}
+
+.btn-connect {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 280px;
+  height: 48px;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: var(--border-radius);
+  background: var(--primary-gradient);
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-speed) var(--transition-timing);
+}
+
+.btn-connect:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-connect:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.error-message {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: rgba(255, 0, 0, 0.1);
+  color: #d32f2f;
+  border-radius: var(--border-radius-sm);
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.wallet-info {
+  margin-top: var(--spacing-xl);
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.wallet-link {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 500;
+  margin-top: var(--spacing-xs);
+  display: inline-block;
+}
+
+.wallet-link:hover {
+  text-decoration: underline;
+}
+
+/* Connected Wallet Section */
+.wallet-connected {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.success-icon {
+  margin-bottom: var(--spacing-md);
+  color: #4caf50;
+  font-size: 2rem;
+}
+
+.success-icon .material-icons {
+  font-size: 48px;
+}
+
+.wallet-connected h2 {
+  margin-bottom: var(--spacing-lg);
+  font-weight: 600;
+}
+
+.wallet-details {
+  width: 100%;
+  margin-bottom: var(--spacing-lg);
+}
+
+.detail-row {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: rgba(0, 102, 255, 0.05);
+  border-radius: var(--border-radius-sm);
+  text-align: left;
+}
+
+.detail-row .label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.detail-row .value {
+  font-size: 0.9rem;
+  word-break: break-all;
+}
+
+.key-value {
+  font-family: var(--font-code);
+  font-size: 0.8rem;
+}
+
+.action-buttons {
+  margin-top: var(--spacing-md);
+}
+
+.btn-primary {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--primary-gradient);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-speed) var(--transition-timing);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-outline {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: transparent;
+  color: var(--primary);
+  border: 1px solid var(--primary);
+  border-radius: var(--border-radius);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-speed) var(--transition-timing);
+  text-decoration: none;
+  display: inline-block;
+  margin-top: var(--spacing-md);
+}
+
+.btn-outline:hover {
+  background-color: rgba(0, 102, 255, 0.05);
+  transform: translateY(-2px);
+}
+
+.no-role-message {
+  margin-top: var(--spacing-md);
+  color: var(--text-secondary);
+}
+
+/* Auth Footer */
+.auth-footer {
+  margin-top: var(--spacing-xl);
+  text-align: center;
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--gray-200);
+}
+
+.auth-footer p {
+  margin-bottom: var(--spacing-sm);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.auth-footer a {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.auth-footer a:hover {
+  text-decoration: underline;
+}
+
+.home-link {
+  font-size: 0.8rem;
+}
+
+/* Future Auth Section */
+.future-auth-section {
+  margin-top: var(--spacing-xl);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--gray-200);
+}
+
+.future-auth-section h3 {
+  font-size: 0.9rem;
+  text-align: center;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.future-auth-options {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-lg);
+}
+
+.future-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: 0.6;
+}
+
+.future-option .material-icons {
+  font-size: 24px;
+  margin-bottom: var(--spacing-xs);
+  color: var(--primary);
+}
+
+.future-option span:last-child {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 480px) {
+  .auth-card {
+    padding: var(--spacing-lg);
+  }
+  
+  .auth-header h1 {
+    font-size: 1.5rem;
+  }
+  
+  .future-auth-options {
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+}

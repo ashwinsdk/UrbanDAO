@@ -1,0 +1,61 @@
+<div class="main-content">
+  <div class="container">
+    <div class="docs-header">
+      <h1 class="docs-title">UrbanDAO Documentation</h1>
+      <p class="docs-subtitle">Learn how to use the UrbanDAO platform and its features</p>
+    </div>
+
+    <div class="docs-content">
+      <div class="docs-sidebar">
+        <ul class="docs-nav">
+          <li *ngFor="let section of sections; let i = index">
+            <a href="#section-{{i}}" class="docs-nav-link">{{ section.title }}</a>
+          </li>
+        </ul>
+      </div>
+
+      <div class="docs-main">
+        <div *ngFor="let section of sections; let i = index" class="docs-section" id="section-{{i}}">
+          <h2 class="section-title">{{ section.title }}</h2>
+          <div class="section-content">
+            <p>{{ section.content }}</p>
+
+            <!-- Placeholder content -->
+            <div class="placeholder-content">
+              <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla facilisi. Sed euismod, nisl vel
+                ultricies lacinia, nisl nisl aliquam nisl, eget aliquam nisl nisl vel nisl. Sed euismod, nisl vel
+                ultricies lacinia, nisl nisl aliquam nisl, eget aliquam nisl nisl vel nisl.</p>
+
+              <h3>Key Features</h3>
+              <ul>
+                <li>Feature one with detailed explanation and usage instructions</li>
+                <li>Feature two with detailed explanation and usage instructions</li>
+                <li>Feature three with detailed explanation and usage instructions</li>
+              </ul>
+
+              <h3>How to Use</h3>
+              <ol>
+                <li>Step one with detailed instructions</li>
+                <li>Step two with detailed instructions</li>
+                <li>Step three with detailed instructions</li>
+              </ol>
+
+              <div class="code-example">
+                <pre><code ngNonBindable>// Example code or configuration
+{
+  "user": "citizen-id-123",
+  "action": "submit-grievance",
+  "data": {
+    "category": "roads",
+    "description": "Pothole on Main Street",
+    "location": "123 Main St"
+  }
+}</code></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

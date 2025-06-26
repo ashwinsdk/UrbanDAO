@@ -3,7 +3,8 @@ import { authGuard } from './auth/auth.guard';
 import { UserRole } from './auth/user-role.enum';
 
 // --- Component Imports ---
-import { Home } from './common/home/home';
+import { Home } from './home/home';
+import { About } from './about/about';
 import { Login } from './common/login/login';
 import { Register } from './common/register/register';
 
@@ -36,18 +37,25 @@ export const appRoutes: Routes = [
     // ========================================================================
     {
         path: '',
-        // The user request specified 'AboutComponent'; using 'Home' as the landing page.
         component: Home,
         title: 'Welcome to UrbanDAO',
+    },
+
+    {
+        path: 'about',
+        component: About,
+        title: 'About Us - UrbanDAO',
     },
     {
         path: 'login',
         component: Login,
+        data: { hideHeaderFooter: true },
         title: 'Login',
     },
     {
         path: 'register',
         component: Register,
+        data: { hideHeaderFooter: true },
         title: 'Register',
     },
 
