@@ -5,6 +5,7 @@ import { DOCUMENT } from '@angular/common';
 import { AuthService } from '../../auth/auth.service';
 import { UserRole } from '../../auth/user-role.enum';
 import { Subscription } from 'rxjs';
+import { Meta } from '@angular/platform-browser';
 
 @Component({
   selector: 'app-header',
@@ -19,15 +20,21 @@ export class Header implements OnInit, OnDestroy {
   UserRole = UserRole; // Expose enum to template
   isMobileMenuOpen = false;
   publicKey: string | null = null;
+  isDarkMode = false;
   private subscriptions: Subscription[] = [];
+  private readonly THEME_KEY = 'urbandao-theme';
   
   constructor(
     private renderer: Renderer2,
     @Inject(DOCUMENT) private document: Document,
-    private authService: AuthService
+    private authService: AuthService,
+    private meta: Meta
   ) {}
   
   ngOnInit(): void {
+    // Load saved theme preference
+    this.loadThemePreference();
+    
     // Subscribe to auth service observables
     this.subscriptions.push(
       this.authService.connected$.subscribe(connected => {
@@ -61,6 +68,47 @@ export class Header implements OnInit, OnDestroy {
         }
       }
     });
+  }
+  
+  /**
+   * Load theme preference from localStorage
+   */
+  private loadThemePreference(): void {
+    const savedTheme = localStorage.getItem(this.THEME_KEY);
+    if (savedTheme === 'dark') {
+      this.isDarkMode = true;
+      this.applyTheme('dark');
+    } else {
+      this.isDarkMode = false;
+      this.applyTheme('light');
+    }
+  }
+  
+  /**
+   * Toggle between light and dark themes
+   */
+  toggleTheme(): void {
+    this.isDarkMode = !this.isDarkMode;
+    const theme = this.isDarkMode ? 'dark' : 'light';
+    
+    // Save preference to localStorage
+    localStorage.setItem(this.THEME_KEY, theme);
+    
+    // Apply theme to document
+    this.applyTheme(theme);
+  }
+  
+  /**
+   * Apply theme to document and update meta tags
+   */
+  private applyTheme(theme: 'light' | 'dark'): void {
+    if (theme === 'dark') {
+      this.document.documentElement.setAttribute('data-theme', 'dark');
+      this.meta.updateTag({ name: 'theme-color', content: '#000000' });
+    } else {
+      this.document.documentElement.removeAttribute('data-theme');
+      this.meta.updateTag({ name: 'theme-color', content: '#1976d2' });
+    }
   }
   
   toggleMobileMenu(): void {

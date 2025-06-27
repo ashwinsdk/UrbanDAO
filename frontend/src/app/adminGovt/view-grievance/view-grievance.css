@@ -4,6 +4,11 @@
   padding: var(--spacing-lg);
   background-color: var(--surface-alt);
   border-radius: var(--border-radius);
+  transition: background-color 0.3s ease;
+}
+
+[data-theme="dark"] .view-grievance-container {
+  background-color: var(--gray-900);
 }
 
 /* Header styles */
@@ -14,11 +19,21 @@
   margin-bottom: var(--spacing-lg);
   padding-bottom: var(--spacing-md);
   border-bottom: 2px solid var(--primary-light);
+  transition: border-color 0.3s ease;
+}
+
+[data-theme="dark"] .admin-header {
+  border-bottom: 2px solid var(--primary);
 }
 
 .admin-header h1 {
   color: var(--primary-dark);
   margin-bottom: 0;
+  transition: color 0.3s ease;
+}
+
+[data-theme="dark"] .admin-header h1 {
+  color: var(--primary-light);
 }
 
 .wallet-status {
@@ -28,18 +43,35 @@
   padding: var(--spacing-xs) var(--spacing-md);
   border-radius: var(--border-radius-full);
   box-shadow: var(--shadow-sm);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+[data-theme="dark"] .wallet-status {
+  background-color: var(--gray-800);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--gray-700);
 }
 
 .wallet-label {
   font-weight: 600;
   margin-right: var(--spacing-xs);
   color: var(--text-secondary);
+  transition: color 0.3s ease;
+}
+
+[data-theme="dark"] .wallet-label {
+  color: var(--text-light-secondary);
 }
 
 .wallet-address {
   font-family: 'Source Code Pro', monospace;
   color: var(--primary);
   font-weight: 500;
+  transition: color 0.3s ease;
+}
+
+[data-theme="dark"] .wallet-address {
+  color: var(--primary-light);
 }
 
 .wallet-address.not-connected {
@@ -53,6 +85,13 @@
   border-radius: var(--border-radius);
   margin-bottom: var(--spacing-lg);
   box-shadow: var(--shadow-sm);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+[data-theme="dark"] .filter-section {
+  background-color: var(--surface-alt);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-color);
 }
 
 .filter-controls {
@@ -82,6 +121,14 @@
   border-radius: var(--border-radius-sm);
   background-color: var(--surface);
   color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+[data-theme="dark"] .filter-group select,
+[data-theme="dark"] .filter-group input {
+  background-color: var(--gray-800);
+  color: var(--text-light);
+  border-color: var(--gray-700);
 }
 
 .filter-group select:focus,
@@ -89,6 +136,12 @@
   border-color: var(--primary);
   outline: none;
   box-shadow: 0 0 0 2px rgba(0, 102, 255, 0.2);
+}
+
+[data-theme="dark"] .filter-group select:focus,
+[data-theme="dark"] .filter-group input:focus {
+  border-color: var(--primary-light);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
 }
 
 .search-group {
@@ -119,6 +172,12 @@
   border-top-color: var(--primary);
   animation: spin 1s ease-in-out infinite;
   margin-bottom: var(--spacing-md);
+  transition: border-color 0.3s ease;
+}
+
+[data-theme="dark"] .spinner {
+  border: 4px solid rgba(59, 130, 246, 0.15);
+  border-top-color: var(--primary-light);
 }
 
 @keyframes spin {
@@ -130,6 +189,11 @@
   text-align: center;
   padding: var(--spacing-xl);
   color: var(--text-secondary);
+  transition: color 0.3s ease;
+}
+
+[data-theme="dark"] .empty-state {
+  color: var(--text-light-secondary);
 }
 
 .empty-icon {
@@ -147,10 +211,17 @@
 
 .grievance-card {
   background-color: var(--surface);
-  border-radius: var(--border-radius);
-  box-shadow: var(--shadow-sm);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   overflow: hidden;
-  transition: box-shadow 0.2s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+[data-theme="dark"] .grievance-card {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-color);
 }
 
 .grievance-card:hover {
@@ -163,11 +234,15 @@
   padding: var(--spacing-md);
   cursor: pointer;
   background-color: var(--surface);
-  transition: background-color 0.2s ease;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .grievance-header:hover {
   background-color: rgba(0, 102, 255, 0.05);
+}
+
+[data-theme="dark"] .grievance-header:hover {
+  background-color: rgba(59, 130, 246, 0.15);
 }
 
 .grievance-title-section {
@@ -186,12 +261,13 @@
   gap: var(--spacing-xs);
 }
 
-.badge {
+.status-badge {
   display: inline-block;
-  padding: 2px 8px;
-  border-radius: var(--border-radius-full);
+  padding: 0.35em 0.65em;
   font-size: 0.75rem;
   font-weight: 500;
+  border-radius: 50rem;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .status-pending {
@@ -199,9 +275,19 @@
   color: #c25e00;
 }
 
+[data-theme="dark"] .status-pending {
+  background-color: rgba(255, 149, 0, 0.25);
+  color: #ff9500;
+}
+
 .status-in-progress {
   background-color: rgba(0, 122, 255, 0.15);
   color: #0055b3;
+}
+
+[data-theme="dark"] .status-in-progress {
+  background-color: rgba(59, 130, 246, 0.25);
+  color: #60a5fa;
 }
 
 .status-resolved {
@@ -209,9 +295,19 @@
   color: #1d7a3e;
 }
 
+[data-theme="dark"] .status-resolved {
+  background-color: rgba(52, 199, 89, 0.25);
+  color: #34c759;
+}
+
 .status-rejected {
   background-color: rgba(255, 59, 48, 0.15);
   color: #c41e3a;
+}
+
+[data-theme="dark"] .status-rejected {
+  background-color: rgba(255, 59, 48, 0.25);
+  color: #ff3b30;
 }
 
 .priority-high {
@@ -219,9 +315,19 @@
   color: #c41e3a;
 }
 
+[data-theme="dark"] .priority-high {
+  background-color: rgba(255, 59, 48, 0.25);
+  color: #ff3b30;
+}
+
 .priority-medium {
   background-color: rgba(255, 149, 0, 0.15);
   color: #c25e00;
+}
+
+[data-theme="dark"] .priority-medium {
+  background-color: rgba(255, 149, 0, 0.25);
+  color: #ff9500;
 }
 
 .priority-low {
@@ -229,9 +335,19 @@
   color: #1d7a3e;
 }
 
+[data-theme="dark"] .priority-low {
+  background-color: rgba(52, 199, 89, 0.25);
+  color: #34c759;
+}
+
 .badge-ward {
   background-color: rgba(0, 102, 255, 0.15);
   color: var(--primary-dark);
+}
+
+[data-theme="dark"] .badge-ward {
+  background-color: rgba(59, 130, 246, 0.25);
+  color: var(--primary-light);
 }
 
 .grievance-meta {
@@ -262,15 +378,23 @@
 .grievance-details {
   max-height: 0;
   overflow: hidden;
-  transition: max-height 0.3s ease, padding 0.3s ease;
+  transition: max-height 0.3s ease, padding 0.3s ease, background-color 0.3s ease;
   padding: 0 var(--spacing-md);
   background-color: var(--surface-alt);
+}
+
+[data-theme="dark"] .grievance-details {
+  background-color: var(--gray-900);
 }
 
 .grievance-details.expanded {
   max-height: 1000px; /* Arbitrary large value */
   padding: var(--spacing-md);
   border-top: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .grievance-details.expanded {
+  border-top: 1px solid var(--gray-700);
 }
 
 .details-section {
@@ -298,6 +422,12 @@
   background-color: rgba(52, 199, 89, 0.05);
   padding: var(--spacing-sm);
   border-radius: var(--border-radius-sm);
+  border-left: 3px solid var(--success);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+[data-theme="dark"] .grievance-response {
+  background-color: rgba(52, 199, 89, 0.1);
   border-left: 3px solid var(--success);
 }
 
