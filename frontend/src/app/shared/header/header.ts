@@ -103,10 +103,13 @@ export class Header implements OnInit, OnDestroy {
    */
   private applyTheme(theme: 'light' | 'dark'): void {
     if (theme === 'dark') {
+      // Apply to both HTML and body elements for maximum compatibility
       this.document.documentElement.setAttribute('data-theme', 'dark');
+      this.document.body.setAttribute('data-theme', 'dark');
       this.meta.updateTag({ name: 'theme-color', content: '#000000' });
     } else {
       this.document.documentElement.removeAttribute('data-theme');
+      this.document.body.removeAttribute('data-theme');
       this.meta.updateTag({ name: 'theme-color', content: '#1976d2' });
     }
   }

@@ -33,17 +33,29 @@ body {
 
     --surface: #ffffff;
     --surface-alt: #f5f7fa;
-    --surface-dark: #1a1a2e;
+    --surface-dark: #000000; /* Changed to pure black for dark mode */
+    --surface-dark-alt: #121212; /* Secondary dark surface */
+    
+    /* Electric blue accents for dark mode */
+    --electric-blue: #3b82f6;
+    --electric-blue-light: #60a5fa;
+    --electric-blue-dark: #2563eb;
+    --electric-blue-gradient: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
 
     --text-primary: #333333;
     --text-secondary: #666666;
     --text-light: #ffffff;
+    --text-light-secondary: #b0b0b0; /* Secondary text color for dark mode */
     --text-muted: #999999;
 
     --error: #ff3b30;
     --success: #34c759;
     --warning: #ffcc00;
     --info: #5ac8fa;
+    
+    /* Dark mode shadows and borders */
+    --dark-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 4px rgba(59, 130, 246, 0.1);
+    --dark-border: 1px solid rgba(59, 130, 246, 0.2);
 
     /* Gray Scale */
     --gray-100: #f8f9fa;
@@ -605,6 +617,126 @@ textarea {
     font-size: inherit;
 }
 
+/* Global form elements dark mode styling */
+[data-theme="dark"] input:not(.form-control),
+[data-theme="dark"] select:not(.form-control),
+[data-theme="dark"] textarea:not(.form-control) {
+    background-color: var(--surface-dark);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    color: var(--text-light);
+}
+
+[data-theme="dark"] input:not(.form-control):focus,
+[data-theme="dark"] select:not(.form-control):focus,
+[data-theme="dark"] textarea:not(.form-control):focus {
+    border-color: var(--primary-light);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+    outline: none;
+}
+
+[data-theme="dark"] input::placeholder {
+    color: var(--gray-600);
+}
+
+[data-theme="dark"] select option {
+    background-color: var(--surface-dark);
+    color: var(--text-light);
+}
+
+/* Dark Mode Component Helpers - These will pierce Angular's encapsulation */
+body[data-theme="dark"] app-root .app-wrapper,
+html[data-theme="dark"] app-root .app-wrapper {
+    background-color: var(--surface-dark);
+    color: var(--text-light);
+}
+
+/* Global dark mode helpers for component encapsulation */
+body[data-theme="dark"] .hero,
+html[data-theme="dark"] .hero {
+    background-color: var(--surface-dark) !important;
+    color: var(--text-light) !important;
+}
+
+body[data-theme="dark"] .card,
+html[data-theme="dark"] .card,
+body[data-theme="dark"] .project-card,
+html[data-theme="dark"] .project-card,
+body[data-theme="dark"] .grievance-card,
+html[data-theme="dark"] .grievance-card,
+body[data-theme="dark"] .feedback-form-container,
+html[data-theme="dark"] .feedback-form-container,
+body[data-theme="dark"] .filters-section,
+html[data-theme="dark"] .filters-section,
+body[data-theme="dark"] .action-card,
+html[data-theme="dark"] .action-card {
+    background-color: var(--surface-dark) !important;
+    border: 1px solid rgba(59, 130, 246, 0.2) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 4px rgba(59, 130, 246, 0.1) !important;
+    color: var(--text-light) !important;
+}
+
+body[data-theme="dark"] input:not(.form-control),
+html[data-theme="dark"] input:not(.form-control),
+body[data-theme="dark"] select:not(.form-control),
+html[data-theme="dark"] select:not(.form-control),
+body[data-theme="dark"] textarea:not(.form-control),
+html[data-theme="dark"] textarea:not(.form-control) {
+    background-color: var(--surface-dark) !important;
+    border: 1px solid rgba(59, 130, 246, 0.2) !important;
+    color: var(--text-light) !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+}
+
+body[data-theme="dark"] input:focus:not(.form-control),
+html[data-theme="dark"] input:focus:not(.form-control),
+body[data-theme="dark"] select:focus:not(.form-control),
+html[data-theme="dark"] select:focus:not(.form-control),
+body[data-theme="dark"] textarea:focus:not(.form-control),
+html[data-theme="dark"] textarea:focus:not(.form-control) {
+    border-color: var(--primary-light) !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3), 0 0 8px rgba(59, 130, 246, 0.2) !important;
+}
+
+/* Responsive mobile navigation for dark mode */
+@media (max-width: 768px) {
+    body[data-theme="dark"] .mobile-nav,
+    html[data-theme="dark"] .mobile-nav {
+        background-color: var(--surface-dark) !important;
+        border-top: 1px solid rgba(59, 130, 246, 0.2) !important;
+    }
+    
+    /* Mobile spacing adjustments */
+    .container, .section, .card, .form-container {
+        padding-left: var(--spacing-md) !important;
+        padding-right: var(--spacing-md) !important;
+        margin-bottom: var(--spacing-lg) !important;
+    }
+    
+    /* Adjust bottom spacing for all pages to prevent overlap with mobile nav */
+    .page-content, .user-content, .admin-content {
+        padding-bottom: 70px !important;
+    }
+    
+    /* Ensure form elements are easier to tap on mobile */
+    .form-control, button, .btn, select, input[type="checkbox"], input[type="radio"] {
+        min-height: 44px !important; /* Apple's recommended minimum tap target size */
+    }
+    
+    /* Ensure text is readable on mobile */
+    h1 { font-size: 1.8rem !important; }
+    h2 { font-size: 1.5rem !important; }
+    h3 { font-size: 1.3rem !important; }
+    
+    /* Mobile dark mode specific adjustments */
+    body[data-theme="dark"] .card,
+    html[data-theme="dark"] .card,
+    body[data-theme="dark"] .form-container,
+    html[data-theme="dark"] .form-container {
+        background-color: var(--surface-dark) !important;
+        border-color: rgba(59, 130, 246, 0.2) !important;
+    }
+}
+
 button {
     cursor: pointer;
 }
@@ -636,9 +768,10 @@ button {
 }
 
 [data-theme="dark"] .form-control {
-    background-color: var(--surface-alt);
-    border-color: var(--border-color);
+    background-color: var(--surface-dark);
+    border-color: rgba(59, 130, 246, 0.3);
     color: var(--text-light);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) inset;
 }
 
 .form-control:focus {
@@ -649,6 +782,8 @@ button {
 
 [data-theme="dark"] .form-control:focus {
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+    border-color: var(--primary-light);
+    background-color: rgba(0, 0, 0, 0.7);
 }
 
 .form-control::placeholder {
@@ -660,6 +795,10 @@ button {
     margin-top: var(--spacing-xs);
     font-size: 0.875rem;
     color: var(--text-muted);
+}
+
+[data-theme="dark"] .form-text {
+    color: var(--gray-500);
 }
 
 /* Hero Section */

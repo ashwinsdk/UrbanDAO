@@ -7,6 +7,11 @@
   border-left: 4px solid var(--primary);
 }
 
+[data-theme="dark"] .welcome-card {
+  background: linear-gradient(135deg, var(--surface-dark) 0%, var(--gray-800) 100%);
+  border-left: 4px solid var(--primary-light);
+}
+
 .welcome-content {
   display: flex;
   justify-content: space-between;
@@ -21,10 +26,18 @@
   color: var(--text-primary);
 }
 
+[data-theme="dark"] .welcome-content h2 {
+  color: var(--text-light);
+}
+
 .welcome-content p {
   color: var(--text-secondary);
   margin-bottom: 0.5rem;
   max-width: 600px;
+}
+
+[data-theme="dark"] .welcome-content p {
+  color: var(--text-light-secondary);
 }
 
 .wallet-address {
@@ -34,6 +47,11 @@
   border-radius: 4px;
   font-size: 0.875rem;
   word-break: break-all;
+}
+
+[data-theme="dark"] .wallet-address {
+  background-color: var(--gray-800);
+  color: var(--text-light);
 }
 
 /* Tax summary styles */

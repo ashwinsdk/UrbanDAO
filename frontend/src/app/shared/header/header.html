@@ -30,11 +30,27 @@
 
     <!-- Navigation Menu -->
     <nav class="nav-menu" id="navMenu">
-      <!-- Common Navigation Links (always visible) -->
+      <!-- Navigation Links based on authentication status -->
       <ul class="nav-list">
-        <li><a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Home</a></li>
-        <li><a routerLink="/about" routerLinkActive="active">About</a></li>
-        <li><a routerLink="/docs" routerLinkActive="active">Docs</a></li>
+        <!-- Guest Navigation Links - only visible when logged out -->
+        <ng-container *ngIf="!isLoggedIn">
+          <li><a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Home</a></li>
+          <li><a routerLink="/about" routerLinkActive="active">About</a></li>
+          <li><a routerLink="/docs" routerLinkActive="active">Docs</a></li>
+        </ng-container>
+        
+        <!-- Dashboard Links - only visible when logged in (role-specific) -->
+        <ng-container *ngIf="isLoggedIn && userRole === UserRole.User">
+          <li><a routerLink="/user" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Dashboard</a></li>
+        </ng-container>
+        
+        <ng-container *ngIf="isLoggedIn && userRole === UserRole.AdminHead">
+          <li><a routerLink="/admin-head" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Dashboard</a></li>
+        </ng-container>
+        
+        <ng-container *ngIf="isLoggedIn && userRole === UserRole.AdminGovt">
+          <li><a routerLink="/admin-govt" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Dashboard</a></li>
+        </ng-container>
         
         <!-- Government Admin Navigation -->
         <ng-container *ngIf="isLoggedIn && userRole === UserRole.AdminGovt">

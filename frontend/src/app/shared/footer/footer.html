@@ -1,6 +1,18 @@
-<footer class="footer">
-  <div class="container footer-container">
+<footer class="footer" [class.mobile-footer]="isMobile">
+  <!-- Mobile Footer - Minimal version for small screens -->
+  <div *ngIf="isMobile" class="mobile-footer-container">
+    <div class="mobile-footer-content">
+      <!-- Simple copyright footer for mobile -->
+      <div class="mobile-footer-copyright">
+        <p>&copy; {{ currentYear }} UrbanDAO | <a routerLink="/docs">Docs</a> | <a routerLink="/about">About</a></p>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Desktop Footer - Full version for larger screens -->
+  <div *ngIf="!isMobile" class="container footer-container">
     <div class="footer-content">
+      <!-- Common section for all users -->
       <div class="footer-section">
         <h3>UrbanDAO</h3>
         <p>A decentralized platform for urban governance and citizen participation, powered by blockchain technology.</p>
@@ -15,23 +27,60 @@
         </div>
       </div>
       
+      <!-- Platform links - Adjusted based on authentication -->
       <div class="footer-section">
         <h4>Platform</h4>
         <ul class="footer-links">
           <li><a routerLink="/">Home</a></li>
           <li><a routerLink="/docs">Documentation</a></li>
-          <li><a routerLink="/login">Login</a></li>
-          <li><a routerLink="/register">Register</a></li>
+          
+          <!-- Guest-only links -->
+          <ng-container *ngIf="!isAuthenticated">
+            <li><a routerLink="/login">Login</a></li>
+            <li><a routerLink="/register">Register</a></li>
+          </ng-container>
+          
+          <!-- Authenticated user links -->
+          <ng-container *ngIf="isAuthenticated">
+            <li><a routerLink="/dashboard">Dashboard</a></li>
+            <li><a href="#" (click)="$event.preventDefault(); logout()">Logout</a></li>
+          </ng-container>
         </ul>
       </div>
       
+      <!-- Role-based service links -->
       <div class="footer-section">
         <h4>Services</h4>
         <ul class="footer-links">
-          <li><a href="#">Tax Payment</a></li>
-          <li><a href="#">Grievance Filing</a></li>
-          <li><a href="#">Project Tracking</a></li>
-          <li><a href="#">Community Voting</a></li>
+          <!-- Citizen services -->
+          <ng-container *ngIf="isAuthenticated && userRole === UserRole.User">
+            <li><a routerLink="/user/tax">Tax Payment</a></li>
+            <li><a routerLink="/user/grievance">Grievance Filing</a></li>
+            <li><a routerLink="/user/projects">Project Tracking</a></li>
+            <li><a routerLink="/user/feedback">Feedback</a></li>
+          </ng-container>
+          
+          <!-- Admin Head services -->
+          <ng-container *ngIf="isAuthenticated && userRole === UserRole.AdminHead">
+            <li><a routerLink="/admin-head/projects">Manage Projects</a></li>
+            <li><a routerLink="/admin-head/grievances">Handle Grievances</a></li>
+            <li><a routerLink="/admin-head/tasks">Task Management</a></li>
+          </ng-container>
+          
+          <!-- Admin Govt services -->
+          <ng-container *ngIf="isAuthenticated && userRole === UserRole.AdminGovt">
+            <li><a routerLink="/admin-govt/tax">Tax Management</a></li>
+            <li><a routerLink="/admin-govt/admins">Admin Management</a></li>
+            <li><a routerLink="/admin-govt/projects">Project Oversight</a></li>
+          </ng-container>
+          
+          <!-- Guest services overview -->
+          <ng-container *ngIf="!isAuthenticated">
+            <li><a href="#">Tax Payment</a></li>
+            <li><a href="#">Grievance Filing</a></li>
+            <li><a href="#">Project Tracking</a></li>
+            <li><a href="#">Community Voting</a></li>
+          </ng-container>
         </ul>
       </div>
       
@@ -76,7 +125,15 @@
     </div>
     
     <div class="footer-bottom">
-      <p>&copy; {{ currentYear }} UrbanDAO. All rights reserved. | Powered by Blockchain Technology</p>
+      <div class="footer-bottom-content">
+        <p>&copy; {{ currentYear }} UrbanDAO. All rights reserved. | Powered by Blockchain Technology</p>
+        
+        <!-- Theme toggle for desktop -->
+        <button *ngIf="!isMobile" (click)="toggleTheme()" class="theme-toggle-btn" aria-label="Toggle dark mode">
+          <span class="material-icons">{{ isDarkMode ? 'light_mode' : 'dark_mode' }}</span>
+          <span>{{ isDarkMode ? 'Light Mode' : 'Dark Mode' }}</span>
+        </button>
+      </div>
     </div>
   </div>
 </footer>

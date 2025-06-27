@@ -3,9 +3,15 @@
 
 /* Container for the entire status component */
 .status-container {
-  padding: 1.5rem;
-  max-width: 1200px;
-  margin: 0 auto;
+    padding: var(--spacing-lg);
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+:host-context([data-theme="dark"]) .status-container,
+:host-context(body[data-theme="dark"]) .status-container {
+    background-color: var(--surface-dark);
+    color: var(--text-light);
 }
 
 /* Page header */
@@ -19,10 +25,20 @@
   font-size: 2rem;
 }
 
+:host-context([data-theme="dark"]) .page-header h1,
+:host-context(body[data-theme="dark"]) .page-header h1 {
+  color: var(--primary-light);
+}
+
 .page-description {
   color: var(--text-secondary);
   max-width: 800px;
   line-height: 1.6;
+}
+
+:host-context([data-theme="dark"]) .page-description,
+:host-context(body[data-theme="dark"]) .page-description {
+  color: var(--text-light-secondary);
 }
 
 /* Wallet notice */
@@ -35,6 +51,12 @@
   display: flex;
   align-items: flex-start;
   gap: 1rem;
+}
+
+:host-context([data-theme="dark"]) .wallet-notice,
+:host-context(body[data-theme="dark"]) .wallet-notice {
+  background-color: rgba(var(--warning-rgb), 0.15);
+  border-left: 4px solid var(--warning-color);
 }
 
 .notice-icon {
@@ -64,14 +86,24 @@
   color: var(--text-secondary);
 }
 
+:host-context([data-theme="dark"]) .loading-container,
+:host-context(body[data-theme="dark"]) .loading-container {
+  color: var(--text-light-secondary);
+}
+
 .loading-spinner {
-  border: 4px solid rgba(var(--primary-rgb), 0.1);
-  border-radius: 50%;
-  border-top: 4px solid var(--primary-color);
-  width: 40px;
-  height: 40px;
-  animation: spin 1s linear infinite;
-  margin-bottom: 1rem;
+    display: inline-block;
+    width: 50px;
+    height: 50px;
+    border: 3px solid rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    border-top-color: var(--primary);
+    animation: spin 1s ease-in-out infinite;
+}
+
+:host-context([data-theme="dark"]) .loading-spinner {
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top-color: var(--electric-blue);
 }
 
 @keyframes spin {
@@ -101,8 +133,19 @@
   font-size: 0.9rem;
 }
 
+:host-context([data-theme="dark"]) .wallet-info-bar,
+:host-context(body[data-theme="dark"]) .wallet-info-bar {
+  background-color: var(--surface-dark);
+  border: 1px solid var(--gray-800);
+}
+
 .wallet-label {
   color: var(--text-secondary);
+}
+
+:host-context([data-theme="dark"]) .wallet-label,
+:host-context(body[data-theme="dark"]) .wallet-label {
+  color: var(--text-light-secondary);
 }
 
 .wallet-address {
@@ -111,6 +154,12 @@
   background-color: rgba(var(--primary-rgb), 0.1);
   padding: 0.25rem 0.75rem;
   border-radius: 20px;
+}
+
+:host-context([data-theme="dark"]) .wallet-address,
+:host-context(body[data-theme="dark"]) .wallet-address {
+  color: var(--text-light);
+  background-color: rgba(var(--primary-rgb), 0.2);
 }
 
 /* Tabs styling */
@@ -122,9 +171,21 @@
   margin-bottom: 2rem;
 }
 
+:host-context([data-theme="dark"]) .tabs-container,
+:host-context(body[data-theme="dark"]) .tabs-container {
+  background-color: var(--surface-dark);
+  border: 1px solid var(--gray-800);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
 .tabs-header {
   display: flex;
   border-bottom: 1px solid var(--border-color);
+}
+
+:host-context([data-theme="dark"]) .tabs-header,
+:host-context(body[data-theme="dark"]) .tabs-header {
+  border-bottom: 1px solid var(--gray-800);
 }
 
 .tab-button {
@@ -139,14 +200,30 @@
   position: relative;
 }
 
+:host-context([data-theme="dark"]) .tab-button,
+:host-context(body[data-theme="dark"]) .tab-button {
+  color: var(--text-light-secondary);
+}
+
 .tab-button:hover {
   color: var(--primary-color);
   background-color: rgba(var(--primary-rgb), 0.05);
 }
 
+:host-context([data-theme="dark"]) .tab-button:hover,
+:host-context(body[data-theme="dark"]) .tab-button:hover {
+  color: var(--primary-light);
+  background-color: rgba(var(--primary-rgb), 0.15);
+}
+
 .tab-button.active {
   color: var(--primary-color);
   font-weight: 600;
+}
+
+:host-context([data-theme="dark"]) .tab-button.active,
+:host-context(body[data-theme="dark"]) .tab-button.active {
+  color: var(--primary-light);
 }
 
 .tab-button.active::after {
@@ -342,13 +419,18 @@ td {
 
 /* Status badges */
 .status-badge {
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  text-align: center;
-  white-space: nowrap;
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+:host-context([data-theme="dark"]) .status-badge,
+:host-context(body[data-theme="dark"]) .status-badge {
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
 }
 
 .status-pending {
@@ -407,6 +489,13 @@ td {
   display: flex;
   gap: 1rem;
   align-items: flex-start;
+}
+
+:host-context([data-theme="dark"]) .info-card,
+:host-context(body[data-theme="dark"]) .info-card {
+  background-color: var(--surface-dark);
+  border: 1px solid var(--gray-800);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
 }
 
 .info-icon {

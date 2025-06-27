@@ -1,0 +1,146 @@
+/* Mobile Navigation Styles */
+.mobile-nav {
+  display: flex;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background-color: var(--surface);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  justify-content: space-around;
+  align-items: center;
+  padding: 0;
+  border-top: 1px solid var(--divider);
+  transition: background-color var(--transition-speed) var(--transition-timing),
+              border-color var(--transition-speed) var(--transition-timing),
+              box-shadow var(--transition-speed) var(--transition-timing);
+  padding-bottom: env(safe-area-inset-bottom, 0); /* Support for iOS safe areas */
+  overflow-x: auto; /* Allow horizontal scrolling if too many items */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Dark mode styles for mobile nav */
+:host-context([data-theme="dark"]) .mobile-nav,
+:host-context(body[data-theme="dark"]) .mobile-nav,
+:host-context(html[data-theme="dark"]) .mobile-nav {
+  background-color: var(--surface-dark, #000000);
+  border-top: 1px solid rgba(59, 130, 246, 0.2);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.5);
+}
+
+/* Mobile nav items */
+.mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  text-decoration: none;
+  padding: 8px 0;
+  min-width: 64px; /* Ensure minimum tap target size */
+  flex: 1;
+  transition: color 0.3s ease, transform 0.2s ease;
+  position: relative;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+}
+
+.mobile-nav-item:active {
+  transform: scale(0.95);
+}
+
+:host-context([data-theme="dark"]) .mobile-nav-item,
+:host-context(body[data-theme="dark"]) .mobile-nav-item,
+:host-context(html[data-theme="dark"]) .mobile-nav-item {
+  color: var(--text-light-secondary, #a0aec0);
+}
+
+/* Active state styling */
+.mobile-nav-item.active {
+  color: var(--primary);
+}
+
+.mobile-nav-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 25%;
+  width: 50%;
+  height: 3px;
+  background-color: var(--primary);
+  border-radius: 3px 3px 0 0;
+}
+
+:host-context([data-theme="dark"]) .mobile-nav-item.active {
+  color: var(--electric-blue);
+}
+
+:host-context([data-theme="dark"]) .mobile-nav-item.active,
+:host-context(body[data-theme="dark"]) .mobile-nav-item.active,
+:host-context(html[data-theme="dark"]) .mobile-nav-item.active {
+  color: var(--electric-blue, #3b82f6);
+}
+
+:host-context([data-theme="dark"]) .mobile-nav-item.active::after,
+:host-context(body[data-theme="dark"]) .mobile-nav-item.active::after,
+:host-context(html[data-theme="dark"]) .mobile-nav-item.active::after {
+  background-color: var(--electric-blue, #3b82f6);
+}
+
+/* Icon styling */
+.mobile-nav-icon {
+  font-size: 1.5rem;
+  margin-bottom: 4px;
+  transition: transform 0.3s ease;
+}
+
+/* Label styling */
+.mobile-nav-label {
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+/* Theme toggle button specific styles */
+.theme-toggle {
+  outline: none;
+}
+
+.theme-toggle:focus {
+  outline: none;
+}
+
+.theme-toggle .mobile-nav-icon {
+  transition: transform 0.5s ease;
+}
+
+.theme-toggle:active .mobile-nav-icon {
+  transform: rotate(180deg);
+}
+
+/* Hide on desktop */
+@media (min-width: 769px) {
+  .mobile-nav {
+    display: none;
+  }
+}
+
+/* Adjust for very small screens */
+@media (max-width: 320px) {
+  .mobile-nav-label {
+    font-size: 0.65rem;
+  }
+  
+  .mobile-nav-icon {
+    font-size: 1.4rem;
+  }
+}

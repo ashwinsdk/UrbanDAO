@@ -1,51 +1,43 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
+import { RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { Subscription, combineLatest } from 'rxjs';
+import { DeviceService } from '../services/device.service';
 import { AuthService } from '../../auth/auth.service';
 import { UserRole } from '../../auth/user-role.enum';
-import { DeviceService } from '../services/device.service';
 
 @Component({
-  selector: 'app-footer',
+  selector: 'app-mobile-nav',
   standalone: true,
-  imports: [CommonModule, RouterModule],
-  templateUrl: './footer.html',
-  styleUrl: './footer.css'
+  imports: [RouterLink, RouterLinkActive, CommonModule],
+  templateUrl: './mobile-nav.html',
+  styleUrls: ['./mobile-nav.css']
 })
-export class Footer implements OnInit, OnDestroy {
-  currentYear = new Date().getFullYear();
-  protected isAuthenticated = false;
-  protected userRole: UserRole | null = null;
+export class MobileNav implements OnInit, OnDestroy {
   protected isMobile = false;
+  protected userRole: UserRole | null = null;
+  protected isAuthenticated = false;
   protected UserRole = UserRole; // Expose enum to template
   protected isDarkMode = false;
   
   private subscriptions: Subscription[] = [];
   
   constructor(
-    private authService: AuthService,
-    private deviceService: DeviceService
+    private deviceService: DeviceService,
+    private authService: AuthService
   ) {}
   
   ngOnInit(): void {
-    // Subscribe to auth service
+    // Combine device and auth state observables
     this.subscriptions.push(
-      this.authService.connected$.subscribe(connected => {
-        this.isAuthenticated = connected;
-      })
-    );
-    
-    this.subscriptions.push(
-      this.authService.userRole$.subscribe(role => {
-        this.userRole = role;
-      })
-    );
-    
-    // Subscribe to device service
-    this.subscriptions.push(
-      this.deviceService.isMobile$.subscribe(isMobile => {
+      combineLatest([
+        this.deviceService.isMobile$,
+        this.authService.userRole$,
+        this.authService.connected$
+      ]).subscribe(([isMobile, userRole, connected]) => {
         this.isMobile = isMobile;
+        this.userRole = userRole;
+        this.isAuthenticated = connected;
       })
     );
     
@@ -100,5 +92,19 @@ export class Footer implements OnInit, OnDestroy {
    */
   logout(): void {
     this.authService.logout();
+  }
+  
+  /**
+   * Login redirect
+   */
+  login(): void {
+    window.location.href = '/login';
+  }
+  
+  /**
+   * Register redirect
+   */
+  register(): void {
+    window.location.href = '/register';
   }
 }

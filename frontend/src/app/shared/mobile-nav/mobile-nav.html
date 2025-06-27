@@ -1,0 +1,125 @@
+<nav class="mobile-nav">
+  <!-- Home Link - only visible when logged out -->
+  <a *ngIf="!isAuthenticated" [routerLink]="['/']" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="mobile-nav-item">
+    <span class="material-icons mobile-nav-icon">home</span>
+    <span class="mobile-nav-label">Home</span>
+  </a>
+  
+  <!-- Dashboard Link - visible when logged in (role-specific) -->
+  <a *ngIf="isAuthenticated && userRole === UserRole.User" [routerLink]="['/user']" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="mobile-nav-item">
+    <span class="material-icons mobile-nav-icon">dashboard</span>
+    <span class="mobile-nav-label">Dashboard</span>
+  </a>
+  
+  <a *ngIf="isAuthenticated && userRole === UserRole.AdminHead" [routerLink]="['/admin-head']" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="mobile-nav-item">
+    <span class="material-icons mobile-nav-icon">dashboard</span>
+    <span class="mobile-nav-label">Dashboard</span>
+  </a>
+  
+  <a *ngIf="isAuthenticated && userRole === UserRole.AdminGovt" [routerLink]="['/admin-govt']" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="mobile-nav-item">
+    <span class="material-icons mobile-nav-icon">dashboard</span>
+    <span class="mobile-nav-label">Dashboard</span>
+  </a>
+  
+  <!-- CITIZEN USER NAVIGATION -->
+  <ng-container *ngIf="isAuthenticated && userRole === UserRole.User">
+    <a [routerLink]="['/user/file-grievance']" routerLinkActive="active" class="mobile-nav-item">
+      <span class="material-icons mobile-nav-icon">report_problem</span>
+      <span class="mobile-nav-label">Grievance</span>
+    </a>
+    <a [routerLink]="['/user/pay-tax']" routerLinkActive="active" class="mobile-nav-item">
+      <span class="material-icons mobile-nav-icon">payments</span>
+      <span class="mobile-nav-label">Tax</span>
+    </a>
+    <a [routerLink]="['/user/view-projects']" routerLinkActive="active" class="mobile-nav-item">
+      <span class="material-icons mobile-nav-icon">view_list</span>
+      <span class="mobile-nav-label">Projects</span>
+    </a>
+    <a [routerLink]="['/user/feedback']" routerLinkActive="active" class="mobile-nav-item">
+      <span class="material-icons mobile-nav-icon">feedback</span>
+      <span class="mobile-nav-label">Feedback</span>
+    </a>
+    <button (click)="toggleTheme()" class="mobile-nav-item theme-toggle">
+      <span class="material-icons mobile-nav-icon">{{ isDarkMode ? 'light_mode' : 'dark_mode' }}</span>
+      <span class="mobile-nav-label">Theme</span>
+    </button>
+    <a href="#" (click)="$event.preventDefault(); logout()" class="mobile-nav-item">
+      <span class="material-icons mobile-nav-icon">logout</span>
+      <span class="mobile-nav-label">Logout</span>
+    </a>
+  </ng-container>
+  
+  <!-- ADMIN HEAD NAVIGATION -->
+  <ng-container *ngIf="isAuthenticated && userRole === UserRole.AdminHead">
+    <a [routerLink]="['/admin-head/projects']" routerLinkActive="active" class="mobile-nav-item">
+      <span class="material-icons mobile-nav-icon">view_list</span>
+      <span class="mobile-nav-label">Projects</span>
+    </a>
+    <a [routerLink]="['/admin-head/grievances']" routerLinkActive="active" class="mobile-nav-item">
+      <span class="material-icons mobile-nav-icon">report_problem</span>
+      <span class="mobile-nav-label">Grievances</span>
+    </a>
+    <a [routerLink]="['/admin-head/projects']" routerLinkActive="active" class="mobile-nav-item">
+      <span class="material-icons mobile-nav-icon">assignment</span>
+      <span class="mobile-nav-label">Tasks</span>
+    </a>
+
+    <button (click)="toggleTheme()" class="mobile-nav-item theme-toggle">
+      <span class="material-icons mobile-nav-icon">{{ isDarkMode ? 'light_mode' : 'dark_mode' }}</span>
+      <span class="mobile-nav-label">Theme</span>
+    </button>
+    <a href="#" (click)="$event.preventDefault(); logout()" class="mobile-nav-item">
+      <span class="material-icons mobile-nav-icon">logout</span>
+      <span class="mobile-nav-label">Logout</span>
+    </a>
+  </ng-container>
+  
+  <!-- ADMIN GOVT NAVIGATION -->
+  <ng-container *ngIf="isAuthenticated && userRole === UserRole.AdminGovt">
+    <a [routerLink]="['/admin-govt/set-tax']" routerLinkActive="active" class="mobile-nav-item">
+      <span class="material-icons mobile-nav-icon">payments</span>
+      <span class="mobile-nav-label">Set Tax</span>
+    </a>
+    <a [routerLink]="['/admin-govt/assign-head']" routerLinkActive="active" class="mobile-nav-item">
+      <span class="material-icons mobile-nav-icon">supervisor_account</span>
+      <span class="mobile-nav-label">Admins</span>
+    </a>
+    <a [routerLink]="['/admin-govt/view-projects']" routerLinkActive="active" class="mobile-nav-item">
+      <span class="material-icons mobile-nav-icon">view_list</span>
+      <span class="mobile-nav-label">Projects</span>
+    </a>
+
+    <button (click)="toggleTheme()" class="mobile-nav-item theme-toggle">
+      <span class="material-icons mobile-nav-icon">{{ isDarkMode ? 'light_mode' : 'dark_mode' }}</span>
+      <span class="mobile-nav-label">Theme</span>
+    </button>
+    <a href="#" (click)="$event.preventDefault(); logout()" class="mobile-nav-item">
+      <span class="material-icons mobile-nav-icon">logout</span>
+      <span class="mobile-nav-label">Logout</span>
+    </a>
+  </ng-container>
+  
+  <!-- GUEST NAVIGATION -->
+  <ng-container *ngIf="!isAuthenticated">
+    <a [routerLink]="['/docs']" routerLinkActive="active" class="mobile-nav-item">
+      <span class="material-icons mobile-nav-icon">description</span>
+      <span class="mobile-nav-label">Docs</span>
+    </a>
+    <a [routerLink]="['/about']" routerLinkActive="active" class="mobile-nav-item">
+      <span class="material-icons mobile-nav-icon">info</span>
+      <span class="mobile-nav-label">About</span>
+    </a>
+    <a [routerLink]="['/register']" routerLinkActive="active" class="mobile-nav-item">
+      <span class="material-icons mobile-nav-icon">person_add</span>
+      <span class="mobile-nav-label">Register</span>
+    </a>
+    <a [routerLink]="['/login']" routerLinkActive="active" class="mobile-nav-item">
+      <span class="material-icons mobile-nav-icon">login</span>
+      <span class="mobile-nav-label">Login</span>
+    </a>
+    <button (click)="toggleTheme()" class="mobile-nav-item theme-toggle">
+      <span class="material-icons mobile-nav-icon">{{ isDarkMode ? 'light_mode' : 'dark_mode' }}</span>
+      <span class="mobile-nav-label">Theme</span>
+    </button>
+  </ng-container>
+</nav>

@@ -9,6 +9,35 @@
   background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
 }
 
+[data-theme="dark"] .auth-container,
+:host-context([data-theme="dark"]) .auth-container,
+:host-context(body[data-theme="dark"]) .auth-container {
+  background: #000000;
+  position: relative;
+}
+
+[data-theme="dark"] .auth-container::before,
+:host-context([data-theme="dark"]) .auth-container::before,
+:host-context(body[data-theme="dark"]) .auth-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+  background-size: 200% 200%;
+  animation: gradientAnimation 15s ease infinite;
+  opacity: 0.7;
+  z-index: 0;
+}
+
+@keyframes gradientAnimation {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
 .auth-card {
   width: 100%;
   max-width: 480px;
@@ -17,6 +46,14 @@
   box-shadow: var(--shadow-lg);
   padding: var(--spacing-xl);
   overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+
+[data-theme="dark"] .auth-card {
+  background-color: var(--surface-dark);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7), 0 0 10px rgba(59, 130, 246, 0.2);
 }
 
 .auth-header {
@@ -45,6 +82,10 @@
   font-size: 1rem;
 }
 
+[data-theme="dark"] .auth-header .subtitle {
+  color: var(--text-light-secondary);
+}
+
 /* Wallet Connect Section */
 .wallet-section {
   margin: var(--spacing-xl) 0;
@@ -60,6 +101,10 @@
   text-align: center;
   margin-bottom: var(--spacing-lg);
   color: var(--text-secondary);
+}
+
+[data-theme="dark"] .instruction {
+  color: var(--text-light-secondary);
 }
 
 .btn-connect {

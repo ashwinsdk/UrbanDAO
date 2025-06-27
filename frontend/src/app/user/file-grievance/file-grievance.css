@@ -24,10 +24,22 @@
   color: var(--text-secondary);
 }
 
+[data-theme="dark"] .file-upload-label {
+  background-color: var(--gray-800);
+  border: 1px dashed var(--gray-700);
+  color: var(--text-light-secondary);
+}
+
 .file-upload-label:hover {
   background-color: var(--surface-hover);
   border-color: var(--primary);
   color: var(--primary);
+}
+
+[data-theme="dark"] .file-upload-label:hover {
+  background-color: rgba(var(--primary-rgb), 0.15);
+  border-color: var(--primary-light);
+  color: var(--primary-light);
 }
 
 .file-input {

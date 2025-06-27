@@ -1,9 +1,17 @@
-<div class="app-wrapper">
+<div class="app-wrapper" [class.mobile-view]="isMobile" [class.authenticated]="isAuthenticated">
+  <!-- Desktop header - shown on desktop and hidden on mobile -->
   <app-header *ngIf="showHeaderFooter"></app-header>
 
-  <main class="main-content">
+  <!-- Main content area - adjusted for mobile/desktop automatically -->
+  <main class="main-content" 
+        [class.mobile-content]="isMobile"
+        [class.has-mobile-nav]="showMobileNav">
     <router-outlet></router-outlet>
   </main>
 
-  <app-footer *ngIf="showHeaderFooter"></app-footer>
+  <!-- Desktop footer - shown on desktop and hidden on mobile -->
+  <app-footer *ngIf="showHeaderFooter || (isMobile && !showHeaderFooter && showMobileNav)"></app-footer>
+  
+  <!-- Mobile Navigation - shown only on mobile -->
+  <app-mobile-nav *ngIf="showMobileNav"></app-mobile-nav>
 </div>

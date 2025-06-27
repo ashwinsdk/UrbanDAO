@@ -10,9 +10,19 @@
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
+[data-theme="dark"] .card {
+  background-color: var(--surface-dark);
+  border: 1px solid var(--gray-800);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
 .card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
+}
+
+[data-theme="dark"] .card:hover {
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
 }
 
 .card-header {
@@ -24,11 +34,19 @@
   padding-bottom: 0.75rem;
 }
 
+[data-theme="dark"] .card-header {
+  border-bottom: 1px solid var(--gray-800);
+}
+
 .card-title {
   font-size: 1.25rem;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
+}
+
+[data-theme="dark"] .card-title {
+  color: var(--text-light);
 }
 
 .card-content {
@@ -41,6 +59,10 @@
   align-items: center;
   padding-top: 0.75rem;
   border-top: 1px solid var(--border);
+}
+
+[data-theme="dark"] .card-footer {
+  border-top: 1px solid var(--gray-800);
 }
 
 /* Grid layout */
