@@ -367,7 +367,7 @@
   .mission-section {
     grid-template-columns: 1fr;
   }
-  
+
   .contact-container {
     grid-template-columns: 1fr;
   }
@@ -377,11 +377,11 @@
   .about-title {
     font-size: 2.5rem;
   }
-  
+
   .stats-container {
     grid-template-columns: 1fr;
   }
-  
+
   .section-content h2,
   .features-section h2,
   .team-section h2,
@@ -397,8 +397,31 @@
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Theme switching for team member images */
+.ashwin-img-dark {
+  display: none;
+}
+
+.ashwin-img-light {
+  display: block;
+}
+
+/* Dark mode styles using :host-context to pierce Angular view encapsulation */
+:host-context([data-theme="dark"]) .ashwin-img-dark,
+:host-context(body[data-theme="dark"]) .ashwin-img-dark,
+:host-context(html[data-theme="dark"]) .ashwin-img-dark {
+  display: block;
+}
+
+:host-context([data-theme="dark"]) .ashwin-img-light,
+:host-context(body[data-theme="dark"]) .ashwin-img-light,
+:host-context(html[data-theme="dark"]) .ashwin-img-light {
+  display: none;
 }

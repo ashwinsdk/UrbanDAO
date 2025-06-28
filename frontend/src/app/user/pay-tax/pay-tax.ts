@@ -19,50 +19,49 @@ export class PayTax implements OnInit {
   submitSuccess = false;
   submitError = false;
   errorMessage = '';
-  
+
   // User's wallet public key
   publicKey: string | null = null;
-  
+
   // Tax information
   taxDue: { ward: string; year: number; amount: number } | null = null;
-  
+
   // Payment history
   recentPayments: TaxPayment[] = [];
-  
+
   // Payment confirmation
   showConfirmation = false;
-  
+
   constructor(
     private authService: AuthService,
     private userService: UserService,
     private router: Router
-  ) {}
-  
+  ) { }
+
   ngOnInit(): void {
     // Check if user is logged in
     this.authService.connected$.subscribe((connected: boolean) => {
       this.isLoggedIn = connected;
-      
-      // If not logged in, redirect to login
+
+      // If not logged in, redirect to login silently
       if (!connected) {
-        alert('Please connect your wallet to view and pay taxes');
-        this.router.navigate(['/']);
+        this.router.navigate(['/login']);
         return;
       }
-      
+
       // Get user's public key
       this.publicKey = this.authService.getPublicKey();
-      
+
       // Load tax information
       this.loadTaxInformation();
     });
   }
-  
+
   loadTaxInformation(): void {
     // Get current tax due
     this.userService.getCurrentTaxDue().subscribe(taxDue => {
       this.taxDue = taxDue;
-      
+
       // Get recent payments
       this.userService.getTaxPayments().subscribe(payments => {
         this.recentPayments = payments.slice(0, 5); // Show only 5 most recent payments
@@ -70,22 +69,22 @@ export class PayTax implements OnInit {
       });
     });
   }
-  
+
   confirmPayment(): void {
     this.showConfirmation = true;
   }
-  
+
   cancelPayment(): void {
     this.showConfirmation = false;
   }
-  
+
   payTax(): void {
     if (!this.taxDue) return;
-    
+
     this.isSubmitting = true;
     this.submitError = false;
     this.submitSuccess = false;
-    
+
     // Submit tax payment
     this.userService.payTax(
       this.taxDue.ward,
@@ -96,10 +95,10 @@ export class PayTax implements OnInit {
         this.isSubmitting = false;
         this.submitSuccess = true;
         this.showConfirmation = false;
-        
+
         // Add the new payment to recent payments
         this.recentPayments = [payment, ...this.recentPayments].slice(0, 5);
-        
+
         // In a real app, we would update the tax due information
         // For now, just set it to null to simulate payment
         this.taxDue = null;
@@ -111,7 +110,7 @@ export class PayTax implements OnInit {
       }
     });
   }
-  
+
   // Format the wallet address for display
   formatWalletAddress(address: string | null): string {
     if (!address) return '';

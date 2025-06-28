@@ -5,8 +5,16 @@
   justify-content: center;
   align-items: center;
   min-height: 100vh;
+  height: 100vh;
+  width: 100vw;
   padding: var(--spacing-xl) var(--spacing-md);
   background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+  margin: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
 }
 
 [data-theme="dark"] .auth-container,
@@ -14,28 +22,6 @@
 :host-context(body[data-theme="dark"]) .auth-container {
   background: #000000;
   position: relative;
-}
-
-[data-theme="dark"] .auth-container::before,
-:host-context([data-theme="dark"]) .auth-container::before,
-:host-context(body[data-theme="dark"]) .auth-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
-  background-size: 200% 200%;
-  animation: gradientAnimation 15s ease infinite;
-  opacity: 0.7;
-  z-index: 0;
-}
-
-@keyframes gradientAnimation {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
 }
 
 .auth-card {
@@ -147,7 +133,9 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .error-message {
@@ -350,11 +338,11 @@
   .auth-card {
     padding: var(--spacing-lg);
   }
-  
+
   .auth-header h1 {
     font-size: 1.5rem;
   }
-  
+
   .future-auth-options {
     flex-direction: column;
     gap: var(--spacing-md);

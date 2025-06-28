@@ -25,28 +25,36 @@
     <!-- Stats Overview -->
     <div class="stats-overview">
       <div class="stat-card">
-        <div class="stat-icon pending-icon">📝</div>
+        <div class="stat-icon pending-icon">
+          <span class="material-icons">assignment</span>
+        </div>
         <div class="stat-content">
           <h3>{{ pendingGrievances.length }}</h3>
           <p>Pending Grievances</p>
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon ongoing-icon">🏗️</div>
+        <div class="stat-icon ongoing-icon">
+          <span class="material-icons">construction</span>
+        </div>
         <div class="stat-content">
           <h3>{{ ongoingProjects.length }}</h3>
           <p>Ongoing Projects</p>
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon planning-icon">📋</div>
+        <div class="stat-icon planning-icon">
+          <span class="material-icons">schedule</span>
+        </div>
         <div class="stat-content">
           <h3>{{ plannedProjects.length }}</h3>
           <p>Planned Projects</p>
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon completed-icon">✅</div>
+        <div class="stat-icon completed-icon">
+          <span class="material-icons">check_circle</span>
+        </div>
         <div class="stat-content">
           <h3>{{ completedProjects.length }}</h3>
           <p>Completed Projects</p>
@@ -59,14 +67,18 @@
       <h2>Quick Actions</h2>
       <div class="actions-container">
         <a [routerLink]="['/admin-head/grievances']" class="action-card">
-          <div class="action-icon">📋</div>
+          <div class="action-icon">
+            <span class="material-icons">report_problem</span>
+          </div>
           <div class="action-content">
             <h3>Manage Grievances</h3>
             <p>Review and respond to citizen grievances</p>
           </div>
         </a>
         <a [routerLink]="['/admin-head/projects']" class="action-card">
-          <div class="action-icon">🏗️</div>
+          <div class="action-icon">
+            <span class="material-icons">engineering</span>
+          </div>
           <div class="action-content">
             <h3>Manage Projects</h3>
             <p>Allocate funds for new infrastructure projects</p>

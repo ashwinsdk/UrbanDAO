@@ -1,7 +1,7 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../auth/auth.service';
 import { Subscription } from 'rxjs';
 import { UserRole } from '../../auth/user-role.enum';
@@ -9,7 +9,7 @@ import { UserRole } from '../../auth/user-role.enum';
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './register.html',
   styleUrl: './register.css'
 })

@@ -38,34 +38,23 @@
           <li><a routerLink="/about" routerLinkActive="active">About</a></li>
           <li><a routerLink="/docs" routerLinkActive="active">Docs</a></li>
         </ng-container>
-        
-        <!-- Dashboard Links - only visible when logged in (role-specific) -->
-        <ng-container *ngIf="isLoggedIn && userRole === UserRole.User">
-          <li><a routerLink="/user" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Dashboard</a></li>
-        </ng-container>
-        
-        <ng-container *ngIf="isLoggedIn && userRole === UserRole.AdminHead">
-          <li><a routerLink="/admin-head" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Dashboard</a></li>
-        </ng-container>
-        
-        <ng-container *ngIf="isLoggedIn && userRole === UserRole.AdminGovt">
-          <li><a routerLink="/admin-govt" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Dashboard</a></li>
-        </ng-container>
-        
+
         <!-- Government Admin Navigation -->
         <ng-container *ngIf="isLoggedIn && userRole === UserRole.AdminGovt">
-          <li><a routerLink="/admin-govt/govt-home" routerLinkActive="active">Dashboard</a></li>
+          <li><a routerLink="/admin-govt" routerLinkActive="active"
+              [routerLinkActiveOptions]="{exact: true}">Dashboard</a></li>
           <li><a routerLink="/admin-govt/assign-head" routerLinkActive="active">Assign Head</a></li>
           <li><a routerLink="/admin-govt/set-tax" routerLinkActive="active">Set Tax</a></li>
-          <li><a routerLink="/admin-govt/view-grievance" routerLinkActive="active">Grievances</a></li>
-          <li><a routerLink="/admin-govt/view-project" routerLinkActive="active">Projects</a></li>
+          <li><a routerLink="/admin-govt/view-grievances" routerLinkActive="active">Grievances</a></li>
+          <li><a routerLink="/admin-govt/view-projects" routerLinkActive="active">Projects</a></li>
         </ng-container>
 
         <!-- Municipal Head Navigation -->
         <ng-container *ngIf="isLoggedIn && userRole === UserRole.AdminHead">
-          <li><a routerLink="/admin-head/admin-home" routerLinkActive="active">Dashboard</a></li>
-          <li><a routerLink="/admin-head/project-alloc" routerLinkActive="active">Project Allocation</a></li>
-          <li><a routerLink="/admin-head/edit-grievance" routerLinkActive="active">Manage Grievances</a></li>
+          <li><a routerLink="/admin-head" routerLinkActive="active"
+              [routerLinkActiveOptions]="{exact: true}">Dashboard</a></li>
+          <li><a routerLink="/admin-head/projects" routerLinkActive="active">Project Allocation</a></li>
+          <li><a routerLink="/admin-head/grievances" routerLinkActive="active">Manage Grievances</a></li>
         </ng-container>
 
         <!-- Citizen User Navigation -->
@@ -77,14 +66,16 @@
           <li><a routerLink="/user/view-projects" routerLinkActive="active">Projects</a></li>
         </ng-container>
       </ul>
-      
+
       <!-- Mobile Auth Actions (only visible in mobile menu) -->
       <div class="mobile-auth-actions">
         <!-- Mobile Theme Toggle -->
         <button class="theme-toggle mobile-theme-toggle" (click)="toggleTheme()" aria-label="Toggle dark mode">
           <span *ngIf="isDarkMode">Switch to Light Mode</span>
           <span *ngIf="!isDarkMode">Switch to Dark Mode</span>
-          <svg *ngIf="isDarkMode" class="theme-icon sun-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg *ngIf="isDarkMode" class="theme-icon sun-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round">
             <circle cx="12" cy="12" r="5"></circle>
             <line x1="12" y1="1" x2="12" y2="3"></line>
             <line x1="12" y1="21" x2="12" y2="23"></line>
@@ -95,18 +86,21 @@
             <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
             <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
           </svg>
-          <svg *ngIf="!isDarkMode" class="theme-icon moon-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg *ngIf="!isDarkMode" class="theme-icon moon-icon" xmlns="http://www.w3.org/2000/svg" width="20"
+            height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round">
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
           </svg>
         </button>
-        
+
         <ng-container *ngIf="!isLoggedIn">
           <a routerLink="/login" class="btn btn-outline mobile-btn" (click)="closeMobileMenu()">Login</a>
           <a routerLink="/register" class="btn btn-primary mobile-btn" (click)="closeMobileMenu()">Register</a>
         </ng-container>
         <ng-container *ngIf="isLoggedIn">
           <div class="wallet-info mobile-wallet-info">
-            <span class="wallet-address" *ngIf="publicKey">{{ publicKey | slice:0:6 }}...{{ publicKey | slice:-4 }}</span>
+            <span class="wallet-address" *ngIf="publicKey">{{ publicKey | slice:0:6 }}...{{ publicKey | slice:-4
+              }}</span>
             <button (click)="logout()" class="btn btn-outline mobile-btn">Logout</button>
           </div>
         </ng-container>
@@ -118,7 +112,9 @@
       <!-- Theme Toggle Button -->
       <button class="theme-toggle" (click)="toggleTheme()" aria-label="Toggle dark mode">
         <span class="sr-only">Toggle dark mode</span>
-        <svg *ngIf="isDarkMode" class="theme-icon sun-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg *ngIf="isDarkMode" class="theme-icon sun-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round">
           <circle cx="12" cy="12" r="5"></circle>
           <line x1="12" y1="1" x2="12" y2="3"></line>
           <line x1="12" y1="21" x2="12" y2="23"></line>
@@ -129,11 +125,13 @@
           <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
           <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
         </svg>
-        <svg *ngIf="!isDarkMode" class="theme-icon moon-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg *ngIf="!isDarkMode" class="theme-icon moon-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round">
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
         </svg>
       </button>
-      
+
       <ng-container *ngIf="!isLoggedIn">
         <a routerLink="/login" class="btn btn-outline">Login</a>
         <a routerLink="/register" class="btn btn-primary">Register</a>

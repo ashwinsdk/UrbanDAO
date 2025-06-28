@@ -22,12 +22,22 @@
   align-items: center;
 }
 
-.brand a {
+.brand-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   text-decoration: none;
   color: var(--primary);
 }
 
-.brand h1 {
+.logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.brand-name {
   font-size: 1.5rem;
   font-weight: 700;
   margin: 0;
@@ -35,6 +45,7 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  white-space: nowrap;
 }
 
 /* Navigation */
@@ -139,7 +150,7 @@
 
 [data-theme="dark"] .theme-toggle:hover {
   background-color: rgba(59, 130, 246, 0.2);
-  
+
 }
 
 /* Mobile auth actions - hidden by default */
@@ -231,13 +242,34 @@
   .nav-list {
     gap: 1rem;
   }
+
+  .brand-name {
+    font-size: 1.3rem;
+  }
+
+  .brand-link {
+    gap: 0.5rem;
+  }
 }
 
 @media (max-width: 768px) {
   .header {
     padding: 0.5rem 0;
   }
-  
+
+  .brand-name {
+    font-size: 1.2rem;
+  }
+
+  .brand-link {
+    gap: 0.4rem;
+  }
+
+  .logo svg {
+    width: 28px;
+    height: 28px;
+  }
+
   .nav-menu {
     position: fixed;
     top: 0;
@@ -269,7 +301,7 @@
     margin: 0.5rem 0;
     width: 100%;
   }
-  
+
   .nav-list a {
     display: block;
     padding: 0.75rem 0;
@@ -279,7 +311,7 @@
   .mobile-toggle {
     display: flex;
   }
-  
+
   /* When menu is open */
   body.menu-open::after {
     content: '';
@@ -308,12 +340,12 @@
   .mobile-toggle.active span:nth-child(3) {
     transform: translateY(-8px) rotate(-45deg);
   }
-  
+
   /* Hide desktop auth actions on mobile */
   .auth-actions {
     display: none;
   }
-  
+
   /* Show mobile auth actions */
   .mobile-auth-actions {
     display: flex;
@@ -322,7 +354,7 @@
     margin-top: 2rem;
     gap: 1rem;
   }
-  
+
   .mobile-btn {
     width: 100%;
     padding: 0.75rem;
@@ -330,13 +362,13 @@
     text-align: center;
     margin-bottom: 0.5rem;
   }
-  
+
   .mobile-wallet-info {
     flex-direction: column;
     width: 100%;
     gap: 1rem;
   }
-  
+
   .wallet-address {
     max-width: 100%;
     text-align: center;

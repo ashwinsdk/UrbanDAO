@@ -30,49 +30,45 @@
       <ng-container *ngIf="!isConnected; else connectedWallet">
         <div class="wallet-connect">
           <p class="instruction">Click the button below to connect your Phantom wallet</p>
-          <button 
-            class="btn btn-primary btn-connect" 
-            (click)="connectWallet()"
-            [disabled]="loading"
-          >
+          <button class="btn btn-primary btn-connect" (click)="connectWallet()" [disabled]="loading">
             <span *ngIf="!loading">Connect Wallet</span>
             <span *ngIf="loading" class="loading-spinner"></span>
           </button>
-          
+
           <div *ngIf="error" class="error-message">
             {{ error }}
           </div>
-          
+
           <div class="wallet-info">
             <p>Don't have a wallet?</p>
             <a href="https://phantom.app/" target="_blank" class="wallet-link">Get Phantom Wallet</a>
           </div>
         </div>
       </ng-container>
-      
+
       <ng-template #connectedWallet>
         <div class="wallet-connected">
           <div class="success-icon">
             <span class="material-icons">check_circle</span>
           </div>
           <h2>Wallet Connected</h2>
-          
+
           <div class="wallet-details">
             <div class="detail-row">
               <span class="label">Public Key:</span>
               <span class="value key-value">{{ publicKey }}</span>
             </div>
-            
+
             <div *ngIf="userRole" class="detail-row">
               <span class="label">Role:</span>
               <span class="value">{{ userRole }}</span>
             </div>
           </div>
-          
+
           <div *ngIf="userRole" class="action-buttons">
             <button class="btn btn-primary" (click)="navigateToDashboard()">Go to Dashboard</button>
           </div>
-          
+
           <div *ngIf="!userRole" class="no-role-message">
             <p>No role found for this wallet. Please register first.</p>
             <a routerLink="/register" class="btn btn-outline">Register Now</a>
@@ -80,12 +76,12 @@
         </div>
       </ng-template>
     </div>
-    
+
     <div class="auth-footer">
       <p>New to UrbanDAO? <a routerLink="/register">Register</a></p>
-      <p class="home-link"><a routerLink="/home">Back to Home</a></p>
+      <p class="home-link"><a routerLink="/">Back to Home</a></p>
     </div>
-    
+
     <div class="future-auth-section">
       <h3>Coming Soon</h3>
       <div class="future-auth-options">

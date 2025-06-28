@@ -7,6 +7,7 @@ import { Home } from './home/home';
 import { About } from './about/about';
 import { Login } from './common/login/login';
 import { Register } from './common/register/register';
+import { Docs } from './docs/docs';
 
 /**
  * --------------------------------------------------------------------------
@@ -45,6 +46,11 @@ export const appRoutes: Routes = [
         path: 'about',
         component: About,
         title: 'About Us - UrbanDAO',
+    },
+    {
+        path: 'docs',
+        component: Docs,
+        title: 'Documentation - UrbanDAO',
     },
     {
         path: 'login',

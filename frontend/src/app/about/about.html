@@ -10,11 +10,15 @@
     <section class="mission-section">
       <div class="section-content">
         <h2>Our Mission</h2>
-        <p>UrbanDAO aims to revolutionize urban governance by creating a transparent, efficient, and participatory platform that connects citizens, municipal authorities, and government administrators through blockchain technology.</p>
-        
-        <p>We believe in empowering communities to actively participate in urban decision-making processes, ensuring that public resources are allocated efficiently and transparently, and creating more responsive and accountable governance systems.</p>
+        <p>UrbanDAO aims to revolutionize urban governance by creating a transparent, efficient, and participatory
+          platform that connects citizens, municipal authorities, and government administrators through blockchain
+          technology.</p>
+
+        <p>We believe in empowering communities to actively participate in urban decision-making processes, ensuring
+          that public resources are allocated efficiently and transparently, and creating more responsive and
+          accountable governance systems.</p>
       </div>
-      
+
       <div class="stats-container">
         <div class="stat-card">
           <div class="stat-number">12+</div>
@@ -33,7 +37,7 @@
 
     <section class="features-section">
       <h2>Key Features</h2>
-      
+
       <div class="features-grid">
         <div class="feature-card">
           <div class="feature-icon">
@@ -42,7 +46,7 @@
           <h3>Transparent Tax Management</h3>
           <p>Secure and transparent collection and allocation of municipal taxes with complete traceability.</p>
         </div>
-        
+
         <div class="feature-card">
           <div class="feature-icon">
             <span class="material-icons">record_voice_over</span>
@@ -50,7 +54,7 @@
           <h3>Civic Grievance System</h3>
           <p>Efficient filing and tracking of civic issues with transparent resolution processes.</p>
         </div>
-        
+
         <div class="feature-card">
           <div class="feature-icon">
             <span class="material-icons">trending_up</span>
@@ -58,7 +62,7 @@
           <h3>Project Tracking</h3>
           <p>Real-time monitoring of municipal projects, budgets, timelines, and progress updates.</p>
         </div>
-        
+
         <div class="feature-card">
           <div class="feature-icon">
             <span class="material-icons">how_to_vote</span>
@@ -72,13 +76,16 @@
     <section class="team-section">
       <h2>Our Team</h2>
       <div class="team-grid">
-        <div class="team-member" *ngFor="let member of teamMembers">
+        <div class="team-member">
           <div class="member-image">
-            <img [src]="member.image" [alt]="member.name">
+            <!-- Show both dark and light images, or use one based on theme if you have theme switching logic -->
+            <img src="assets/images/ashwin-dark.png" alt="Ashwin Sudhakar" class="ashwin-img-dark">
+            <img src="assets/images/ashwin-light.png" alt="Ashwin Sudhakar" class="ashwin-img-light">
           </div>
-          <h3>{{member.name}}</h3>
-          <p class="member-role">{{member.role}}</p>
-          <p class="member-bio">{{member.bio}}</p>
+          <h3>Ashwin Sudhakar</h3>
+          <p class="member-role">Student, built entire project</p>
+          <p class="member-bio">Ashwin Sudhakar is a student and the sole developer of UrbanDAO, responsible for
+            building the entire project.</p>
         </div>
       </div>
     </section>
@@ -86,11 +93,11 @@
     <section class="partners-section">
       <h2>Our Partners</h2>
       <div class="partners-list">
-        <div class="partner-item" *ngFor="let partner of partners">
+        <div class="partner-item">
           <div class="partner-logo">
-            <div class="placeholder-logo">{{partner.charAt(0)}}</div>
+            <div class="placeholder-logo">I</div>
           </div>
-          <p class="partner-name">{{partner}}</p>
+          <p class="partner-name">IEEE CS</p>
         </div>
       </div>
     </section>
@@ -99,9 +106,8 @@
       <h2>Get in Touch</h2>
       <div class="contact-container">
         <div class="contact-info">
-          <p><strong>Email:</strong> info&#64;urbandao.org</p>
-          <p><strong>Phone:</strong> +91 11 2345 6789</p>
-          <p><strong>Address:</strong> Tech Hub, Sector 62, Noida, Uttar Pradesh, India</p>
+          <p><strong>Email:</strong> ashwin2005s&#64;gmail.com</p>
+          <p><strong>Phone:</strong> +91 9894110797</p>
         </div>
         <div class="contact-form">
           <form>

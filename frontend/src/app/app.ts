@@ -28,15 +28,15 @@ export class App implements OnInit, OnDestroy {
   protected isMobile = false;
   protected isAuthenticated = false;
   protected userRole: UserRole | null = null;
-  
+
   private subscriptions: Subscription[] = [];
 
   constructor(
     private router: Router,
     private deviceService: DeviceService,
     private authService: AuthService
-  ) {}
-  
+  ) { }
+
   ngOnInit(): void {
     // Combine device service and auth service observables
     this.subscriptions.push(
@@ -49,19 +49,19 @@ export class App implements OnInit, OnDestroy {
         this.isMobile = isMobile;
         this.isAuthenticated = isAuthenticated;
         this.userRole = userRole;
-        
+
         // Cast event to NavigationEnd to access urlAfterRedirects
         const navigationEvent = event as NavigationEnd;
         this.updateLayoutVisibility(navigationEvent.urlAfterRedirects);
       })
     );
   }
-  
+
   ngOnDestroy(): void {
     // Clean up subscriptions
     this.subscriptions.forEach(sub => sub.unsubscribe());
   }
-  
+
   /**
    * Update layout visibility based on route, device, and authentication state
    */
@@ -70,21 +70,26 @@ export class App implements OnInit, OnDestroy {
     const currentRoute = this.router.routerState.snapshot.root.firstChild;
     const hideHeaderFooter = currentRoute?.data?.['hideHeaderFooter'] === true;
     const authRoutes = ['/login', '/register'];
-    
-    // Desktop view: Show header/footer except on auth routes or when explicitly hidden
-    this.showHeaderFooter = !this.isMobile && 
-                           !authRoutes.some(route => url.startsWith(route)) && 
-                           !hideHeaderFooter;
-    
-    // Mobile view: Show mobile nav except on auth routes
-    this.showMobileNav = this.isMobile && 
-                        !authRoutes.some(route => url.startsWith(route));
-    
-    // Always show footer on mobile for non-auth routes (minimal version)
-    if (this.isMobile && !authRoutes.some(route => url.startsWith(route))) {
+    const isAuthRoute = authRoutes.some(route => url.startsWith(route));
+
+    // Completely hide header/footer on auth routes or when explicitly hidden
+    this.showHeaderFooter = !isAuthRoute && !hideHeaderFooter;
+
+    // Hide mobile nav on auth routes
+    this.showMobileNav = this.isMobile && !isAuthRoute;
+
+    // Add/remove body class for mobile nav spacing
+    if (this.isMobile && !isAuthRoute) {
       document.body.classList.add('has-mobile-nav');
     } else {
       document.body.classList.remove('has-mobile-nav');
+    }
+
+    // Add/remove body class for auth pages to ensure full height
+    if (isAuthRoute) {
+      document.body.classList.add('auth-page');
+    } else {
+      document.body.classList.remove('auth-page');
     }
   }
 }
