@@ -3,11 +3,11 @@ import { authGuard } from './auth/auth.guard';
 import { UserRole } from './auth/user-role.enum';
 
 // --- Component Imports ---
-import { Home } from './home/home';
-import { About } from './about/about';
+import { Home } from './common/home/home';
+import { About } from './common/about/about';
 import { Login } from './common/login/login';
 import { Register } from './common/register/register';
-import { Docs } from './docs/docs';
+import { Docs } from './common/docs/docs';
 
 /**
  * --------------------------------------------------------------------------

@@ -4,7 +4,7 @@
     <div class="container">
       <h1 class="hero-title animate-fade-in">UrbanDAO: Smart Civic Systems</h1>
       <p class="hero-subtitle animate-fade-in delay-100">
-        A blockchain-powered platform revolutionizing municipal governance with transparency, 
+        A blockchain-powered platform revolutionizing municipal governance with transparency,
         efficiency, and citizen participation.
       </p>
       <div class="hero-actions">
@@ -18,9 +18,10 @@
   <section class="features">
     <div class="container">
       <h2 class="section-title text-center mb-xl">Key Features</h2>
-      
+
       <div class="grid grid-3col">
-        <div *ngFor="let feature of features; let i = index" class="feature-card card animate-fade-in" [ngClass]="'delay-' + ((i + 1) * 100)">
+        <div *ngFor="let feature of features; let i = index" class="feature-card card animate-fade-in"
+          [ngClass]="'delay-' + ((i + 1) * 100)">
           <div class="feature-icon">
             <span class="material-icons">{{ feature.icon }}</span>
           </div>
@@ -38,16 +39,17 @@
   <section class="how-it-works">
     <div class="container">
       <h2 class="section-title text-center mb-xl">How It Works</h2>
-      
+
       <div class="steps">
         <div class="step animate-slide-left">
           <div class="step-number">1</div>
           <div class="step-content">
             <h3>Register & Verify</h3>
-            <p>Create an account with your municipal ID and verify your identity through our secure blockchain system.</p>
+            <p>Create an account with your municipal ID and verify your identity through our secure blockchain system.
+            </p>
           </div>
         </div>
-        
+
         <div class="step animate-slide-right delay-100">
           <div class="step-number">2</div>
           <div class="step-content">
@@ -55,7 +57,7 @@
             <p>Pay taxes, file grievances, or track municipal projects through our intuitive dashboard.</p>
           </div>
         </div>
-        
+
         <div class="step animate-slide-left delay-200">
           <div class="step-number">3</div>
           <div class="step-content">
@@ -68,13 +70,14 @@
   </section>
 
   <!-- CTA Section -->
-  <section class="cta-section">
+  <!-- <section class="cta-section">
     <div class="container">
       <div class="cta-content">
         <h2>Ready to transform your civic experience?</h2>
         <p>Join UrbanDAO today and be part of the future of municipal governance.</p>
-        <a routerLink="/register" class="btn btn-primary btn-lg animate-pulse">Get Started Now</a>
+        <a routerLink="/register" class="btn btn-dark btn-lg animate-pulse">Get Started
+          Now</a>
       </div>
     </div>
-  </section>
+  </section> -->
 </div>
