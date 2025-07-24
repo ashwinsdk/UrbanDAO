@@ -2,16 +2,10 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { UserService } from '../../user/user.service';
+import { AdminGovtService, GovtGrievance, SolanaService } from '../../shared/services';
 import { AuthService } from '../../auth/auth.service';
-import { Grievance } from '../../user/user.service';
 
-// Extended Grievance interface for our component needs
-interface ExtendedGrievance extends Grievance {
-  ward?: string;
-  submitterName?: string;
-  title?: string;
-  priority?: string;
-}
+
 
 @Component({
   selector: 'app-view-grievance',
@@ -22,11 +16,12 @@ interface ExtendedGrievance extends Grievance {
 })
 export class ViewGrievance implements OnInit {
   // Grievances list
-  grievances: ExtendedGrievance[] = [];
-  filteredGrievances: ExtendedGrievance[] = [];
+  grievances: GovtGrievance[] = [];
+  filteredGrievances: GovtGrievance[] = [];
   
   // UI states
   isLoading: boolean = true;
+  errorMessage: string = '';
   expandedGrievanceId: string | null = null;
   selectedStatusFilter: string = 'all';
   selectedWardFilter: string = 'all';
@@ -40,11 +35,22 @@ export class ViewGrievance implements OnInit {
   
   constructor(
     private userService: UserService,
+    private adminGovtService: AdminGovtService,
+    private solanaService: SolanaService,
     private authService: AuthService
   ) {}
   
   ngOnInit(): void {
-    this.walletAddress = this.authService.getPublicKey();
+    // Check wallet connection first
+    if (!this.solanaService.isWalletConnected()) {
+      this.errorMessage = 'Please connect your wallet to access government admin functions.';
+      this.isLoading = false;
+      return;
+    }
+
+    // Get wallet address from SolanaService (primary) or AuthService (fallback)
+    this.walletAddress = this.solanaService.getPublicKey() || this.authService.getPublicKey();
+    
     this.loadWards();
     this.loadGrievances();
   }
@@ -55,31 +61,24 @@ export class ViewGrievance implements OnInit {
   
   loadGrievances(): void {
     this.isLoading = true;
-    this.userService.getGrievances().subscribe(grievances => {
-      // Extend grievances with additional properties
-      this.grievances = grievances.map(g => ({
-        ...g,
-        ward: this.getRandomWard(), // Temporary: assign random ward for demo
-        submitterName: 'Citizen ' + g.id.substring(0, 3), // Temporary: generate name
-        title: 'Grievance ' + g.id.substring(0, 5), // Temporary: generate title
-        priority: this.getRandomPriority() // Temporary: assign random priority
-      }));
-      this.applyFilters();
-      this.isLoading = false;
+    this.errorMessage = '';
+    
+    // Load all grievances from blockchain (Government view)
+    this.adminGovtService.getAllGrievances().subscribe({
+      next: (grievances) => {
+        this.grievances = grievances;
+        this.applyFilters();
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error('Error loading grievances:', error);
+        this.errorMessage = this.getErrorMessage(error);
+        this.isLoading = false;
+      }
     });
   }
   
-  // Temporary helper methods for demo data
-  private getRandomWard(): string {
-    const wardIndex = Math.floor(Math.random() * this.wards.length);
-    return this.wards[wardIndex] || 'Ward 1';
-  }
-  
-  private getRandomPriority(): string {
-    const priorities = ['high', 'medium', 'low'];
-    const index = Math.floor(Math.random() * priorities.length);
-    return priorities[index];
-  }
+
   
   toggleExpand(grievanceId: string): void {
     if (this.expandedGrievanceId === grievanceId) {
@@ -154,6 +153,19 @@ export class ViewGrievance implements OnInit {
       case 'low': return 'priority-low';
       default: return '';
     }
+  }
+
+  private getErrorMessage(error: any): string {
+    if (error?.message) {
+      if (error.message.includes('Wallet not connected')) {
+        return 'Please connect your wallet to access government admin functions.';
+      }
+      if (error.message.includes('Unauthorized')) {
+        return 'You are not authorized to view grievances.';
+      }
+      return `Error: ${error.message}`;
+    }
+    return 'An unexpected error occurred. Please try again.';
   }
   
   // Format wallet address for display

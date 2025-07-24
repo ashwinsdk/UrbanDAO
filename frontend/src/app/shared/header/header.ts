@@ -3,8 +3,9 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { DOCUMENT } from '@angular/common';
 import { AuthService } from '../../auth/auth.service';
+import { SolanaService, SolanaConnectionState } from '../services';
 import { UserRole } from '../../auth/user-role.enum';
-import { Subscription } from 'rxjs';
+import { Subscription, combineLatest } from 'rxjs';
 import { Meta } from '@angular/platform-browser';
 
 @Component({
@@ -28,6 +29,7 @@ export class Header implements OnInit, OnDestroy {
     private renderer: Renderer2,
     @Inject(DOCUMENT) private document: Document,
     private authService: AuthService,
+    private solanaService: SolanaService,
     private meta: Meta
   ) {}
   
@@ -35,22 +37,26 @@ export class Header implements OnInit, OnDestroy {
     // Load saved theme preference
     this.loadThemePreference();
     
-    // Subscribe to auth service observables
+    // Subscribe to Solana service for primary authentication state
     this.subscriptions.push(
-      this.authService.connected$.subscribe(connected => {
-        this.isLoggedIn = connected;
+      this.solanaService.connectionState$.subscribe(state => {
+        this.handleSolanaStateChange(state);
       })
     );
     
+    // Fallback to auth service for compatibility
     this.subscriptions.push(
-      this.authService.userRole$.subscribe(role => {
-        this.userRole = role;
-      })
-    );
-    
-    this.subscriptions.push(
-      this.authService.publicKey$.subscribe(publicKey => {
-        this.publicKey = publicKey;
+      combineLatest([
+        this.authService.connected$,
+        this.authService.userRole$,
+        this.authService.publicKey$
+      ]).subscribe(([connected, role, publicKey]) => {
+        // Only use auth service if Solana service is not connected
+        if (!this.solanaService.isWalletConnected()) {
+          this.isLoggedIn = connected;
+          this.userRole = role;
+          this.publicKey = publicKey;
+        }
       })
     );
     
@@ -138,9 +144,51 @@ export class Header implements OnInit, OnDestroy {
     }
   }
   
+  /**
+   * Handle Solana connection state changes
+   */
+  private handleSolanaStateChange(state: SolanaConnectionState): void {
+    this.isLoggedIn = state.walletConnected;
+    this.publicKey = state.publicKey;
+    
+    // For role determination, we need to check if user is registered
+    // This will be updated when the home component determines the role
+    // For now, we'll rely on the auth service for role information
+  }
+
+  /**
+   * Connect wallet using Solana service
+   */
+  connectWallet(): void {
+    this.solanaService.connect().subscribe({
+      next: (state) => {
+        console.log('Wallet connected from header:', state);
+      },
+      error: (error) => {
+        console.error('Wallet connection failed from header:', error);
+      }
+    });
+  }
+
   logout(): void {
-    this.authService.logout();
-    this.closeMobileMenu();
+    // Use Solana service for logout if connected, otherwise use auth service
+    if (this.solanaService.isWalletConnected()) {
+      this.solanaService.disconnect().subscribe({
+        next: () => {
+          console.log('Disconnected via Solana service');
+          this.closeMobileMenu();
+        },
+        error: (error) => {
+          console.error('Disconnect error:', error);
+          // Fallback to auth service
+          this.authService.logout();
+          this.closeMobileMenu();
+        }
+      });
+    } else {
+      this.authService.logout();
+      this.closeMobileMenu();
+    }
   }
   
   ngOnDestroy(): void {

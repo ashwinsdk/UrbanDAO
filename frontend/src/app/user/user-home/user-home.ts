@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { UserService, Grievance, TaxPayment, Project } from '../user.service';
 import { AuthService } from '../../auth/auth.service';
+import { SolanaService } from '../../shared/services';
 
 @Component({
   selector: 'app-user-home',
@@ -15,6 +16,7 @@ export class UserHome implements OnInit {
   publicKey: string | null = null;
   userName: string = 'Citizen';
   isLoading = true;
+  errorMessage = '';
   
   // Dashboard data
   recentGrievances: Grievance[] = [];
@@ -23,38 +25,75 @@ export class UserHome implements OnInit {
   
   constructor(
     private userService: UserService,
-    private authService: AuthService
+    private authService: AuthService,
+    private solanaService: SolanaService
   ) {}
   
   ngOnInit(): void {
-    // Get wallet public key
-    this.authService.publicKey$.subscribe(key => {
-      this.publicKey = key;
-      if (key) {
-        // In a real app, we would fetch the user's name from the blockchain
-        this.userName = `Citizen ${key.substring(0, 4)}...${key.substring(key.length - 4)}`;
-      }
-    });
+    // Check wallet connection using SolanaService (primary) with AuthService fallback
+    const isConnected = this.solanaService.isWalletConnected();
     
-    // Load dashboard data
-    this.loadDashboardData();
+    if (isConnected) {
+      this.publicKey = this.solanaService.getPublicKey();
+      if (this.publicKey) {
+        this.userName = `Citizen ${this.publicKey.substring(0, 4)}...${this.publicKey.substring(this.publicKey.length - 4)}`;
+      }
+      this.loadDashboardData();
+    } else {
+      // Fallback to AuthService
+      this.authService.publicKey$.subscribe(key => {
+        this.publicKey = key;
+        if (key) {
+          this.userName = `Citizen ${key.substring(0, 4)}...${key.substring(key.length - 4)}`;
+          this.loadDashboardData();
+        } else {
+          this.isLoading = false;
+          this.errorMessage = 'Please connect your wallet to view dashboard data.';
+        }
+      });
+    }
   }
   
   loadDashboardData(): void {
+    this.isLoading = true;
+    this.errorMessage = '';
+    
     // Get recent grievances
-    this.userService.getGrievances().subscribe(grievances => {
-      this.recentGrievances = grievances.slice(0, 3);
+    this.userService.getGrievances().subscribe({
+      next: (grievances) => {
+        this.recentGrievances = grievances.slice(0, 3);
+      },
+      error: (error) => {
+        console.error('Failed to load grievances:', error);
+        this.recentGrievances = [];
+      }
     });
     
     // Get current tax due
-    this.userService.getCurrentTaxDue().subscribe(taxDue => {
-      this.taxDue = taxDue;
+    this.userService.getCurrentTaxDue().subscribe({
+      next: (taxDue) => {
+        this.taxDue = taxDue;
+      },
+      error: (error) => {
+        console.error('Failed to load tax due:', error);
+        this.taxDue = null;
+      }
     });
     
     // Get ongoing projects
-    this.userService.getProjects().subscribe(projects => {
-      this.ongoingProjects = projects.filter(p => p.status === 'Ongoing').slice(0, 2);
-      this.isLoading = false;
+    this.userService.getProjects().subscribe({
+      next: (projects) => {
+        this.ongoingProjects = projects.filter(p => p.status === 'Ongoing').slice(0, 2);
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error('Failed to load projects:', error);
+        this.ongoingProjects = [];
+        this.isLoading = false;
+        if (!this.recentGrievances.length && !this.taxDue) {
+          this.errorMessage = 'Failed to load dashboard data. Please try again.';
+        }
+      }
     });
   }
   

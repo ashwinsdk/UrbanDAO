@@ -1,17 +1,25 @@
-<div class="app-wrapper" [class.mobile-view]="isMobile" [class.authenticated]="isAuthenticated">
-  <!-- Desktop header - shown on desktop and hidden on mobile -->
-  <app-header *ngIf="showHeaderFooter"></app-header>
-
-  <!-- Main content area - adjusted for mobile/desktop automatically -->
-  <main class="main-content" 
-        [class.mobile-content]="isMobile"
-        [class.has-mobile-nav]="showMobileNav">
-    <router-outlet></router-outlet>
+<div class="app-wrapper">
+  <!-- Main content area -->
+  <main class="main-content">
+    <div style="padding: 20px; font-family: Arial, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; min-height: 100vh;">
+      <h1 style="color: #fff; font-size: 2.5rem; margin-bottom: 20px;">🎆 UrbanDAO Angular App is WORKING!</h1>
+      <p style="font-size: 1.2rem;">Congratulations! Angular is successfully running and rendering components.</p>
+      <p><strong>Title:</strong> {{ title }}</p>
+      <p><strong>Current time:</strong> {{ currentTime | date:'medium' }}</p>
+      <div style="margin-top: 30px; padding: 20px; background-color: rgba(255,255,255,0.1); border-radius: 8px; backdrop-filter: blur(10px);">
+        <strong style="font-size: 1.1rem;">✨ Debug Info:</strong><br><br>
+        ✅ Angular app is bootstrapped<br>
+        ✅ App component is rendering<br>
+        ✅ Data binding is working<br>
+        ✅ Template compilation successful<br>
+        ✅ Router outlet ready for navigation
+      </div>
+      <div style="margin-top: 20px; padding: 15px; background-color: rgba(255,255,255,0.1); border-radius: 8px;">
+        <h3>🚀 Router Outlet (Components will render below):</h3>
+        <div style="border: 2px dashed rgba(255,255,255,0.3); padding: 20px; margin-top: 10px; border-radius: 8px;">
+          <router-outlet></router-outlet>
+        </div>
+      </div>
+    </div>
   </main>
-
-  <!-- Desktop footer - shown on desktop and hidden on mobile -->
-  <app-footer *ngIf="showHeaderFooter || (isMobile && !showHeaderFooter && showMobileNav)"></app-footer>
-  
-  <!-- Mobile Navigation - shown only on mobile -->
-  <app-mobile-nav *ngIf="showMobileNav"></app-mobile-nav>
 </div>

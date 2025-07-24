@@ -1,23 +1,10 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { AdminGovtService, GovtProject, SolanaService } from '../../shared/services';
 import { AuthService } from '../../auth/auth.service';
 
-// Project interface
-interface Project {
-  id: string;
-  title: string;
-  description: string;
-  ward: string;
-  budget: number;
-  status: 'Proposed' | 'Approved' | 'In Progress' | 'Completed' | 'Rejected';
-  dateSubmitted: Date;
-  dateUpdated?: Date;
-  votes?: number;
-  submitter?: string;
-  documents?: string[];
-  images?: string[];
-}
+
 
 @Component({
   selector: 'app-view-project',
@@ -28,14 +15,15 @@ interface Project {
 })
 export class ViewProject implements OnInit {
   // Projects list
-  projects: Project[] = [];
-  filteredProjects: Project[] = [];
+  projects: GovtProject[] = [];
+  filteredProjects: GovtProject[] = [];
   
   // UI states
   isLoading: boolean = true;
+  errorMessage: string = '';
   expandedProjectId: string | null = null;
   showDetailsModal: boolean = false;
-  selectedProject: Project | null = null;
+  selectedProject: GovtProject | null = null;
   
   // Filter states
   selectedStatusFilter: string = 'all';
@@ -48,10 +36,23 @@ export class ViewProject implements OnInit {
   // Wallet connection
   walletAddress: string | null = null;
   
-  constructor(private authService: AuthService) {}
+  constructor(
+    private adminGovtService: AdminGovtService,
+    private solanaService: SolanaService,
+    private authService: AuthService
+  ) {}
   
   ngOnInit(): void {
-    this.walletAddress = this.authService.getPublicKey();
+    // Check wallet connection first
+    if (!this.solanaService.isWalletConnected()) {
+      this.errorMessage = 'Please connect your wallet to access government admin functions.';
+      this.isLoading = false;
+      return;
+    }
+
+    // Get wallet address from SolanaService (primary) or AuthService (fallback)
+    this.walletAddress = this.solanaService.getPublicKey() || this.authService.getPublicKey();
+    
     this.loadWards();
     this.loadProjects();
   }
@@ -66,48 +67,24 @@ export class ViewProject implements OnInit {
   
   loadProjects(): void {
     this.isLoading = true;
+    this.errorMessage = '';
     
-    // Simulate API call with timeout
-    setTimeout(() => {
-      // Mock data
-      this.projects = this.generateMockProjects(15);
-      this.applyFilters();
-      this.isLoading = false;
-    }, 1000);
-  }
-  
-  generateMockProjects(count: number): Project[] {
-    const statuses: ('Proposed' | 'Approved' | 'In Progress' | 'Completed' | 'Rejected')[] = 
-      ['Proposed', 'Approved', 'In Progress', 'Completed', 'Rejected'];
-    
-    return Array(count).fill(0).map((_, i) => {
-      const id = `PRJ-${String(i + 1).padStart(3, '0')}`;
-      const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
-      const randomWard = this.wards[Math.floor(Math.random() * this.wards.length)];
-      const randomBudget = Math.round(Math.random() * 10000) / 100;
-      
-      const submissionDate = new Date();
-      submissionDate.setDate(submissionDate.getDate() - Math.floor(Math.random() * 60));
-      
-      const updateDate = new Date(submissionDate);
-      updateDate.setDate(updateDate.getDate() + Math.floor(Math.random() * 30));
-      
-      return {
-        id,
-        title: `Project ${id}`,
-        description: `This is a sample project description for ${id}. It includes details about the project scope, goals, and expected outcomes.`,
-        ward: randomWard,
-        budget: randomBudget,
-        status: randomStatus,
-        dateSubmitted: submissionDate,
-        dateUpdated: updateDate,
-        votes: Math.floor(Math.random() * 100),
-        submitter: `Citizen-${Math.floor(Math.random() * 1000)}`,
-        documents: Math.random() > 0.5 ? ['proposal.pdf', 'budget.xlsx'] : [],
-        images: Math.random() > 0.3 ? ['site-image-1.jpg', 'site-image-2.jpg'] : []
-      };
+    // Load all projects from blockchain (Government view)
+    this.adminGovtService.getAllProjects().subscribe({
+      next: (projects) => {
+        this.projects = projects;
+        this.applyFilters();
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error('Error loading projects:', error);
+        this.errorMessage = this.getErrorMessage(error);
+        this.isLoading = false;
+      }
     });
   }
+  
+
   
   applyFilters(): void {
     // Start with all projects
@@ -163,7 +140,7 @@ export class ViewProject implements OnInit {
     return this.expandedProjectId === projectId;
   }
   
-  openDetailsModal(project: Project): void {
+  openDetailsModal(project: GovtProject): void {
     this.selectedProject = project;
     this.showDetailsModal = true;
   }
@@ -202,11 +179,19 @@ export class ViewProject implements OnInit {
   
   // Format currency for display
   formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'SOL',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount);
+    return amount.toFixed(2) + ' SOL';
+  }
+
+  private getErrorMessage(error: any): string {
+    if (error?.message) {
+      if (error.message.includes('Wallet not connected')) {
+        return 'Please connect your wallet to access government admin functions.';
+      }
+      if (error.message.includes('Unauthorized')) {
+        return 'You are not authorized to view projects.';
+      }
+      return `Error: ${error.message}`;
+    }
+    return 'An unexpected error occurred. Please try again.';
   }
 }

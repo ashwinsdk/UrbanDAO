@@ -1,23 +1,27 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { UserService } from '../user.service';
+import { SolanaService } from '../../shared/services';
 import { AuthService } from '../../auth/auth.service';
 import { Observable } from 'rxjs';
 
 @Component({
   selector: 'app-file-grievance',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule],
   templateUrl: './file-grievance.html',
   styleUrl: './file-grievance.css'
 })
 export class FileGrievance implements OnInit {
   isLoggedIn = false;
   isSubmitting = false;
-  submitSuccess = false;
+  selectedFiles: File[] = [];
+  errorMessage = '';
+  successMessage = '';
   submitError = '';
+  submitSuccess = false;
 
   // Form data
   grievanceData = {
@@ -32,14 +36,19 @@ export class FileGrievance implements OnInit {
   categories: string[] = [];
   wards: string[] = [];
 
+  grievanceForm!: FormGroup;
+
   constructor(
+    private fb: FormBuilder,
     private userService: UserService,
-    private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private solanaService: SolanaService,
+    private authService: AuthService
   ) { }
 
   ngOnInit(): void {
-    // Check if user is logged in
+    this.initializeForm();
+    this.checkWalletConnection();
     this.authService.connected$.subscribe((connected: boolean) => {
       this.isLoggedIn = connected;
 
@@ -53,6 +62,22 @@ export class FileGrievance implements OnInit {
     // Load categories and wards
     this.categories = this.userService.getGrievanceCategories();
     this.wards = this.userService.getWards();
+  }
+
+  private initializeForm(): void {
+    this.grievanceForm = this.fb.group({
+      category: ['', Validators.required],
+      ward: ['', Validators.required],
+      location: ['', Validators.required],
+      description: ['', Validators.required]
+    });
+  }
+
+  private checkWalletConnection(): void {
+    if (!this.solanaService.isWalletConnected()) {
+      this.errorMessage = 'Please connect your wallet to file a grievance.';
+      this.grievanceForm.disable();
+    }
   }
 
   onFileSelected(event: Event): void {
@@ -77,61 +102,69 @@ export class FileGrievance implements OnInit {
     this.grievanceData.attachments.splice(index, 1);
   }
 
-  validateForm(): boolean {
-    if (!this.grievanceData.category) {
-      this.submitError = 'Please select a category';
-      return false;
+  onSubmit(): void {
+    if (this.grievanceForm.valid && !this.isSubmitting) {
+      this.isSubmitting = true;
+      this.errorMessage = '';
+      this.successMessage = '';
+      
+      // Check wallet connection before submitting
+      if (!this.solanaService.isWalletConnected()) {
+        this.errorMessage = 'Please connect your wallet to file a grievance.';
+        this.isSubmitting = false;
+        return;
+      }
+      
+      const formData = this.grievanceForm.value;
+      
+      // Submit grievance to blockchain
+      this.userService.submitGrievance(
+        formData.category,
+        formData.description
+      ).subscribe({
+        next: (grievance) => {
+          console.log('Grievance submitted successfully:', grievance);
+          this.successMessage = `Grievance filed successfully! Transaction ID: ${grievance.id}`;
+          
+          // Reset form after successful submission
+          this.grievanceForm.reset();
+          this.selectedFiles = [];
+          
+          // Navigate to status page after a short delay
+          setTimeout(() => {
+            this.router.navigate(['/user/status']);
+          }, 3000);
+        },
+        error: (error) => {
+          console.error('Error submitting grievance:', error);
+          this.errorMessage = this.getErrorMessage(error);
+          this.isSubmitting = false;
+        },
+        complete: () => {
+          this.isSubmitting = false;
+        }
+      });
     }
+  }
 
-    if (!this.grievanceData.ward) {
-      this.submitError = 'Please select a ward';
-      return false;
+  private getErrorMessage(error: any): string {
+    if (error?.message) {
+      if (error.message.includes('Wallet not connected')) {
+        return 'Please connect your wallet to file a grievance.';
+      }
+      if (error.message.includes('User rejected')) {
+        return 'Transaction was rejected. Please try again.';
+      }
+      if (error.message.includes('Insufficient funds')) {
+        return 'Insufficient funds to complete the transaction.';
+      }
+      return `Error: ${error.message}`;
     }
-
-    if (!this.grievanceData.location || this.grievanceData.location.trim().length < 5) {
-      this.submitError = 'Please provide a valid location (at least 5 characters)';
-      return false;
-    }
-
-    if (!this.grievanceData.description || this.grievanceData.description.trim().length < 20) {
-      this.submitError = 'Please provide a detailed description (at least 20 characters)';
-      return false;
-    }
-
-    return true;
+    return 'An unexpected error occurred. Please try again.';
   }
 
   submitGrievance(): void {
-    this.submitError = '';
-
-    // Validate form
-    if (!this.validateForm()) {
-      return;
-    }
-
-    this.isSubmitting = true;
-
-    // Submit grievance
-    this.userService.submitGrievance(
-      this.grievanceData.category,
-      this.grievanceData.description
-    ).subscribe({
-      next: () => {
-        this.isSubmitting = false;
-        this.submitSuccess = true;
-
-        // Reset form after 3 seconds
-        setTimeout(() => {
-          this.resetForm();
-          this.router.navigate(['/user/status']);
-        }, 3000);
-      },
-      error: (err) => {
-        this.isSubmitting = false;
-        this.submitError = 'Failed to submit grievance. Please try again.';
-        console.error('Error submitting grievance:', err);
-      }
-    });
+    this.onSubmit();
   }
 
   resetForm(): void {
@@ -142,7 +175,10 @@ export class FileGrievance implements OnInit {
       description: '',
       attachments: []
     };
+    this.grievanceForm.reset();
     this.submitSuccess = false;
     this.submitError = '';
+    this.errorMessage = '';
+    this.successMessage = '';
   }
 }

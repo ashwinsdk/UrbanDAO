@@ -1,8 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { UserService } from '../user.service';
+import { UserService, UserFeedback } from '../user.service';
 import { AuthService } from '../../auth/auth.service';
+import { SolanaService } from '../../shared/services';
 import { Router } from '@angular/router';
 
 @Component({
@@ -23,7 +24,7 @@ export class Status implements OnInit {
   // Data for each tab
   grievances: any[] = [];
   payments: any[] = [];
-  feedback: any[] = [];
+  feedback: UserFeedback[] = [];
   
   // Search and filter
   searchQuery = '';
@@ -38,24 +39,33 @@ export class Status implements OnInit {
   constructor(
     private authService: AuthService,
     private userService: UserService,
+    private solanaService: SolanaService,
     private router: Router
   ) {}
   
   ngOnInit(): void {
-    // Check wallet connection status
-    this.authService.connected$.subscribe(connected => {
-      this.isConnected = connected;
-      if (connected) {
-        this.loadAllData();
-      } else {
-        this.isLoading = false;
-      }
-    });
+    // Check wallet connection status using SolanaService (primary) with AuthService fallback
+    const isConnected = this.solanaService.isWalletConnected();
+    this.isConnected = isConnected;
     
-    // Get public key if connected
-    this.authService.publicKey$.subscribe(publicKey => {
-      this.publicKey = publicKey;
-    });
+    if (isConnected) {
+      this.publicKey = this.solanaService.getPublicKey();
+      this.loadAllData();
+    } else {
+      // Fallback to AuthService
+      this.authService.connected$.subscribe(connected => {
+        this.isConnected = connected;
+        if (connected) {
+          this.loadAllData();
+        } else {
+          this.isLoading = false;
+        }
+      });
+      
+      this.authService.publicKey$.subscribe(publicKey => {
+        this.publicKey = publicKey;
+      });
+    }
   }
   
   // Load all data for the connected user
@@ -75,44 +85,18 @@ export class Status implements OnInit {
       this.applyFilters();
     });
     
-    // Mock feedback data (since the service doesn't have a method for this yet)
-    // In a real app, this would come from the service
-    this.feedback = [
-      {
-        id: 'fb-001',
-        category: 'General Feedback',
-        subject: 'Website Usability',
-        message: 'The new website is much easier to navigate.',
-        rating: 4,
-        status: 'Acknowledged',
-        submittedDate: new Date(2023, 5, 15),
-        responseDate: new Date(2023, 5, 17),
-        response: 'Thank you for your positive feedback!'
+    // Load feedback from blockchain via UserService
+    this.userService.getFeedback().subscribe({
+      next: (feedback) => {
+        this.feedback = feedback;
+        this.applyFilters();
       },
-      {
-        id: 'fb-002',
-        category: 'Technical Issue',
-        subject: 'Payment Processing Error',
-        message: 'I encountered an error when trying to pay my tax.',
-        rating: 2,
-        status: 'In Progress',
-        submittedDate: new Date(2023, 6, 10),
-        responseDate: null,
-        response: null
-      },
-      {
-        id: 'fb-003',
-        category: 'Project Suggestion',
-        subject: 'Community Garden',
-        message: 'I suggest creating a community garden in Ward 3.',
-        rating: 5,
-        status: 'Pending',
-        submittedDate: new Date(2023, 6, 20),
-        responseDate: null,
-        response: null
+      error: (error) => {
+        console.error('Failed to load feedback:', error);
+        this.feedback = [];
+        this.applyFilters();
       }
-    ];
-    this.applyFilters();
+    });
   }
   
   // Switch between tabs

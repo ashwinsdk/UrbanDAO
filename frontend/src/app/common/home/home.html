@@ -1,83 +1,178 @@
 <div class="main-content">
-  <!-- Hero Section -->
-  <section class="hero">
-    <div class="container">
-      <h1 class="hero-title animate-fade-in">UrbanDAO: Smart Civic Systems</h1>
-      <p class="hero-subtitle animate-fade-in delay-100">
-        A blockchain-powered platform revolutionizing municipal governance with transparency,
-        efficiency, and citizen participation.
-      </p>
-      <div class="hero-actions">
-        <a routerLink="/register" class="btn btn-primary btn-lg animate-fade-in delay-200">Get Started</a>
-        <a routerLink="/docs" class="btn btn-outline btn-lg animate-fade-in delay-300">Learn More</a>
+  <!-- Authenticated User Dashboard -->
+  <div *ngIf="dashboardState.isAuthenticated" class="authenticated-dashboard">
+    
+    <!-- Loading State -->
+    <section *ngIf="dashboardState.isConnecting" class="loading-section">
+      <div class="container text-center">
+        <div class="loading-spinner"></div>
+        <h2>Connecting to Solana...</h2>
+        <p>Please wait while we establish your blockchain connection.</p>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- Features Section -->
-  <section class="features">
-    <div class="container">
-      <h2 class="section-title text-center mb-xl">Key Features</h2>
-
-      <div class="grid grid-3col">
-        <div *ngFor="let feature of features; let i = index" class="feature-card card animate-fade-in"
-          [ngClass]="'delay-' + ((i + 1) * 100)">
-          <div class="feature-icon">
-            <span class="material-icons">{{ feature.icon }}</span>
-          </div>
-          <h3 class="feature-title">{{ feature.title }}</h3>
-          <p class="feature-description">{{ feature.description }}</p>
-          <div class="card-footer">
-            <a [routerLink]="feature.link" class="btn btn-outline">Learn More</a>
+    <!-- Error State -->
+    <section *ngIf="dashboardState.error" class="error-section">
+      <div class="container">
+        <div class="error-card">
+          <span class="material-icons error-icon">error</span>
+          <h3>Connection Error</h3>
+          <p>{{ dashboardState.error }}</p>
+          <div class="error-actions">
+            <button class="btn btn-primary" (click)="clearError()">Dismiss</button>
+            <button class="btn btn-outline" (click)="connectWallet()">Retry Connection</button>
           </div>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- How It Works Section -->
-  <section class="how-it-works">
-    <div class="container">
-      <h2 class="section-title text-center mb-xl">How It Works</h2>
-
-      <div class="steps">
-        <div class="step animate-slide-left">
-          <div class="step-number">1</div>
-          <div class="step-content">
-            <h3>Register & Verify</h3>
-            <p>Create an account with your municipal ID and verify your identity through our secure blockchain system.
-            </p>
-          </div>
-        </div>
-
-        <div class="step animate-slide-right delay-100">
-          <div class="step-number">2</div>
-          <div class="step-content">
-            <h3>Access Services</h3>
-            <p>Pay taxes, file grievances, or track municipal projects through our intuitive dashboard.</p>
-          </div>
-        </div>
-
-        <div class="step animate-slide-left delay-200">
-          <div class="step-number">3</div>
-          <div class="step-content">
-            <h3>Track & Verify</h3>
-            <p>Monitor the status of your transactions and requests with complete transparency and immutability.</p>
+    <!-- Registration Prompt for Unregistered Users -->
+    <section *ngIf="dashboardState.showRegistrationPrompt && !dashboardState.isConnecting" class="registration-prompt">
+      <div class="container">
+        <div class="prompt-card">
+          <span class="material-icons prompt-icon">person_add</span>
+          <h2>Welcome to UrbanDAO!</h2>
+          <p>Your wallet is connected: <strong>{{ getShortPublicKey() }}</strong></p>
+          <p>To access the platform, please register with your role:</p>
+          
+          <div class="role-selection">
+            <div class="role-card" (click)="registerAsRole(UserRole.User)">
+              <span class="material-icons">person</span>
+              <h4>Citizen</h4>
+              <p>Access civic services, pay taxes, file grievances</p>
+            </div>
+            
+            <div class="role-card" (click)="registerAsRole(UserRole.AdminHead)">
+              <span class="material-icons">admin_panel_settings</span>
+              <h4>Municipal Head</h4>
+              <p>Manage grievances, allocate projects, oversee operations</p>
+            </div>
+            
+            <div class="role-card" (click)="registerAsRole(UserRole.AdminGovt)">
+              <span class="material-icons">account_balance</span>
+              <h4>Government Officer</h4>
+              <p>System administration, fund management, policy oversight</p>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- CTA Section -->
-  <!-- <section class="cta-section">
-    <div class="container">
-      <div class="cta-content">
-        <h2>Ready to transform your civic experience?</h2>
-        <p>Join UrbanDAO today and be part of the future of municipal governance.</p>
-        <a routerLink="/register" class="btn btn-dark btn-lg animate-pulse">Get Started
-          Now</a>
+    <!-- Role-Based Dashboard for Registered Users -->
+    <section *ngIf="isUserReady()" class="role-dashboard">
+      <div class="container">
+        <!-- Dashboard Header -->
+        <div class="dashboard-header">
+          <div class="user-info">
+            <span class="material-icons user-avatar">account_circle</span>
+            <div class="user-details">
+              <h2>Welcome back!</h2>
+              <p class="user-role">{{ dashboardState.registrationStatus.role | titlecase }} Dashboard</p>
+              <p class="user-wallet">{{ getShortPublicKey() }}</p>
+            </div>
+          </div>
+          <button class="btn btn-outline" (click)="disconnectWallet()">
+            <span class="material-icons">logout</span>
+            Disconnect
+          </button>
+        </div>
+
+        <!-- Role-Specific Features -->
+        <div class="dashboard-features">
+          <h3 class="section-title">Quick Actions</h3>
+          <div class="grid grid-2col">
+            <div *ngFor="let feature of getCurrentRoleFeatures(); let i = index" 
+                 class="feature-card card animate-fade-in"
+                 [ngClass]="'delay-' + ((i + 1) * 100)">
+              <div class="feature-icon">
+                <span class="material-icons">{{ feature.icon }}</span>
+              </div>
+              <h4 class="feature-title">{{ feature.title }}</h4>
+              <p class="feature-description">{{ feature.description }}</p>
+              <div class="card-footer">
+                <a [routerLink]="feature.link" class="btn btn-primary">Access</a>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-  </section> -->
+    </section>
+  </div>
+
+  <!-- Public Landing Page for Non-Authenticated Users -->
+  <div *ngIf="!dashboardState.isAuthenticated" class="public-landing">
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="container">
+        <h1 class="hero-title animate-fade-in">UrbanDAO: Smart Civic Systems</h1>
+        <p class="hero-subtitle animate-fade-in delay-100">
+          A blockchain-powered platform revolutionizing municipal governance with transparency,
+          efficiency, and citizen participation.
+        </p>
+        <div class="hero-actions">
+          <button class="btn btn-primary btn-lg animate-fade-in delay-200" (click)="connectWallet()">
+            <span class="material-icons">account_balance_wallet</span>
+            Connect Wallet
+          </button>
+          <a routerLink="/docs" class="btn btn-outline btn-lg animate-fade-in delay-300">Learn More</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features">
+      <div class="container">
+        <h2 class="section-title text-center mb-xl">Key Features</h2>
+
+        <div class="grid grid-3col">
+          <div *ngFor="let feature of features; let i = index" class="feature-card card animate-fade-in"
+            [ngClass]="'delay-' + ((i + 1) * 100)">
+            <div class="feature-icon">
+              <span class="material-icons">{{ feature.icon }}</span>
+            </div>
+            <h3 class="feature-title">{{ feature.title }}</h3>
+            <p class="feature-description">{{ feature.description }}</p>
+            <div class="card-footer">
+              <button class="btn btn-outline" (click)="connectWallet()">Get Started</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="how-it-works">
+      <div class="container">
+        <h2 class="section-title text-center mb-xl">How It Works</h2>
+
+        <div class="steps">
+          <div class="step animate-slide-left">
+            <div class="step-number">1</div>
+            <div class="step-content">
+              <h3>Connect Wallet</h3>
+              <p>Connect your Phantom wallet to securely access the UrbanDAO platform on Solana blockchain.
+              </p>
+            </div>
+          </div>
+
+          <div class="step animate-slide-right delay-100">
+            <div class="step-number">2</div>
+            <div class="step-content">
+              <h3>Register Role</h3>
+              <p>Register as a Citizen, Municipal Head, or Government Officer to access role-specific features.</p>
+            </div>
+          </div>
+
+          <div class="step animate-slide-left delay-200">
+            <div class="step-number">3</div>
+            <div class="step-content">
+              <h3>Access Services</h3>
+              <p>Use your personalized dashboard to access civic services with complete transparency.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
 </div>

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { UserService, Grievance } from '../../user/user.service';
+import { AdminService, AdminGrievance, SolanaService } from '../../shared/services';
 import { AuthService } from '../../auth/auth.service';
 import { Observable, of } from 'rxjs';
 
@@ -15,11 +16,11 @@ import { Observable, of } from 'rxjs';
 })
 export class EditGrievance implements OnInit {
   // All grievances
-  grievances: Grievance[] = [];
-  filteredGrievances: Grievance[] = [];
+  grievances: AdminGrievance[] = [];
+  filteredGrievances: AdminGrievance[] = [];
   
   // Currently selected grievance for editing
-  selectedGrievance: Grievance | null = null;
+  selectedGrievance: AdminGrievance | null = null;
   
   // Filter options
   statusFilter: string = 'all';
@@ -33,6 +34,8 @@ export class EditGrievance implements OnInit {
   
   // Loading state
   isLoading: boolean = true;
+  isUpdating: boolean = false;
+  errorMessage: string = '';
   
   // Connected wallet
   walletAddress: string | null = null;
@@ -42,14 +45,25 @@ export class EditGrievance implements OnInit {
   
   constructor(
     private userService: UserService,
+    private adminService: AdminService,
+    private solanaService: SolanaService,
     private authService: AuthService,
     private route: ActivatedRoute,
     private router: Router
   ) {}
   
   ngOnInit(): void {
+    // Check wallet connection first
+    if (!this.solanaService.isWalletConnected()) {
+      this.errorMessage = 'Please connect your wallet to access admin functions.';
+      this.isLoading = false;
+      return;
+    }
+
+    // Get wallet address from SolanaService (primary) or AuthService (fallback)
+    this.walletAddress = this.solanaService.getPublicKey() || this.authService.getPublicKey();
+    
     this.loadGrievances();
-    this.walletAddress = this.authService.getPublicKey();
     
     // Check for grievance ID in route params
     this.route.params.subscribe(params => {
@@ -61,21 +75,46 @@ export class EditGrievance implements OnInit {
   
   loadGrievances(): void {
     this.isLoading = true;
-    this.userService.getGrievances().subscribe(grievances => {
-      this.grievances = grievances;
-      this.applyFilters();
-      this.isLoading = false;
+    this.errorMessage = '';
+    
+    // Load all grievances from blockchain (Admin view)
+    this.adminService.getAllGrievances().subscribe({
+      next: (grievances) => {
+        this.grievances = grievances;
+        this.applyFilters();
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error('Error loading grievances:', error);
+        this.errorMessage = this.getErrorMessage(error);
+        this.isLoading = false;
+      }
     });
   }
   
   loadGrievanceDetails(id: string): void {
-    this.userService.getGrievances().subscribe(grievances => {
-      const grievance = grievances.find(g => g.id === id);
-      if (grievance) {
-        this.selectedGrievance = { ...grievance };
-        this.responseText = grievance.response || '';
-      }
-    });
+    // Find grievance from already loaded data or load from blockchain
+    const grievance = this.grievances.find(g => g.id === id);
+    if (grievance) {
+      this.selectedGrievance = { ...grievance };
+      this.responseText = grievance.response || '';
+    } else if (this.grievances.length === 0) {
+      // If grievances not loaded yet, load them first
+      this.adminService.getAllGrievances().subscribe({
+        next: (grievances) => {
+          this.grievances = grievances;
+          const foundGrievance = grievances.find(g => g.id === id);
+          if (foundGrievance) {
+            this.selectedGrievance = { ...foundGrievance };
+            this.responseText = foundGrievance.response || '';
+          }
+        },
+        error: (error) => {
+          console.error('Error loading grievance details:', error);
+          this.errorMessage = 'Failed to load grievance details.';
+        }
+      });
+    }
   }
   
   applyFilters(): void {
@@ -99,7 +138,7 @@ export class EditGrievance implements OnInit {
     });
   }
   
-  selectGrievance(grievance: Grievance): void {
+  selectGrievance(grievance: AdminGrievance): void {
     this.selectedGrievance = { ...grievance };
     this.responseText = grievance.response || '';
   }
@@ -121,23 +160,48 @@ export class EditGrievance implements OnInit {
   confirmStatusUpdate(status: 'Pending' | 'In Progress' | 'Resolved' | 'Rejected'): void {
     if (!this.selectedGrievance) return;
     
-    // Create updated grievance object
-    const updatedGrievance: Grievance = {
-      ...this.selectedGrievance,
-      status: status,
-      response: this.responseText || undefined
-    };
+    // Check wallet connection before updating
+    if (!this.solanaService.isWalletConnected()) {
+      this.errorMessage = 'Please connect your wallet to update grievance status.';
+      this.showModal = false;
+      return;
+    }
     
-    // In a real app, this would call an API to update the grievance
-    // For now, we'll simulate by updating our local list
-    const updatedGrievances = this.grievances.map(g => 
-      g.id === updatedGrievance.id ? updatedGrievance : g
-    );
+    this.isUpdating = true;
+    this.errorMessage = '';
     
-    this.grievances = updatedGrievances;
-    this.grievancesSubject.next(updatedGrievances);
-    this.applyFilters();
-    this.showSuccessModal('Status Updated', `Grievance ${updatedGrievance.id} status has been updated to ${status}.`);
+    // Update grievance status on blockchain
+    this.adminService.updateGrievanceStatus(
+      this.selectedGrievance.id,
+      status,
+      this.responseText || undefined
+    ).subscribe({
+      next: (success) => {
+        if (success) {
+          // Update local grievance object
+          this.selectedGrievance = {
+            ...this.selectedGrievance!,
+            status: status,
+            response: this.responseText || undefined
+          };
+          
+          // Update grievances list
+          this.grievances = this.grievances.map(g => 
+            g.id === this.selectedGrievance!.id ? this.selectedGrievance! : g
+          );
+          
+          this.applyFilters();
+          this.showSuccessModal('Status Updated', `Grievance ${this.selectedGrievance.id} status has been updated to ${status}.`);
+        }
+        this.isUpdating = false;
+      },
+      error: (error) => {
+        console.error('Error updating grievance status:', error);
+        this.errorMessage = this.getErrorMessage(error);
+        this.isUpdating = false;
+        this.showModal = false;
+      }
+    });
   }
   
   // Simulate a BehaviorSubject for our mock data
@@ -145,7 +209,12 @@ export class EditGrievance implements OnInit {
     return {
       next: (grievances: Grievance[]) => {
         // In a real app with a proper service, this would update the BehaviorSubject
-        this.grievances = grievances;
+        // Convert Grievance[] to AdminGrievance[] by adding required properties
+        this.grievances = grievances.map(grievance => ({
+          ...grievance,
+          user: grievance.id.slice(-8) || 'Unknown User', // Use grievance ID as user identifier
+          category: grievance.category || 'General' // Category already exists in Grievance
+        } as AdminGrievance));
       }
     };
   }
@@ -162,6 +231,22 @@ export class EditGrievance implements OnInit {
     if (this.modalAction === 'success') {
       this.clearSelection();
     }
+  }
+
+  private getErrorMessage(error: any): string {
+    if (error?.message) {
+      if (error.message.includes('Wallet not connected')) {
+        return 'Please connect your wallet to access admin functions.';
+      }
+      if (error.message.includes('Unauthorized')) {
+        return 'You are not authorized to perform this action.';
+      }
+      if (error.message.includes('User rejected')) {
+        return 'Transaction was rejected. Please try again.';
+      }
+      return `Error: ${error.message}`;
+    }
+    return 'An unexpected error occurred. Please try again.';
   }
   
   // Format date for display

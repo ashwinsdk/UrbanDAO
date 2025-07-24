@@ -1,14 +1,10 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { AdminGovtService, AdminHead, SolanaService } from '../../shared/services';
 import { AuthService } from '../../auth/auth.service';
 
-interface AdminHead {
-  name: string;
-  department: string;
-  walletAddress: string;
-  dateAssigned: Date;
-}
+
 
 @Component({
   selector: 'app-assign-head',
@@ -19,11 +15,10 @@ interface AdminHead {
 })
 export class AssignHead implements OnInit {
   // Form data
-  newHead: AdminHead = {
+  newHead: Partial<AdminHead> = {
     name: '',
     department: '',
-    walletAddress: '',
-    dateAssigned: new Date()
+    walletAddress: ''
   };
   
   // Available departments
@@ -41,6 +36,7 @@ export class AssignHead implements OnInit {
   
   // UI states
   isLoading: boolean = false;
+  isSubmitting: boolean = false;
   showSuccessAlert: boolean = false;
   showErrorAlert: boolean = false;
   errorMessage: string = '';
@@ -48,30 +44,41 @@ export class AssignHead implements OnInit {
   // Connected wallet
   walletAddress: string | null = null;
   
-  constructor(private authService: AuthService) {}
+  constructor(
+    private adminGovtService: AdminGovtService,
+    private solanaService: SolanaService,
+    private authService: AuthService
+  ) {}
   
   ngOnInit(): void {
-    this.walletAddress = this.authService.getPublicKey();
+    // Check wallet connection first
+    if (!this.solanaService.isWalletConnected()) {
+      this.errorMessage = 'Please connect your wallet to access government admin functions.';
+      return;
+    }
+
+    // Get wallet address from SolanaService (primary) or AuthService (fallback)
+    this.walletAddress = this.solanaService.getPublicKey() || this.authService.getPublicKey();
+    
     this.loadExistingHeads();
   }
   
   loadExistingHeads(): void {
-    // In a real app, this would fetch from blockchain or backend
-    // For now, we'll use mock data
-    this.adminHeads = [
-      {
-        name: 'John Smith',
-        department: 'Roads and Infrastructure',
-        walletAddress: '5Tz4...',
-        dateAssigned: new Date(2025, 2, 15)
+    this.isLoading = true;
+    this.errorMessage = '';
+    
+    // Load existing admin heads from blockchain
+    this.adminGovtService.getAllAdminHeads().subscribe({
+      next: (heads) => {
+        this.adminHeads = heads;
+        this.isLoading = false;
       },
-      {
-        name: 'Emily Johnson',
-        department: 'Public Health',
-        walletAddress: '8xFr...',
-        dateAssigned: new Date(2025, 1, 10)
+      error: (error) => {
+        console.error('Error loading admin heads:', error);
+        this.errorMessage = this.getErrorMessage(error);
+        this.isLoading = false;
       }
-    ];
+    });
   }
   
   assignHead(): void {
@@ -87,39 +94,61 @@ export class AssignHead implements OnInit {
       return;
     }
     
-    this.isLoading = true;
+    // Check wallet connection before assigning
+    if (!this.solanaService.isWalletConnected()) {
+      this.showError('Please connect your wallet to assign admin heads.');
+      return;
+    }
     
-    // Simulate blockchain transaction
-    setTimeout(() => {
-      // Add to list (in a real app, this would be after blockchain confirmation)
-      this.adminHeads.push({
-        ...this.newHead,
-        dateAssigned: new Date()
-      });
-      
-      // Reset form
-      this.newHead = {
-        name: '',
-        department: '',
-        walletAddress: '',
-        dateAssigned: new Date()
-      };
-      
-      this.isLoading = false;
-      this.showSuccess();
-    }, 1500);
+    this.isSubmitting = true;
+    this.errorMessage = '';
+    
+    // Assign admin head on blockchain
+    this.adminGovtService.assignAdminHead(
+      this.newHead.name!,
+      this.newHead.department!,
+      this.newHead.walletAddress!
+    ).subscribe({
+      next: (assignedHead) => {
+        console.log('Admin head assigned successfully:', assignedHead);
+        
+        // Add to local list
+        this.adminHeads.push(assignedHead);
+        
+        // Reset form
+        this.newHead = {
+          name: '',
+          department: '',
+          walletAddress: ''
+        };
+        
+        this.isSubmitting = false;
+        this.showSuccess();
+      },
+      error: (error) => {
+        console.error('Error assigning admin head:', error);
+        this.showError(this.getErrorMessage(error));
+        this.isSubmitting = false;
+      }
+    });
   }
   
   removeHead(index: number): void {
-    // In a real app, this would require blockchain transaction
+    // TODO: Implement removeAdminHead blockchain transaction
+    // For now, just remove from local list
     this.adminHeads.splice(index, 1);
+    console.log('Remove admin head functionality to be implemented with blockchain transaction');
   }
   
   connectWallet(): void {
-    // In a real app, this would connect to Phantom or other Solana wallets
-    alert('This would connect to a Solana wallet in production');
-    // For demo, we'll just set a mock address
-    this.walletAddress = 'Demo' + Math.random().toString(36).substring(2, 10);
+    // Trigger wallet connection through SolanaService
+    // Note: In a real implementation, this would trigger the wallet connection flow
+    if (this.solanaService.isWalletConnected()) {
+      this.walletAddress = this.solanaService.getPublicKey();
+      this.errorMessage = '';
+    } else {
+      this.showError('Please connect your wallet using the connect button in the header.');
+    }
   }
   
   useConnectedWallet(): void {
@@ -156,7 +185,23 @@ export class AssignHead implements OnInit {
   
   // Simple wallet address validation
   isValidWalletAddress(address: string): boolean {
-    // In a real app, this would do proper Solana address validation
-    return address.length >= 8;
+    // Basic Solana address validation (should be 32-44 characters)
+    return address.length >= 32 && address.length <= 44 && /^[A-Za-z0-9]+$/.test(address);
+  }
+
+  private getErrorMessage(error: any): string {
+    if (error?.message) {
+      if (error.message.includes('Wallet not connected')) {
+        return 'Please connect your wallet to assign admin heads.';
+      }
+      if (error.message.includes('Unauthorized')) {
+        return 'You are not authorized to assign admin heads.';
+      }
+      if (error.message.includes('User rejected')) {
+        return 'Transaction was rejected. Please try again.';
+      }
+      return `Error: ${error.message}`;
+    }
+    return 'An unexpected error occurred. Please try again.';
   }
 }

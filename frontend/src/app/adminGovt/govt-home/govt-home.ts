@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { UserService, TaxPayment, Project } from '../../user/user.service';
+import { AdminGovtService, GovtDashboardStats, SolanaService } from '../../shared/services';
 import { AuthService } from '../../auth/auth.service';
 
 @Component({
@@ -13,64 +14,94 @@ import { AuthService } from '../../auth/auth.service';
 })
 export class GovtHome implements OnInit {
   // Dashboard data
-  totalTaxCollected: number = 0;
-  configuredWards: string[] = [];
-  adminHeadStatus: boolean = true; // Assuming admin head is assigned by default
-  
-  // Project stats
-  totalProjects: number = 0;
-  ongoingProjects: number = 0;
-  completedProjects: number = 0;
-  
-  // Grievance stats
-  totalGrievances: number = 0;
-  pendingGrievances: number = 0;
-  resolvedGrievances: number = 0;
+  dashboardStats: GovtDashboardStats | null = null;
   
   // Loading state
   isLoading: boolean = true;
+  errorMessage: string = '';
   
   // Connected wallet
   walletAddress: string | null = null;
+
+  // Getter properties for template access
+  get pendingGrievances(): number {
+    return this.dashboardStats?.pendingGrievances || 0;
+  }
+
+  get ongoingProjects(): number {
+    return this.dashboardStats?.ongoingProjects || 0;
+  }
+
+  get totalTaxCollected(): number {
+    return this.dashboardStats?.totalTaxCollected || 0;
+  }
+
+  get totalProjects(): number {
+    return this.dashboardStats?.totalProjects || 0;
+  }
+
+  get completedProjects(): number {
+    return this.dashboardStats?.completedProjects || 0;
+  }
+
+  get totalGrievances(): number {
+    return this.dashboardStats?.totalGrievances || 0;
+  }
+
+  get resolvedGrievances(): number {
+    return this.dashboardStats?.resolvedGrievances || 0;
+  }
+
+  get configuredWards(): string[] {
+    return this.dashboardStats?.configuredWards || [];
+  }
+
+  get adminHeadStatus(): boolean {
+    return this.dashboardStats?.adminHeadStatus || false;
+  }
   
   constructor(
     private userService: UserService,
+    private adminGovtService: AdminGovtService,
+    private solanaService: SolanaService,
     private authService: AuthService
   ) {}
   
   ngOnInit(): void {
+    // Check wallet connection first
+    if (!this.solanaService.isWalletConnected()) {
+      this.errorMessage = 'Please connect your wallet to access government admin functions.';
+      this.isLoading = false;
+      return;
+    }
+
+    // Get wallet address from SolanaService (primary) or AuthService (fallback)
+    this.walletAddress = this.solanaService.getPublicKey() || this.authService.getPublicKey();
+    
     this.loadDashboardData();
-    this.walletAddress = this.authService.getPublicKey();
   }
   
   loadDashboardData(): void {
     this.isLoading = true;
+    this.errorMessage = '';
     
-    // Get configured wards
-    this.configuredWards = this.userService.getWards();
-    
-    // Calculate total tax collected
-    this.userService.getTaxPayments().subscribe(payments => {
-      this.totalTaxCollected = payments
-        .filter(payment => payment.status === 'Paid')
-        .reduce((total, payment) => total + payment.amount, 0);
+    // Load dashboard statistics from blockchain
+    this.adminGovtService.getDashboardStats().subscribe({
+      next: (stats) => {
+        this.dashboardStats = stats;
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error('Error loading dashboard data:', error);
+        this.errorMessage = this.getErrorMessage(error);
+        this.isLoading = false;
+      }
     });
-    
-    // Get project statistics
-    this.userService.getProjects().subscribe(projects => {
-      this.totalProjects = projects.length;
-      this.ongoingProjects = projects.filter(p => p.status === 'Ongoing').length;
-      this.completedProjects = projects.filter(p => p.status === 'Done').length;
-    });
-    
-    // Get grievance statistics
-    this.userService.getGrievances().subscribe(grievances => {
-      this.totalGrievances = grievances.length;
-      this.pendingGrievances = grievances.filter(g => g.status === 'Pending').length;
-      this.resolvedGrievances = grievances.filter(g => g.status === 'Resolved').length;
-      
-      this.isLoading = false;
-    });
+  }
+
+  // Format currency for template display
+  formatCurrency(amount: number): string {
+    return amount.toFixed(2) + ' SOL';
   }
   
   // Format wallet address for display
@@ -78,9 +109,20 @@ export class GovtHome implements OnInit {
     if (!address) return 'Not connected';
     return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
   }
-  
-  // Format currency
-  formatCurrency(amount: number): string {
-    return amount.toFixed(2) + ' SOL';
+
+  private getErrorMessage(error: any): string {
+    if (error?.message) {
+      if (error.message.includes('Wallet not connected')) {
+        return 'Please connect your wallet to access government admin functions.';
+      }
+      if (error.message.includes('Unauthorized')) {
+        return 'You are not authorized to perform this action.';
+      }
+      if (error.message.includes('User rejected')) {
+        return 'Transaction was rejected. Please try again.';
+      }
+      return `Error: ${error.message}`;
+    }
+    return 'An unexpected error occurred. Please try again.';
   }
 }

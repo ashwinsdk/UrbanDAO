@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { UserService, Project } from '../../user/user.service';
+import { AdminService, AdminProject, SolanaService } from '../../shared/services';
 import { AuthService } from '../../auth/auth.service';
 
 @Component({
@@ -14,15 +15,16 @@ import { AuthService } from '../../auth/auth.service';
 })
 export class ProjectAlloc implements OnInit {
   // All projects
-  projects: Project[] = [];
-  filteredProjects: Project[] = [];
+  projects: AdminProject[] = [];
+  filteredProjects: AdminProject[] = [];
   
   // Currently selected project for editing
-  selectedProject: Project | null = null;
+  selectedProject: AdminProject | null = null;
   
   // New project form
-  newProject: Project = this.createEmptyProject();
+  newProject: AdminProject = this.createEmptyProject();
   isCreatingProject: boolean = false;
+  isSubmitting: boolean = false;
   
   // Filter options
   statusFilter: string = 'all';
@@ -36,21 +38,33 @@ export class ProjectAlloc implements OnInit {
   
   // Loading state
   isLoading: boolean = true;
+  errorMessage: string = '';
   
   // Connected wallet
   walletAddress: string | null = null;
   
   constructor(
     private userService: UserService,
+    private adminService: AdminService,
+    private solanaService: SolanaService,
     private authService: AuthService
   ) {}
   
   ngOnInit(): void {
+    // Check wallet connection first
+    if (!this.solanaService.isWalletConnected()) {
+      this.errorMessage = 'Please connect your wallet to access admin functions.';
+      this.isLoading = false;
+      return;
+    }
+
+    // Get wallet address from SolanaService (primary) or AuthService (fallback)
+    this.walletAddress = this.solanaService.getPublicKey() || this.authService.getPublicKey();
+    
     this.loadProjects();
-    this.walletAddress = this.authService.getPublicKey();
   }
   
-  createEmptyProject(): Project {
+  createEmptyProject(): AdminProject {
     return {
       id: '',
       name: '',
@@ -59,16 +73,27 @@ export class ProjectAlloc implements OnInit {
       startDate: new Date(),
       budget: 0,
       location: '',
-      ward: ''
+      ward: '',
+      timestamp: new Date()
     };
   }
   
   loadProjects(): void {
     this.isLoading = true;
-    this.userService.getProjects().subscribe(projects => {
-      this.projects = projects;
-      this.applyFilters();
-      this.isLoading = false;
+    this.errorMessage = '';
+    
+    // Load all projects from blockchain (Admin view)
+    this.adminService.getAllProjects().subscribe({
+      next: (projects) => {
+        this.projects = projects;
+        this.applyFilters();
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error('Error loading projects:', error);
+        this.errorMessage = this.getErrorMessage(error);
+        this.isLoading = false;
+      }
     });
   }
   
@@ -95,7 +120,7 @@ export class ProjectAlloc implements OnInit {
     });
   }
   
-  selectProject(project: Project): void {
+  selectProject(project: AdminProject): void {
     this.selectedProject = { ...project };
     this.isCreatingProject = false;
   }
@@ -118,19 +143,41 @@ export class ProjectAlloc implements OnInit {
   saveNewProject(): void {
     if (!this.validateProject(this.newProject)) return;
     
-    // Generate a new ID
-    this.newProject.id = `P${Math.floor(Math.random() * 10000).toString().padStart(3, '0')}`;
+    // Check wallet connection before creating
+    if (!this.solanaService.isWalletConnected()) {
+      this.errorMessage = 'Please connect your wallet to create projects.';
+      return;
+    }
     
-    // In a real app, this would call an API to save the project
-    // For now, we'll simulate by adding to our local list
-    const newProjects = [this.newProject, ...this.projects];
-    this.projects = newProjects;
-    this.projectsSubject.next(newProjects);
+    this.isSubmitting = true;
+    this.errorMessage = '';
     
-    this.showSuccessModal('Project Created', `Project ${this.newProject.name} has been created successfully.`);
-    this.isCreatingProject = false;
-    this.newProject = this.createEmptyProject();
-    this.applyFilters();
+    // Create project on blockchain
+    this.adminService.createProject(
+      this.newProject.name,
+      this.newProject.description,
+      this.newProject.budget,
+      this.newProject.location,
+      this.newProject.ward
+    ).subscribe({
+      next: (createdProject) => {
+        console.log('Project created successfully:', createdProject);
+        
+        // Add to local projects list
+        this.projects = [createdProject, ...this.projects];
+        this.applyFilters();
+        
+        this.showSuccessModal('Project Created', `Project ${createdProject.name} has been created successfully on the blockchain.`);
+        this.isCreatingProject = false;
+        this.newProject = this.createEmptyProject();
+        this.isSubmitting = false;
+      },
+      error: (error) => {
+        console.error('Error creating project:', error);
+        this.errorMessage = this.getErrorMessage(error);
+        this.isSubmitting = false;
+      }
+    });
   }
   
   updateProject(): void {
@@ -159,7 +206,7 @@ export class ProjectAlloc implements OnInit {
   }
   
   updateProjectStatus(project: Project, status: 'Planning' | 'Ongoing' | 'Done'): void {
-    const updatedProject = { ...project, status };
+    const updatedProject = { ...project, status, timestamp: new Date() };
     
     // In a real app, this would call an API to update the project
     // For now, we'll simulate by updating our local list
@@ -210,7 +257,10 @@ export class ProjectAlloc implements OnInit {
     return {
       next: (projects: Project[]) => {
         // In a real app with a proper service, this would update the BehaviorSubject
-        this.projects = projects;
+        this.projects = projects.map(project => ({
+          ...project,
+          timestamp: new Date() // Add required timestamp property for AdminProject
+        } as AdminProject));
       }
     };
   }
@@ -234,6 +284,22 @@ export class ProjectAlloc implements OnInit {
     if (this.modalAction === 'success') {
       this.clearSelection();
     }
+  }
+
+  private getErrorMessage(error: any): string {
+    if (error?.message) {
+      if (error.message.includes('Wallet not connected')) {
+        return 'Please connect your wallet to access admin functions.';
+      }
+      if (error.message.includes('Unauthorized')) {
+        return 'You are not authorized to perform this action.';
+      }
+      if (error.message.includes('User rejected')) {
+        return 'Transaction was rejected. Please try again.';
+      }
+      return `Error: ${error.message}`;
+    }
+    return 'An unexpected error occurred. Please try again.';
   }
   
   // Format date for display

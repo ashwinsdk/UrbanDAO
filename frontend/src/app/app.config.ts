@@ -1,17 +1,14 @@
-import { ApplicationConfig, provideBrowserGlobalErrorListeners, provideZoneChangeDetection, isDevMode } from '@angular/core';
+import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
 
-import { appRoutes } from './app.routes';
-import { provideServiceWorker } from '@angular/service-worker';
+// Back to working routes while implementing mock service fix
+// import { appRoutes } from './app.routes';
+import { testRoutes as appRoutes } from './app.routes-test';
+// import { routesNoGuards as appRoutes } from './app.routes-noguards';
 
 export const appConfig: ApplicationConfig = {
   providers: [
-    provideBrowserGlobalErrorListeners(),
     provideZoneChangeDetection({ eventCoalescing: true }),
-    provideRouter(appRoutes),
-    provideServiceWorker('ngsw-worker.js', {
-      enabled: !isDevMode(),
-      registrationStrategy: 'registerWhenStable:30000'
-    })
+    provideRouter(appRoutes)
   ]
 };

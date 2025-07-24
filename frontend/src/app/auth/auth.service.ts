@@ -14,19 +14,7 @@ interface RegisteredWallet {
 // Storage key for registered wallets
 const STORAGE_KEY = 'urbandao_registered_wallets';
 
-// Mock Solana Wallet API
-declare global {
-    interface Window {
-        solana?: {
-            isPhantom?: boolean;
-            isConnected: boolean;
-            publicKey: {
-                toString: () => string;
-            };
-            connect: () => Promise<void>;
-        };
-    }
-}
+// Note: window.solana interface is declared in wallet.service.ts to avoid conflicts
 
 // --- PLACEHOLDER ---
 // This is a mock database of wallet addresses to roles.
