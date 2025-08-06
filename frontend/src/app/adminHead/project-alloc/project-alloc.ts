@@ -58,8 +58,10 @@ export class ProjectAlloc implements OnInit {
     return {
       id: '',
       name: '',
-      description: '',
+      details: '', // Contract field name
       status: ProjectStatus.Planning,
+      // Frontend compatibility fields
+      description: '',
       startDate: new Date(),
       budget: 0,
       location: '',
@@ -91,9 +93,10 @@ export class ProjectAlloc implements OnInit {
         return (
           project.id.toLowerCase().includes(term) ||
           project.name.toLowerCase().includes(term) ||
-          project.description.toLowerCase().includes(term) ||
-          project.location.toLowerCase().includes(term) ||
-          project.ward.toString().toLowerCase().includes(term)
+          project.details.toLowerCase().includes(term) ||
+          (project.description && project.description.toLowerCase().includes(term)) ||
+          (project.location && project.location.toLowerCase().includes(term)) ||
+          (project.ward && project.ward.toString().toLowerCase().includes(term))
         );
       }
       
@@ -203,7 +206,7 @@ export class ProjectAlloc implements OnInit {
       return false;
     }
     
-    if (project.budget <= 0) {
+    if (!project.budget || project.budget <= 0) {
       this.showErrorModal('Validation Error', 'Budget must be greater than zero.');
       return false;
     }
@@ -243,13 +246,23 @@ export class ProjectAlloc implements OnInit {
   }
   
   // Format date for display
-  formatDate(date: Date | null): string {
+  formatDate(date: Date | null | undefined): string {
     if (!date) return 'N/A';
     return new Date(date).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
     });
+  }
+  
+  // Format currency for display
+  formatCurrency(amount: number | undefined): string {
+    if (amount === undefined) return 'N/A';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0
+    }).format(amount);
   }
   
   // Get CSS class for status badge
@@ -268,8 +281,5 @@ export class ProjectAlloc implements OnInit {
     return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
   }
   
-  // Format currency
-  formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
-  }
+
 }

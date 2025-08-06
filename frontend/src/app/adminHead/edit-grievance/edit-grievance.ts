@@ -93,8 +93,9 @@ export class EditGrievance implements OnInit {
         const term = this.searchTerm.toLowerCase();
         return (
           grievance.id.toLowerCase().includes(term) ||
-          grievance.category.toLowerCase().includes(term) ||
-          grievance.description.toLowerCase().includes(term)
+          (grievance.category && grievance.category.toLowerCase().includes(term)) ||
+          (grievance.description && grievance.description.toLowerCase().includes(term)) ||
+          grievance.details.toLowerCase().includes(term)
         );
       }
       
@@ -112,7 +113,7 @@ export class EditGrievance implements OnInit {
     this.responseText = '';
   }
   
-  updateStatus(status: 'Pending' | 'In Progress' | 'Resolved' | 'Rejected'): void {
+  updateStatus(status: GrievanceStatus): void {
     if (!this.selectedGrievance) return;
     
     this.modalAction = 'updateStatus';
@@ -168,7 +169,7 @@ export class EditGrievance implements OnInit {
   }
   
   // Format date for display
-  formatDate(date: Date | null): string {
+  formatDate(date: Date | null | undefined): string {
     if (!date) return 'N/A';
     return new Date(date).toLocaleDateString('en-US', {
       year: 'numeric',

@@ -31,27 +31,31 @@ export interface TaxPayment {
 export interface Grievance {
   id: string;
   user: string;
-  category: string;
-  description: string; // Changed from 'details' to match frontend expectation
+  details: string; // Contract field name
   status: GrievanceStatus;
   timestamp: number;
-  dateSubmitted: Date; // Added for template compatibility
-  response?: string; // Added for admin response
+  // Frontend compatibility fields
+  category?: string;
+  description?: string; // Alias for details
+  dateSubmitted?: Date;
+  response?: string;
   transactionId?: string;
 }
 
 export interface Project {
   id: string;
   name: string;
-  description: string; // Changed from 'details' to match frontend expectation
+  details: string; // Contract field name
   status: ProjectStatus;
-  startDate: Date; // Added for frontend compatibility
-  endDate?: Date; // Added for frontend compatibility
-  budget: number; // Added for frontend compatibility
-  location: string; // Added for frontend compatibility
-  ward: number; // Added for frontend compatibility
-  createdBy: string;
-  timestamp: number;
+  // Frontend compatibility fields
+  description?: string; // Alias for details
+  startDate?: Date;
+  endDate?: Date;
+  budget?: number;
+  location?: string;
+  ward?: number;
+  createdBy?: string;
+  timestamp?: number;
   transactionId?: string;
 }
 
@@ -67,9 +71,9 @@ export interface Feedback {
 
 export enum GrievanceStatus {
   Pending = 'Pending',
-  InProgress = 'In Progress',
-  Resolved = 'Resolved',
-  Rejected = 'Rejected'
+  Accepted = 'Accepted',
+  Rejected = 'Rejected',
+  Done = 'Done'
 }
 
 export enum ProjectStatus {
@@ -167,12 +171,12 @@ export class BlockchainService {
 
     return this.simulateBlockchainDelay().pipe(
       tap(() => {
-        const state = JSON.parse(localStorage.getItem(MOCK_STATE_KEY) || '{}');
+        const state: UrbanDAOState = JSON.parse(localStorage.getItem(MOCK_STATE_KEY) || '{}');
         state.adminHead = newAdminHead;
         localStorage.setItem(MOCK_STATE_KEY, JSON.stringify(state));
       }),
       tap(() => this._loading.next(false)),
-      tap(() => this.generateTransactionId())
+      map(() => this.generateTransactionId())
     );
   }
 
@@ -205,7 +209,7 @@ export class BlockchainService {
         localStorage.setItem(MOCK_WARD_TAXES_KEY, JSON.stringify(wardTaxes));
       }),
       tap(() => this._loading.next(false)),
-      tap(() => this.generateTransactionId())
+      map(() => this.generateTransactionId())
     );
   }
 
@@ -288,10 +292,12 @@ export class BlockchainService {
         const newGrievance: Grievance = {
           id: this.generateId(),
           user,
-          category: 'General', // Default category
-          description,
+          details: description, // Contract field name
           status: GrievanceStatus.Pending,
           timestamp: Date.now(),
+          // Frontend compatibility fields
+          category: 'General',
+          description,
           dateSubmitted: new Date(),
           transactionId: this.generateTransactionId()
         };
@@ -328,7 +334,7 @@ export class BlockchainService {
   // Project operations
   getProjects(): Observable<Project[]> {
     const projects: Project[] = JSON.parse(localStorage.getItem(MOCK_PROJECTS_KEY) || '[]');
-    return of(projects.sort((a, b) => b.timestamp - a.timestamp));
+    return of(projects.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)));
   }
 
   createProject(name: string, description: string, budget: number, ward: number): Observable<string> {
@@ -342,14 +348,16 @@ export class BlockchainService {
         const newProject: Project = {
           id: this.generateId(),
           name,
-          description,
+          details: description, // Contract field name
           status: ProjectStatus.Planning,
+          // Frontend compatibility fields
+          description,
           startDate: new Date(),
           endDate: undefined,
           budget,
-          location: 'TBD', // Default location
+          location: 'TBD',
           ward,
-          createdBy: 'admin', // Default creator
+          createdBy: 'admin',
           timestamp: Date.now(),
           transactionId: this.generateTransactionId()
         };
@@ -439,7 +447,7 @@ export class BlockchainService {
     return 0.001; // 0.001 SOL transaction fee
   }
 
-  // Admin-only methods
+  // Admin Government methods (from smart contract)
   initializeState(adminGovt: string): Observable<string> {
     this._loading.next(true);
     this._error.next(null);
@@ -460,4 +468,6 @@ export class BlockchainService {
       map(() => this.generateTransactionId())
     );
   }
+
+
 }

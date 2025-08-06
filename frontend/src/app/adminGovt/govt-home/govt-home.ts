@@ -68,7 +68,7 @@ export class GovtHome implements OnInit {
     this.userService.getGrievances().subscribe(grievances => {
       this.totalGrievances = grievances.length;
       this.pendingGrievances = grievances.filter(g => g.status === GrievanceStatus.Pending).length;
-      this.resolvedGrievances = grievances.filter(g => g.status === GrievanceStatus.Resolved).length;
+      this.resolvedGrievances = grievances.filter(g => g.status === GrievanceStatus.Done).length;
       
       this.isLoading = false;
     });

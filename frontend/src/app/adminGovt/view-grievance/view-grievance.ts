@@ -112,7 +112,7 @@ export class ViewGrievance implements OnInit {
       const query = this.searchQuery.toLowerCase().trim();
       filtered = filtered.filter(g => 
         (g.title && g.title.toLowerCase().includes(query)) ||
-        g.description.toLowerCase().includes(query) ||
+        (g.description && g.description.toLowerCase().includes(query)) ||
         (g.submitterName && g.submitterName.toLowerCase().includes(query))
       );
     }
@@ -163,7 +163,8 @@ export class ViewGrievance implements OnInit {
   }
   
   // Format date for display
-  formatDate(date: Date | string): string {
+  formatDate(date: Date | string | undefined): string {
+    if (!date) return 'N/A';
     return new Date(date).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',

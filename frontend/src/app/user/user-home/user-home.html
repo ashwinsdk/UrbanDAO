@@ -79,10 +79,10 @@
           <div *ngIf="recentGrievances.length > 0" class="grievance-list">
             <div *ngFor="let grievance of recentGrievances" class="grievance-item">
               <div class="d-flex justify-between align-center">
-                <p class="grievance-category">{{ grievance.category }}</p>
+                <p class="grievance-category">{{ grievance.category || 'General' }}</p>
                 <span class="badge" [ngClass]="getStatusClass(grievance.status)">{{ grievance.status }}</span>
               </div>
-              <p class="grievance-desc">{{ grievance.description | slice:0:60 }}{{ grievance.description.length > 60 ? '...' : '' }}</p>
+              <p class="grievance-desc">{{ (grievance.description || grievance.details) | slice:0:60 }}{{ (grievance.description || grievance.details).length > 60 ? '...' : '' }}</p>
               <p class="grievance-date">{{ grievance.dateSubmitted | date:'mediumDate' }}</p>
             </div>
           </div>

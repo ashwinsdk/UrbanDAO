@@ -64,7 +64,8 @@ export class AdminHome implements OnInit {
   }
   
   // Format date for display
-  formatDate(date: Date): string {
+  formatDate(date: Date | undefined): string {
+    if (!date) return 'N/A';
     return new Date(date).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',

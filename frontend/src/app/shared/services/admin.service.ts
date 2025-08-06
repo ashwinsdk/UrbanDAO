@@ -128,7 +128,7 @@ export class AdminService {
   }
 
   getInProgressGrievances(): Observable<Grievance[]> {
-    return this.getGrievancesByStatus(GrievanceStatus.Resolved);
+    return this.getGrievancesByStatus(GrievanceStatus.Accepted);
   }
 
   updateGrievanceStatus(grievanceId: string, status: GrievanceStatus): Observable<string> {
@@ -192,10 +192,10 @@ export class AdminService {
             case GrievanceStatus.Pending:
               stats.pending++;
               break;
-            case GrievanceStatus.InProgress:
+            case GrievanceStatus.Accepted:
               stats.inProgress++;
               break;
-            case GrievanceStatus.Resolved:
+            case GrievanceStatus.Done:
               stats.resolved++;
               break;
             case GrievanceStatus.Rejected:

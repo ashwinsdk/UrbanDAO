@@ -124,23 +124,23 @@
             <div class="status-actions">
               <button 
                 class="btn status-btn status-pending" 
-                [class.active]="selectedGrievance.status === 'Pending'"
-                (click)="updateStatus('Pending')"
+                [class.active]="selectedGrievance.status === GrievanceStatus.Pending"
+                (click)="updateStatus(GrievanceStatus.Pending)"
               >Pending</button>
               <button 
                 class="btn status-btn status-progress" 
-                [class.active]="selectedGrievance.status === GrievanceStatus.InProgress"
-                (click)="updateStatus(GrievanceStatus.InProgress)"
+                [class.active]="selectedGrievance.status === GrievanceStatus.Accepted"
+                (click)="updateStatus(GrievanceStatus.Accepted)"
               >In Progress</button>
               <button 
                 class="btn status-btn status-success" 
-                [class.active]="selectedGrievance.status === GrievanceStatus.Resolved"
-                (click)="updateStatus(GrievanceStatus.Resolved)"
+                [class.active]="selectedGrievance.status === GrievanceStatus.Done"
+                (click)="updateStatus(GrievanceStatus.Done)"
               >Resolved</button>
               <button 
                 class="btn status-btn status-error" 
-                [class.active]="selectedGrievance.status === 'Rejected'"
-                (click)="updateStatus('Rejected')"
+                [class.active]="selectedGrievance.status === GrievanceStatus.Rejected"
+                (click)="updateStatus(GrievanceStatus.Rejected)"
               >Rejected</button>
             </div>
           </div>

@@ -169,10 +169,10 @@ export class UserService {
             case GrievanceStatus.Pending:
               stats.pending++;
               break;
-            case GrievanceStatus.InProgress:
+            case GrievanceStatus.Accepted:
               stats.inProgress++;
               break;
-            case GrievanceStatus.Resolved:
+            case GrievanceStatus.Done:
               stats.resolved++;
               break;
             case GrievanceStatus.Rejected:

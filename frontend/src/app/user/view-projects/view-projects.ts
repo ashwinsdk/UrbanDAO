@@ -55,7 +55,7 @@ export class ViewProjects implements OnInit {
       }
       
       // Ward filter
-      if (this.wardFilter !== 'all' && project.ward.toString() !== this.wardFilter) {
+      if (this.wardFilter !== 'all' && project.ward && project.ward.toString() !== this.wardFilter) {
         return false;
       }
       
@@ -64,8 +64,9 @@ export class ViewProjects implements OnInit {
         const query = this.searchQuery.toLowerCase();
         return (
           project.name.toLowerCase().includes(query) ||
-          project.description.toLowerCase().includes(query) ||
-          project.location.toLowerCase().includes(query)
+          project.details.toLowerCase().includes(query) ||
+          (project.description && project.description.toLowerCase().includes(query)) ||
+          (project.location && project.location.toLowerCase().includes(query))
         );
       }
       
@@ -91,7 +92,8 @@ export class ViewProjects implements OnInit {
   }
   
   // Format currency for display
-  formatCurrency(amount: number): string {
+  formatCurrency(amount: number | undefined): string {
+    if (amount === undefined) return 'N/A';
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
@@ -100,7 +102,7 @@ export class ViewProjects implements OnInit {
   }
   
   // Format date for display
-  formatDate(date: Date | null): string {
+  formatDate(date: Date | null | undefined): string {
     if (!date) return 'N/A';
     return new Date(date).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -115,7 +117,8 @@ export class ViewProjects implements OnInit {
   }
   
   // Helper method to calculate a date 30 days after project start
-  getProgressUpdateDate(startDate: Date): Date {
+  getProgressUpdateDate(startDate: Date | undefined): Date {
+    if (!startDate) return new Date();
     const date = new Date(startDate);
     date.setDate(date.getDate() + 30);
     return date;
@@ -127,7 +130,7 @@ export class ViewProjects implements OnInit {
     if (project.status === 'Planning') return 10;
     
     // For ongoing projects, calculate based on start date and estimated end date
-    if (project.endDate) {
+    if (project.endDate && project.startDate) {
       const total = project.endDate.getTime() - project.startDate.getTime();
       const elapsed = Date.now() - project.startDate.getTime();
       const progress = Math.min(Math.max(Math.floor((elapsed / total) * 100), 10), 90);
