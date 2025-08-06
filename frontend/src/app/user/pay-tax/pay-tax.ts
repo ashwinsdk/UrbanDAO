@@ -2,7 +2,8 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { UserService, TaxPayment } from '../user.service';
+import { UserService } from '../user.service';
+import { TaxPayment } from '../../shared/services/blockchain.service';
 import { AuthService } from '../../auth/auth.service';
 
 @Component({
@@ -59,11 +60,11 @@ export class PayTax implements OnInit {
 
   loadTaxInformation(): void {
     // Get current tax due
-    this.userService.getCurrentTaxDue().subscribe(taxDue => {
+    this.userService.getCurrentTaxDue().subscribe((taxDue: {ward: string, year: number, amount: number, dueDate: Date}) => {
       this.taxDue = taxDue;
 
       // Get recent payments
-      this.userService.getTaxPayments().subscribe(payments => {
+      this.userService.getTaxPayments().subscribe((payments: TaxPayment[]) => {
         this.recentPayments = payments.slice(0, 5); // Show only 5 most recent payments
         this.isLoading = false;
       });
@@ -87,23 +88,23 @@ export class PayTax implements OnInit {
 
     // Submit tax payment
     this.userService.payTax(
-      this.taxDue.ward,
-      this.taxDue.year,
-      this.taxDue.amount
+      parseInt(this.taxDue.ward),
+      this.taxDue.year
     ).subscribe({
-      next: (payment) => {
+      next: (payment: string) => {
         this.isSubmitting = false;
         this.submitSuccess = true;
         this.showConfirmation = false;
 
-        // Add the new payment to recent payments
-        this.recentPayments = [payment, ...this.recentPayments].slice(0, 5);
+        // Add the new payment to recent payments (payment is actually a transaction ID)
+        // For now, just reload the payments list
+        this.loadTaxInformation();
 
         // In a real app, we would update the tax due information
         // For now, just set it to null to simulate payment
         this.taxDue = null;
       },
-      error: (error) => {
+      error: (error: any) => {
         this.isSubmitting = false;
         this.submitError = true;
         this.errorMessage = error.message || 'Failed to process payment';

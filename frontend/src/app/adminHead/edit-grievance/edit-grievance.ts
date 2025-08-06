@@ -2,7 +2,8 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { UserService, Grievance } from '../../user/user.service';
+import { UserService } from '../../user/user.service';
+import { Grievance, GrievanceStatus } from '../../shared/services/blockchain.service';
 import { AuthService } from '../../auth/auth.service';
 import { Observable, of } from 'rxjs';
 
@@ -30,6 +31,8 @@ export class EditGrievance implements OnInit {
   modalAction: string = '';
   modalTitle: string = '';
   modalMessage: string = '';
+  // Status enum for template
+  GrievanceStatus = GrievanceStatus;
   
   // Loading state
   isLoading: boolean = true;
@@ -118,7 +121,7 @@ export class EditGrievance implements OnInit {
     this.showModal = true;
   }
   
-  confirmStatusUpdate(status: 'Pending' | 'In Progress' | 'Resolved' | 'Rejected'): void {
+  confirmStatusUpdate(status: GrievanceStatus): void {
     if (!this.selectedGrievance) return;
     
     // Create updated grievance object

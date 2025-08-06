@@ -3,6 +3,7 @@ import { BehaviorSubject, from, Observable, of, throwError, timer } from 'rxjs';
 import { catchError, map, switchMap, tap } from 'rxjs/operators';
 import { Router } from '@angular/router';
 import { UserRole } from './user-role.enum';
+import { BlockchainService, UrbanDAOState } from '../shared/services/blockchain.service';
 
 // Interface for registered wallet data
 interface RegisteredWallet {
@@ -24,241 +25,154 @@ declare global {
                 toString: () => string;
             };
             connect: () => Promise<void>;
+            disconnect: () => Promise<void>;
+            on: (event: string, callback: () => void) => void;
+            off: (event: string, callback: () => void) => void;
         };
     }
 }
 
-// --- PLACEHOLDER ---
-// This is a mock database of wallet addresses to roles.
-// In a real app, this logic would be on your Anchor program.
-const MOCK_WALLET_ROLES: Record<string, UserRole> = {
-    'FVTUBAwwMY3mpzNmR8QEncdi5HCR3fawxL38svymmnps': UserRole.AdminGovt, // Admin Govt
-    'C4ZsZRzr6kCqVXPzGhDXsUaoFuBR1cnFXkwSksCH5xSk': UserRole.AdminHead, // Admin Head
-    'phantom3': UserRole.User,
-};
-
-// --- END PLACEHOLDER ---
+// Default admin addresses for initialization
+const DEFAULT_ADMIN_GOVT = 'FVTUBAwwMY3mpzNmR8QEncdi5HCR3fawxL38svymmnps';
+const DEFAULT_ADMIN_HEAD = 'C4ZsZRzr6kCqVXPzGhDXsUaoFuBR1cnFXkwSksCH5xSk';
 
 @Injectable({
     providedIn: 'root',
 })
 export class AuthService {
-    private readonly _connected = new BehaviorSubject<boolean>(false);
-    private readonly _userRole = new BehaviorSubject<UserRole | null>(null);
-    private readonly _publicKey = new BehaviorSubject<string | null>(null);
-    private readonly _walletError = new BehaviorSubject<string | null>(null);
-    private readonly _loading = new BehaviorSubject<boolean>(false);
+  private readonly _connected = new BehaviorSubject<boolean>(false);
+  private readonly _userRole = new BehaviorSubject<UserRole | null>(null);
+  private readonly _publicKey = new BehaviorSubject<string | null>(null);
+  private readonly _walletError = new BehaviorSubject<string | null>(null);
+  private readonly _loading = new BehaviorSubject<boolean>(false);
 
-    /** Observable for the wallet's connection state. */
-    public readonly connected$ = this._connected.asObservable();
-    /** Observable for the authenticated user's role. */
-    public readonly userRole$ = this._userRole.asObservable();
-    /** Observable for the wallet's public key. */
-    public readonly publicKey$ = this._publicKey.asObservable();
-    /** Observable for any wallet connection errors. */
-    public readonly walletError$ = this._walletError.asObservable();
-    /** Observable for loading state during wallet operations. */
-    public readonly loading$ = this._loading.asObservable();
+  // Public observables
+  public readonly connected$ = this._connected.asObservable();
+  public readonly userRole$ = this._userRole.asObservable();
+  public readonly publicKey$ = this._publicKey.asObservable();
+  public readonly walletError$ = this._walletError.asObservable();
+  public readonly loading$ = this._loading.asObservable();
 
-    constructor(private router: Router) {
-        // Check if user was previously connected and restore session
-        this.checkStoredSession();
+  // Current state getters
+  get isConnected(): boolean {
+    return this._connected.value;
+  }
+
+  get currentUserRole(): UserRole | null {
+    return this._userRole.value;
+  }
+
+  get currentPublicKey(): string | null {
+    return this._publicKey.value;
+  }
+
+  constructor(
+    private router: Router,
+    private blockchainService: BlockchainService
+  ) {
+    this.checkWalletConnection();
+    this.setupWalletListeners();
+    this.setupBlockchainServiceListeners();
+  }
+
+  private async checkWalletConnection(): Promise<void> {
+    if (typeof window !== 'undefined' && window.solana?.isConnected) {
+      await this.handleWalletConnection();
     }
-    
-    /**
-     * Checks for a stored session in localStorage and restores it if found
-     */
-    private checkStoredSession(): void {
-        const storedSession = localStorage.getItem('urbandao_session');
-        if (storedSession) {
-            try {
-                const session = JSON.parse(storedSession);
-                if (session.publicKey) {
-                    this._publicKey.next(session.publicKey);
-                    this._connected.next(true);
-                    if (session.role) {
-                        this._userRole.next(session.role);
-                    } else {
-                        // If we have a public key but no role, fetch it
-                        this.fetchUserRole().subscribe();
-                    }
-                }
-            } catch (e) {
-                // Invalid session data, clear it
-                localStorage.removeItem('urbandao_session');
-            }
-        }
+  }
+
+  private setupWalletListeners(): void {
+    if (typeof window !== 'undefined' && window.solana) {
+      // Listen for wallet events
+      window.solana.on?.('connect', () => {
+        this.handleWalletConnection();
+      });
+
+      window.solana.on?.('disconnect', () => {
+        this.handleWalletDisconnection();
+      });
     }
+  }
 
-    /** Checks if the wallet is currently connected. */
-    public isConnected(): boolean {
-        return this._connected.getValue();
+  private setupBlockchainServiceListeners(): void {
+    // Listen to blockchain service errors
+    this.blockchainService.error$.subscribe(error => {
+      if (error) {
+        this._walletError.next(error);
+      }
+    });
+  }
+
+  private async handleWalletConnection(): Promise<void> {
+    try {
+      if (!window.solana?.publicKey) {
+        return;
+      }
+
+      const publicKey = window.solana.publicKey.toString();
+      this._publicKey.next(publicKey);
+      this._connected.next(true);
+      this._walletError.next(null);
+
+      // Determine user role from blockchain state
+      const role = await this.determineUserRole(publicKey);
+      this._userRole.next(role);
+
+    } catch (error) {
+      console.error('Error handling wallet connection:', error);
+      this._walletError.next('Failed to connect wallet');
     }
+  }
 
-    /** Gets the current public key if connected */
-    public getPublicKey(): string | null {
-        return this._publicKey.getValue();
-    }
+  private handleWalletDisconnection(): void {
+    this._connected.next(false);
+    this._publicKey.next(null);
+    this._userRole.next(null);
+    this._walletError.next(null);
+    this.router.navigate(['/']);
+  }
 
-    /** Gets the current user role if available */
-    public getUserRole(): UserRole | null {
-        return this._userRole.getValue();
-    }
-
-    /** Clears any current wallet error */
-    public clearError(): void {
-        this._walletError.next(null);
-    }
-
-    /**
-     * Connects to the Solana wallet (Phantom) and fetches the user's role.
-     */
-    public connectWallet(): Observable<UserRole | null> {
-        this._loading.next(true);
-        this._walletError.next(null);
-
-        // 1. Check if `window.solana` exists. If not, prompt user to install Phantom.
-        if (!window.solana) {
-            const errorMsg = 'Phantom wallet not found. Please install the Phantom browser extension.';
-            this._walletError.next(errorMsg);
-            this._loading.next(false);
-            return throwError(() => new Error(errorMsg));
-        }
-
-        // 2. Connect to the wallet.
-        return from(window.solana.connect()).pipe(
-            tap(() => {
-                this._connected.next(true);
-                const publicKey = window.solana?.publicKey?.toString() || '';
-                this._publicKey.next(publicKey);
-                
-                // Store session data
-                localStorage.setItem('urbandao_session', JSON.stringify({
-                    publicKey,
-                    timestamp: Date.now()
-                }));
-            }),
-            // 3. Fetch the role based on the public key.
-            switchMap(() => this.fetchUserRole()),
-            tap(role => {
-                if (role) {
-                    // Update session with role
-                    const session = JSON.parse(localStorage.getItem('urbandao_session') || '{}');
-                    session.role = role;
-                    localStorage.setItem('urbandao_session', JSON.stringify(session));
-                }
-            }),
-            catchError(error => {
-                const errorMsg = `Failed to connect wallet: ${error.message || 'Unknown error'}`;
-                this._walletError.next(errorMsg);
-                this._connected.next(false);
-                this._publicKey.next(null);
-                localStorage.removeItem('urbandao_session');
-                return throwError(() => new Error(errorMsg));
-            }),
-            tap(() => this._loading.next(false))
-        );
-    }
-
-    /**
-     * Fetches the user's role from local storage or mock database
-     * In a real app, this would query your Anchor program
-     */
-    public fetchUserRole(): Observable<UserRole | null> {
-        if (!this.isConnected() || !this._publicKey.getValue()) {
-            return of(null);
-        }
-
-        const publicKey = this._publicKey.getValue()!;
-        this._loading.next(true);
-
-        // First check if this wallet is in our registered wallets
-        const registeredWallets = this.getRegisteredWallets();
-        const registeredWallet = registeredWallets.find(w => w.publicKey === publicKey);
-        
-        if (registeredWallet) {
-            // If wallet is registered, use its role
-            return of(registeredWallet.role).pipe(
-                tap(role => {
-                    this._userRole.next(role);
-                    console.log(`Role found in registered wallets: ${role}`);
-                }),
-                tap(() => this._loading.next(false))
-            );
-        }
-
-        // If not registered, check mock database (simulating on-chain lookup)
-        console.log(`Fetching role for wallet: ${publicKey}`);
-        return timer(500).pipe(
-            map(() => {
-                // In a real app, this would be a query to your Anchor program
-                const role = MOCK_WALLET_ROLES[publicKey] || null;
-                
-                if (role) {
-                    this._userRole.next(role);
-                    console.log(`Role found in mock database: ${role}`);
-                } else {
-                    console.log('No role found for this wallet');
-                }
-                
-                return role;
-            }),
-            tap(() => this._loading.next(false))
-        );
-    }
-    
-    /**
-     * Registers a new wallet with the specified role
-     * In a real app, this would call your Anchor program
-     */
-    public registerWallet(role: UserRole): Observable<boolean> {
-        if (!this.isConnected() || !this._publicKey.getValue()) {
-            return throwError(() => new Error('Wallet not connected'));
+  private async determineUserRole(publicKeyString: string): Promise<UserRole> {
+    try {
+      // Get the program state to check admin roles
+      const state = await this.blockchainService.getState().toPromise();
+      
+      if (state) {
+        // Check if this wallet is the admin govt
+        if (state.adminGovt === publicKeyString) {
+          return UserRole.AdminGovt;
         }
         
-        const publicKey = this._publicKey.getValue()!;
-        this._loading.next(true);
-        
-        // Check if wallet is already registered
-        const registeredWallets = this.getRegisteredWallets();
-        if (registeredWallets.some(w => w.publicKey === publicKey)) {
-            this._walletError.next('This wallet is already registered');
-            this._loading.next(false);
-            return throwError(() => new Error('Wallet already registered'));
+        // Check if this wallet is the admin head
+        if (state.adminHead === publicKeyString) {
+          return UserRole.AdminHead;
         }
-        
-        // In a real app, this would be a transaction to your Anchor program
-        return timer(1000).pipe(
-            map(() => {
-                // Register the wallet locally
-                const newWallet: RegisteredWallet = {
-                    publicKey,
-                    role,
-                    registeredAt: Date.now()
-                };
-                
-                registeredWallets.push(newWallet);
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(registeredWallets));
-                
-                // Update current user role
-                this._userRole.next(role);
-                
-                // Update session
-                const session = JSON.parse(localStorage.getItem('urbandao_session') || '{}');
-                session.role = role;
-                localStorage.setItem('urbandao_session', JSON.stringify(session));
-                
-                console.log(`Wallet registered with role: ${role}`);
-                return true;
-            }),
-            catchError(error => {
-                const errorMsg = `Failed to register wallet: ${error.message || 'Unknown error'}`;
-                this._walletError.next(errorMsg);
-                return throwError(() => new Error(errorMsg));
-            }),
-            tap(() => this._loading.next(false))
-        );
+      }
+
+      // Check stored registrations for fallback
+      const registeredWallets = this.getRegisteredWallets();
+      const existingWallet = registeredWallets.find(w => w.publicKey === publicKeyString);
+
+      if (existingWallet) {
+        return existingWallet.role;
+      }
+
+      // Check hardcoded defaults for development
+      if (publicKeyString === DEFAULT_ADMIN_GOVT) {
+        return UserRole.AdminGovt;
+      }
+      if (publicKeyString === DEFAULT_ADMIN_HEAD) {
+        return UserRole.AdminHead;
+      }
+
+      // Default to regular user
+      return UserRole.User;
+
+    } catch (error) {
+      console.error('Error determining user role:', error);
+      return UserRole.User;
     }
+  }
     
     /**
      * Logs the user out by disconnecting the wallet
@@ -305,5 +219,65 @@ export class AuthService {
             return [];
         }
     }
+
+    private saveRegisteredWallets(wallets: RegisteredWallet[]): void {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(wallets));
+    }
+
+    // Utility method to get current blockchain state
+    getBlockchainState(): Observable<UrbanDAOState> {
+        return this.blockchainService.getState();
+    }
+
+    // Clear all errors
+    clearError(): void {
+        this._walletError.next(null);
+    }
+
+    // Additional methods for component compatibility
+    getCurrentRole(): UserRole | null {
+        return this.currentUserRole;
+    }
+
+    getPublicKey(): string | null {
+        return this.currentPublicKey;
+    }
+
+    // Wallet connection method for components
+    connectWallet(): Observable<UserRole | null> {
+        return from(this.handleWalletConnection()).pipe(
+            map(() => this.currentUserRole),
+            catchError(error => {
+                console.error('Wallet connection failed:', error);
+                this._walletError.next(error.message || 'Wallet connection failed');
+                return of(null);
+            })
+        );
+    }
+
+    // Wallet registration method
+    registerWallet(role: UserRole): Observable<boolean> {
+        if (!this.currentPublicKey) {
+            return throwError(() => new Error('No wallet connected'));
+        }
+
+        const wallets = this.getRegisteredWallets();
+        const existingWallet = wallets.find(w => w.publicKey === this.currentPublicKey);
+        
+        if (existingWallet) {
+            return throwError(() => new Error('Wallet already registered'));
+        }
+
+        const newWallet: RegisteredWallet = {
+            publicKey: this.currentPublicKey,
+            role,
+            registeredAt: Date.now()
+        };
+
+        wallets.push(newWallet);
+        this.saveRegisteredWallets(wallets);
+        this._userRole.next(role);
+
+        return of(true);
+    }
 }
-// NOTE: You'll need to import `from` from `rxjs` for the real implementation. 

@@ -129,13 +129,13 @@
               >Pending</button>
               <button 
                 class="btn status-btn status-progress" 
-                [class.active]="selectedGrievance.status === 'In Progress'"
-                (click)="updateStatus('In Progress')"
+                [class.active]="selectedGrievance.status === GrievanceStatus.InProgress"
+                (click)="updateStatus(GrievanceStatus.InProgress)"
               >In Progress</button>
               <button 
                 class="btn status-btn status-success" 
-                [class.active]="selectedGrievance.status === 'Resolved'"
-                (click)="updateStatus('Resolved')"
+                [class.active]="selectedGrievance.status === GrievanceStatus.Resolved"
+                (click)="updateStatus(GrievanceStatus.Resolved)"
               >Resolved</button>
               <button 
                 class="btn status-btn status-error" 

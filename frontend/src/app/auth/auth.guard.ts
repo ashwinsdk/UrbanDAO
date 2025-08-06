@@ -10,7 +10,7 @@ export const authGuard: CanActivateFn = (route, state): Observable<boolean | Url
     const router = inject(Router);
     const expectedRole = route.data['expectedRole'] as UserRole;
 
-    if (!authService.isConnected()) {
+    if (!authService.isConnected) {
         console.log('AuthGuard: Blocked - Wallet not connected.');
         return of(router.createUrlTree(['/login']));
     }

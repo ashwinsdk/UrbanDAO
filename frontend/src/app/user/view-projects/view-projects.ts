@@ -55,7 +55,7 @@ export class ViewProjects implements OnInit {
       }
       
       // Ward filter
-      if (this.wardFilter !== 'all' && project.ward !== this.wardFilter) {
+      if (this.wardFilter !== 'all' && project.ward.toString() !== this.wardFilter) {
         return false;
       }
       

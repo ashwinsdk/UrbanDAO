@@ -1,7 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { UserService, TaxPayment, Project } from '../../user/user.service';
+import { UserService } from '../../user/user.service';
+import { TaxPayment, Project, GrievanceStatus } from '../../shared/services/blockchain.service';
 import { AuthService } from '../../auth/auth.service';
 
 @Component({
@@ -66,8 +67,8 @@ export class GovtHome implements OnInit {
     // Get grievance statistics
     this.userService.getGrievances().subscribe(grievances => {
       this.totalGrievances = grievances.length;
-      this.pendingGrievances = grievances.filter(g => g.status === 'Pending').length;
-      this.resolvedGrievances = grievances.filter(g => g.status === 'Resolved').length;
+      this.pendingGrievances = grievances.filter(g => g.status === GrievanceStatus.Pending).length;
+      this.resolvedGrievances = grievances.filter(g => g.status === GrievanceStatus.Resolved).length;
       
       this.isLoading = false;
     });

@@ -137,10 +137,9 @@ export class Feedback implements OnInit {
     // Convert rating to valid value (1-5) for the service
     const rating = this.feedbackForm.rating as 1 | 2 | 3 | 4 | 5;
     this.userService.submitFeedback(
-      this.feedbackForm.category,
-      this.feedbackForm.subject,
-      this.feedbackForm.message,
-      rating
+      'general', // projectId - since this is general feedback
+      `${this.feedbackForm.subject}: ${this.feedbackForm.message}`, // comment
+      this.feedbackForm.rating >= 3 // satisfied if rating is 3 or above
     ).subscribe({
       next: () => {
         this.isSubmitting = false;

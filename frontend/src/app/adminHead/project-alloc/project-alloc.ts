@@ -2,7 +2,8 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { UserService, Project } from '../../user/user.service';
+import { Project, ProjectStatus } from '../../shared/services/blockchain.service';
+import { UserService } from '../../user/user.service';
 import { AuthService } from '../../auth/auth.service';
 
 @Component({
@@ -27,6 +28,9 @@ export class ProjectAlloc implements OnInit {
   // Filter options
   statusFilter: string = 'all';
   searchTerm: string = '';
+  
+  // Enum reference for template
+  ProjectStatus = ProjectStatus;
   
   // Modal control
   showModal: boolean = false;
@@ -55,11 +59,13 @@ export class ProjectAlloc implements OnInit {
       id: '',
       name: '',
       description: '',
-      status: 'Planning',
+      status: ProjectStatus.Planning,
       startDate: new Date(),
       budget: 0,
       location: '',
-      ward: ''
+      ward: 0,
+      createdBy: '',
+      timestamp: Date.now()
     };
   }
   
@@ -87,7 +93,7 @@ export class ProjectAlloc implements OnInit {
           project.name.toLowerCase().includes(term) ||
           project.description.toLowerCase().includes(term) ||
           project.location.toLowerCase().includes(term) ||
-          project.ward.toLowerCase().includes(term)
+          project.ward.toString().toLowerCase().includes(term)
         );
       }
       
@@ -158,7 +164,7 @@ export class ProjectAlloc implements OnInit {
     this.showSuccessModal('Project Updated', `Project ${this.selectedProject.name} has been updated successfully.`);
   }
   
-  updateProjectStatus(project: Project, status: 'Planning' | 'Ongoing' | 'Done'): void {
+  updateProjectStatus(project: Project, status: ProjectStatus): void {
     const updatedProject = { ...project, status };
     
     // In a real app, this would call an API to update the project
@@ -192,7 +198,7 @@ export class ProjectAlloc implements OnInit {
       return false;
     }
     
-    if (!project.ward || project.ward.trim() === '') {
+    if (!project.ward) {
       this.showErrorModal('Validation Error', 'Ward is required.');
       return false;
     }

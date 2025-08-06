@@ -256,18 +256,18 @@
               <div class="status-actions">
                 <button 
                   class="btn status-btn status-planning" 
-                  [class.active]="selectedProject.status === 'Planning'"
-                  (click)="updateProjectStatus(selectedProject, 'Planning')"
+                  [class.active]="selectedProject.status === ProjectStatus.Planning"
+                  (click)="updateProjectStatus(selectedProject, ProjectStatus.Planning)"
                 >Planning</button>
                 <button 
                   class="btn status-btn status-ongoing" 
-                  [class.active]="selectedProject.status === 'Ongoing'"
-                  (click)="updateProjectStatus(selectedProject, 'Ongoing')"
+                  [class.active]="selectedProject.status === ProjectStatus.Ongoing"
+                  (click)="updateProjectStatus(selectedProject, ProjectStatus.Ongoing)"
                 >Ongoing</button>
                 <button 
                   class="btn status-btn status-done" 
-                  [class.active]="selectedProject.status === 'Done'"
-                  (click)="updateProjectStatus(selectedProject, 'Done')"
+                  [class.active]="selectedProject.status === ProjectStatus.Done"
+                  (click)="updateProjectStatus(selectedProject, ProjectStatus.Done)"
                 >Done</button>
               </div>
             </div>
