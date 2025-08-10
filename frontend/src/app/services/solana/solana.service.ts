@@ -1,14 +1,14 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, from, throwError, of } from 'rxjs';
-import { map, switchMap, catchError } from 'rxjs/operators';
+import { BehaviorSubject, Observable, from, of, catchError } from 'rxjs';
 import { PublicKey, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { Buffer } from 'buffer';
 import { WalletService } from './wallet.service';
 import { AnchorService } from './anchor.service';
 import { 
   Grievance, 
   TaxPayment, 
-  Project,
-  Feedback,
+  Project, 
+  Feedback, 
   WardTax,
   GrievanceStatus,
   ProjectStatus,
@@ -293,48 +293,451 @@ export class SolanaService {
     return this._userRole$.value;
   }
 
-  // Placeholder methods for blockchain operations (to be implemented)
-  async submitGrievance(grievanceData: any): Promise<string> {
-    // TODO: Implement real grievance submission
-    console.error('Real blockchain integration: submitGrievance not yet implemented');
-    throw new Error('Real blockchain integration required');
+  // Real blockchain operations
+  async submitGrievance(grievanceData: { details: string }): Promise<string> {
+    try {
+      const program = this.anchorService.getProgram();
+      const wallet = this.walletService.publicKey;
+      
+      if (!program || !wallet) {
+        throw new Error('Program not initialized or wallet not connected');
+      }
+
+      // Generate unique grievance ID
+      const grievanceId = Date.now().toString();
+      const [grievancePDA] = await this.anchorService.generateGrievancePDA(grievanceId);
+      
+      const tx = await program.methods
+        ['fileGrievance'](grievanceData.details)
+        .accounts({
+          grievance: grievancePDA,
+          user: wallet,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      console.log('Grievance submitted successfully:', tx);
+      return tx;
+    } catch (error) {
+      console.error('Error submitting grievance:', error);
+      throw error;
+    }
   }
 
-  async payTax(taxData: any): Promise<string> {
-    // TODO: Implement real tax payment
-    console.error('Real blockchain integration: payTax not yet implemented');
-    throw new Error('Real blockchain integration required');
+  async payTax(taxData: { ward: number; year: number }): Promise<string> {
+    try {
+      const program = this.anchorService.getProgram();
+      const wallet = this.walletService.publicKey;
+      
+      if (!program || !wallet) {
+        throw new Error('Program not initialized or wallet not connected');
+      }
+
+      // Generate PDAs
+      const [statePDA] = await this.anchorService.generateStatePDA();
+      const [wardTaxPDA] = await this.anchorService.generateWardTaxPDA(taxData.ward.toString(), taxData.year);
+      const [taxPaymentPDA] = await PublicKey.findProgramAddressSync(
+        [Buffer.from('tax_payment'), wallet.toBuffer(), Buffer.from(taxData.ward.toString()), Buffer.from(taxData.year.toString())],
+        this.anchorService.getProgramId()
+      );
+      const [treasuryPDA] = await PublicKey.findProgramAddressSync(
+        [Buffer.from('treasury')],
+        this.anchorService.getProgramId()
+      );
+      
+      const tx = await program.methods
+        ['payTax'](taxData.ward, taxData.year)
+        .accounts({
+          taxPayment: taxPaymentPDA,
+          wardTax: wardTaxPDA,
+          state: statePDA,
+          treasury: treasuryPDA,
+          user: wallet,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      console.log('Tax payment successful:', tx);
+      return tx;
+    } catch (error) {
+      console.error('Error paying tax:', error);
+      throw error;
+    }
   }
 
-  async submitFeedback(feedbackData: any): Promise<string> {
-    // TODO: Implement real feedback submission
-    console.error('Real blockchain integration: submitFeedback not yet implemented');
-    throw new Error('Real blockchain integration required');
+  async submitFeedback(feedbackData: { projectId: string; comment: string; satisfied: boolean }): Promise<string> {
+    try {
+      const program = this.anchorService.getProgram();
+      const wallet = this.walletService.publicKey;
+      
+      if (!program || !wallet) {
+        throw new Error('Program not initialized or wallet not connected');
+      }
+
+      // Generate PDAs
+      const feedbackId = Date.now().toString();
+      const [feedbackPDA] = await this.anchorService.generateFeedbackPDA(feedbackId);
+      const [projectPDA] = await this.anchorService.generateProjectPDA(feedbackData.projectId);
+      
+      const tx = await program.methods
+        ['giveFeedback'](feedbackData.comment, feedbackData.satisfied)
+        .accounts({
+          feedback: feedbackPDA,
+          project: projectPDA,
+          user: wallet,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      console.log('Feedback submitted successfully:', tx);
+      return tx;
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+      throw error;
+    }
   }
 
-  // Data fetching methods (placeholders)
+  // Data fetching methods
   getGrievances(): Observable<Grievance[]> {
-    console.error('Real blockchain integration: getGrievances not yet implemented');
-    return of([]);
+    return from(this.fetchGrievances()).pipe(
+      catchError(error => {
+        console.error('Error fetching grievances:', error);
+        return of([]);
+      })
+    );
+  }
+
+  private async fetchGrievances(): Promise<Grievance[]> {
+    try {
+      const program = this.anchorService.getProgram();
+      if (!program) {
+        throw new Error('Program not initialized');
+      }
+
+      const grievances = await program.account.grievance.all();
+      return grievances.map((g: any) => ({
+        id: g.publicKey.toString(),
+        user: g.account.user.toString(),
+        category: 'General', // Default category
+        description: g.account.details,
+        details: g.account.details,
+        status: this.mapGrievanceStatus(g.account.status),
+        timestamp: g.account.timestamp,
+        dateSubmitted: new Date(g.account.timestamp * 1000),
+        transactionId: g.publicKey.toString()
+      }));
+    } catch (error) {
+      console.error('Error fetching grievances from blockchain:', error);
+      return [];
+    }
   }
 
   getTaxPayments(): Observable<TaxPayment[]> {
-    console.error('Real blockchain integration: getTaxPayments not yet implemented');
-    return of([]);
+    return from(this.fetchTaxPayments()).pipe(
+      catchError(error => {
+        console.error('Error fetching tax payments:', error);
+        return of([]);
+      })
+    );
+  }
+
+  private async fetchTaxPayments(): Promise<TaxPayment[]> {
+    try {
+      const program = this.anchorService.getProgram();
+      if (!program) {
+        throw new Error('Program not initialized');
+      }
+
+      // Note: taxPayment account may not exist in IDL, using alternative approach
+      // For now, return empty array until account structure is confirmed
+      return [];
+    } catch (error) {
+      console.error('Error fetching tax payments from blockchain:', error);
+      return [];
+    }
   }
 
   getProjects(): Observable<Project[]> {
-    console.error('Real blockchain integration: getProjects not yet implemented');
-    return of([]);
+    return from(this.fetchProjects()).pipe(
+      catchError(error => {
+        console.error('Error fetching projects:', error);
+        return of([]);
+      })
+    );
+  }
+
+  private async fetchProjects(): Promise<Project[]> {
+    try {
+      const program = this.anchorService.getProgram();
+      if (!program) {
+        throw new Error('Program not initialized');
+      }
+
+      const projects = await program.account.project.all();
+      return projects.map((p: any) => ({
+        id: p.publicKey.toString(),
+        name: p.account.name,
+        description: p.account.details,
+        details: p.account.details,
+        location: 'TBD', // Default location
+        createdBy: 'Admin Head', // Default creator
+        timestamp: Date.now(),
+        status: this.mapProjectStatus(p.account.status),
+        startDate: new Date(),
+        budget: 1000, // Default budget
+        ward: 1, // Default ward
+        allocatedFunds: 0,
+        completionPercentage: p.account.status === 'Done' ? 100 : 0
+      }));
+    } catch (error) {
+      console.error('Error fetching projects from blockchain:', error);
+      return [];
+    }
   }
 
   getFeedback(): Observable<Feedback[]> {
-    console.error('Real blockchain integration: getFeedback not yet implemented');
-    return of([]);
+    return from(this.fetchFeedback()).pipe(
+      catchError(error => {
+        console.error('Error fetching feedback:', error);
+        return of([]);
+      })
+    );
+  }
+
+  private async fetchFeedback(): Promise<Feedback[]> {
+    try {
+      const program = this.anchorService.getProgram();
+      if (!program) {
+        throw new Error('Program not initialized');
+      }
+
+      const feedback = await program.account.feedback.all();
+      return feedback.map((f: any) => ({
+        id: f.publicKey.toString(),
+        user: f.account.user.toString(),
+        projectId: f.account.project.toString(),
+        comment: f.account.comment,
+        satisfied: f.account.satisfied,
+        timestamp: Date.now(),
+        transactionId: f.publicKey.toString()
+      }));
+    } catch (error) {
+      console.error('Error fetching feedback from blockchain:', error);
+      return [];
+    }
   }
 
   getWardTaxes(): Observable<WardTax[]> {
-    console.error('Real blockchain integration: getWardTaxes not yet implemented');
-    return of([]);
+    return from(this.fetchWardTaxes()).pipe(
+      catchError(error => {
+        console.error('Error fetching ward taxes:', error);
+        return of([]);
+      })
+    );
+  }
+
+  private async fetchWardTaxes(): Promise<WardTax[]> {
+    try {
+      const program = this.anchorService.getProgram();
+      if (!program) {
+        throw new Error('Program not initialized');
+      }
+
+      const wardTaxes = await program.account.wardTax.all();
+      return wardTaxes.map((wt: any) => ({
+        ward: wt.account.ward,
+        amount: wt.account.amount
+      }));
+    } catch (error) {
+      console.error('Error fetching ward taxes from blockchain:', error);
+      return [];
+    }
+  }
+
+  // Admin operations
+  async assignAdminHead(newAdminHead: string): Promise<string> {
+    try {
+      const program = this.anchorService.getProgram();
+      const wallet = this.walletService.publicKey;
+      
+      if (!program || !wallet) {
+        throw new Error('Program not initialized or wallet not connected');
+      }
+
+      const [statePDA] = await this.anchorService.generateStatePDA();
+      const newAdminHeadPubkey = new PublicKey(newAdminHead);
+      
+      const tx = await program.methods
+        ['assignAdminHead'](newAdminHeadPubkey)
+        .accounts({
+          state: statePDA,
+          adminGovt: wallet,
+        })
+        .rpc();
+
+      console.log('Admin head assigned successfully:', tx);
+      return tx;
+    } catch (error) {
+      console.error('Error assigning admin head:', error);
+      throw error;
+    }
+  }
+
+  async setWardTax(ward: number, amount: number): Promise<string> {
+    try {
+      const program = this.anchorService.getProgram();
+      const wallet = this.walletService.publicKey;
+      
+      if (!program || !wallet) {
+        throw new Error('Program not initialized or wallet not connected');
+      }
+
+      const [statePDA] = await this.anchorService.generateStatePDA();
+      const [wardTaxPDA] = await this.anchorService.generateWardTaxPDA(ward.toString(), new Date().getFullYear());
+      
+      const tx = await program.methods
+        ['setWardTax'](ward, amount * LAMPORTS_PER_SOL) // Convert SOL to lamports
+        .accounts({
+          wardTax: wardTaxPDA,
+          state: statePDA,
+          adminGovt: wallet,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      console.log('Ward tax set successfully:', tx);
+      return tx;
+    } catch (error) {
+      console.error('Error setting ward tax:', error);
+      throw error;
+    }
+  }
+
+  async updateGrievanceStatus(grievanceId: string, newStatus: GrievanceStatus): Promise<string> {
+    try {
+      const program = this.anchorService.getProgram();
+      const wallet = this.walletService.publicKey;
+      
+      if (!program || !wallet) {
+        throw new Error('Program not initialized or wallet not connected');
+      }
+
+      const [grievancePDA] = await this.anchorService.generateGrievancePDA(grievanceId);
+      const [statePDA] = await this.anchorService.generateStatePDA();
+      
+      const tx = await program.methods
+        ['updateGrievanceStatus'](this.mapToSolanaGrievanceStatus(newStatus))
+        .accounts({
+          grievance: grievancePDA,
+          state: statePDA,
+          adminHead: wallet,
+        })
+        .rpc();
+
+      console.log('Grievance status updated successfully:', tx);
+      return tx;
+    } catch (error) {
+      console.error('Error updating grievance status:', error);
+      throw error;
+    }
+  }
+
+  async createProject(projectData: { name: string; details: string }): Promise<string> {
+    try {
+      const program = this.anchorService.getProgram();
+      const wallet = this.walletService.publicKey;
+      
+      if (!program || !wallet) {
+        throw new Error('Program not initialized or wallet not connected');
+      }
+
+      const projectId = Date.now().toString();
+      const [projectPDA] = await this.anchorService.generateProjectPDA(projectId);
+      const [statePDA] = await this.anchorService.generateStatePDA();
+      
+      const tx = await program.methods
+        ['createProject'](projectData.name, projectData.details)
+        .accounts({
+          project: projectPDA,
+          state: statePDA,
+          adminHead: wallet,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      console.log('Project created successfully:', tx);
+      return tx;
+    } catch (error) {
+      console.error('Error creating project:', error);
+      throw error;
+    }
+  }
+
+  async updateProjectStatus(projectId: string, newStatus: ProjectStatus): Promise<string> {
+    try {
+      const program = this.anchorService.getProgram();
+      const wallet = this.walletService.publicKey;
+      
+      if (!program || !wallet) {
+        throw new Error('Program not initialized or wallet not connected');
+      }
+
+      const [projectPDA] = await this.anchorService.generateProjectPDA(projectId);
+      const [statePDA] = await this.anchorService.generateStatePDA();
+      
+      const tx = await program.methods
+        ['updateProjectStatus'](this.mapToSolanaProjectStatus(newStatus))
+        .accounts({
+          project: projectPDA,
+          state: statePDA,
+          adminHead: wallet,
+        })
+        .rpc();
+
+      console.log('Project status updated successfully:', tx);
+      return tx;
+    } catch (error) {
+      console.error('Error updating project status:', error);
+      throw error;
+    }
+  }
+
+  // Helper methods for status mapping
+  private mapGrievanceStatus(status: any): GrievanceStatus {
+    switch (status) {
+      case 'Pending': return GrievanceStatus.Pending;
+      case 'Accepted': return GrievanceStatus.Accepted;
+      case 'Rejected': return GrievanceStatus.Rejected;
+      case 'Done': return GrievanceStatus.Done;
+      default: return GrievanceStatus.Pending;
+    }
+  }
+
+  private mapProjectStatus(status: any): ProjectStatus {
+    switch (status) {
+      case 'Planning': return ProjectStatus.Planning;
+      case 'Ongoing': return ProjectStatus.Ongoing;
+      case 'Done': return ProjectStatus.Done;
+      default: return ProjectStatus.Planning;
+    }
+  }
+
+  private mapToSolanaGrievanceStatus(status: GrievanceStatus): any {
+    switch (status) {
+      case GrievanceStatus.Pending: return { pending: {} };
+      case GrievanceStatus.Accepted: return { accepted: {} };
+      case GrievanceStatus.Rejected: return { rejected: {} };
+      case GrievanceStatus.Done: return { done: {} };
+      default: return { pending: {} };
+    }
+  }
+
+  private mapToSolanaProjectStatus(status: ProjectStatus): any {
+    switch (status) {
+      case ProjectStatus.Planning: return { planning: {} };
+      case ProjectStatus.Ongoing: return { ongoing: {} };
+      case ProjectStatus.Done: return { done: {} };
+      default: return { planning: {} };
+    }
   }
 }

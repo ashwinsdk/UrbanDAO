@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { UserService } from '../user.service';
-import { AuthService } from '../../auth/auth.service';
+import { SolanaService } from '../../services/solana/solana.service';
+import { Router } from '@angular/router';
 
 interface FeedbackForm {
   category: string;
@@ -48,19 +48,19 @@ export class Feedback implements OnInit {
   ];
   
   constructor(
-    private authService: AuthService,
-    private userService: UserService
-  ) {}
+    private solanaService: SolanaService,
+    private router: Router
+  ) { }
   
   ngOnInit(): void {
-    // Check wallet connection status
-    this.authService.connected$.subscribe(connected => {
-      this.isConnected = connected;
-    });
-    
-    // Get public key if connected
-    this.authService.publicKey$.subscribe(publicKey => {
-      this.publicKey = publicKey;
+    // Check wallet connection
+    this.solanaService.walletState$.subscribe((walletState) => {
+      this.isConnected = walletState.connected;
+      this.publicKey = walletState.publicKey;
+      
+      if (!walletState.connected) {
+        this.router.navigate(['/login']);
+      }
     });
   }
   
@@ -114,46 +114,36 @@ export class Feedback implements OnInit {
   
   // Submit feedback
   submitFeedback(): void {
-    // Reset status
+    if (!this.validateForm()) {
+      return;
+    }
+
+    this.isSubmitting = true;
     this.submitError = false;
     this.submitSuccess = false;
+
+    // Submit feedback using real Solana blockchain
+    const feedbackComment = `Category: ${this.feedbackForm.category}\nSubject: ${this.feedbackForm.subject}\nMessage: ${this.feedbackForm.message}\nRating: ${this.feedbackForm.rating}/5`;
+    const isSatisfied = this.feedbackForm.rating >= 3; // 3+ stars = satisfied
     
-    // Check if wallet is connected
-    if (!this.isConnected) {
+    this.solanaService.submitFeedback({
+      projectId: 'general-feedback', // For general feedback, use a default project ID
+      comment: feedbackComment,
+      satisfied: isSatisfied
+    }).then((txSignature) => {
+      this.isSubmitting = false;
+      this.submitSuccess = true;
+      console.log('Feedback submitted successfully. Transaction:', txSignature);
+      
+      // Reset form after successful submission
+      setTimeout(() => {
+        this.resetForm();
+      }, 3000);
+    }).catch((err: any) => {
+      this.isSubmitting = false;
       this.submitError = true;
-      this.errorMessage = 'Please connect your wallet to submit feedback';
-      return;
-    }
-    
-    // Validate form
-    if (!this.validateForm()) {
-      this.submitError = true;
-      return;
-    }
-    
-    this.isSubmitting = true;
-    
-    // Call service to submit feedback
-    // Convert rating to valid value (1-5) for the service
-    const rating = this.feedbackForm.rating as 1 | 2 | 3 | 4 | 5;
-    this.userService.submitFeedback(
-      'general', // projectId - since this is general feedback
-      `${this.feedbackForm.subject}: ${this.feedbackForm.message}`, // comment
-      this.feedbackForm.rating >= 3 // satisfied if rating is 3 or above
-    ).subscribe({
-      next: () => {
-        this.isSubmitting = false;
-        this.submitSuccess = true;
-        // Reset form after successful submission
-        setTimeout(() => {
-          this.resetForm();
-        }, 3000);
-      },
-      error: (err) => {
-        this.isSubmitting = false;
-        this.submitError = true;
-        this.errorMessage = err.message || 'Failed to submit feedback. Please try again.';
-      }
+      this.errorMessage = err.message || 'Failed to submit feedback. Please try again.';
+      console.error('Error submitting feedback:', err);
     });
   }
   

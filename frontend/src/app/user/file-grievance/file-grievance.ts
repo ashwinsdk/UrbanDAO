@@ -2,8 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { UserService } from '../user.service';
-import { AuthService } from '../../auth/auth.service';
+import { SolanaService } from '../../services/solana/solana.service';
 import { Observable } from 'rxjs';
 
 @Component({
@@ -33,26 +32,36 @@ export class FileGrievance implements OnInit {
   wards: string[] = [];
 
   constructor(
-    private userService: UserService,
-    private authService: AuthService,
+    private solanaService: SolanaService,
     private router: Router
   ) { }
 
   ngOnInit(): void {
-    // Check if user is logged in
-    this.authService.connected$.subscribe((connected: boolean) => {
-      this.isLoggedIn = connected;
+    // Check if wallet is connected
+    this.solanaService.walletState$.subscribe((walletState) => {
+      this.isLoggedIn = walletState.connected;
 
       // If not logged in, redirect to login silently
-      if (!connected) {
-        // Redirect to login page without showing alert
+      if (!walletState.connected) {
         this.router.navigate(['/login']);
       }
     });
 
-    // Load categories and wards
-    this.categories = this.userService.getGrievanceCategories();
-    this.wards = this.userService.getWards();
+    // Load categories and wards (hardcoded for now, could be from blockchain)
+    this.categories = [
+      'Road Maintenance',
+      'Water Supply',
+      'Electricity',
+      'Sanitation',
+      'Public Safety',
+      'Healthcare',
+      'Education',
+      'Other'
+    ];
+    this.wards = [
+      'Ward 1', 'Ward 2', 'Ward 3', 'Ward 4', 'Ward 5',
+      'Ward 6', 'Ward 7', 'Ward 8', 'Ward 9', 'Ward 10'
+    ];
   }
 
   onFileSelected(event: Event): void {
@@ -111,27 +120,26 @@ export class FileGrievance implements OnInit {
 
     this.isSubmitting = true;
 
-    // Submit grievance
-    this.userService.submitGrievance(
-      this.grievanceData.category,
-      this.grievanceData.description
-    ).subscribe({
-      next: () => {
+    // Submit grievance using real Solana blockchain
+    const grievanceDetails = `Category: ${this.grievanceData.category}\nLocation: ${this.grievanceData.location}\nWard: ${this.grievanceData.ward}\nDescription: ${this.grievanceData.description}`;
+    
+    this.solanaService.submitGrievance({ details: grievanceDetails })
+      .then((txSignature) => {
         this.isSubmitting = false;
         this.submitSuccess = true;
-
-        // Reset form after 3 seconds
+        console.log('Grievance submitted successfully. Transaction:', txSignature);
+        
+        // Reset form after successful submission
         setTimeout(() => {
           this.resetForm();
           this.router.navigate(['/user/status']);
-        }, 3000);
-      },
-      error: (err) => {
+        }, 2000);
+      })
+      .catch((err: any) => {
         this.isSubmitting = false;
-        this.submitError = 'Failed to submit grievance. Please try again.';
+        this.submitError = err.message || 'Failed to submit grievance. Please try again.';
         console.error('Error submitting grievance:', err);
-      }
-    });
+      });
   }
 
   resetForm(): void {
@@ -144,5 +152,15 @@ export class FileGrievance implements OnInit {
     };
     this.submitSuccess = false;
     this.submitError = '';
+  }
+
+  // Connect wallet if not connected
+  async connectWallet(): Promise<void> {
+    try {
+      await this.solanaService.connectWallet();
+    } catch (error) {
+      console.error('Failed to connect wallet:', error);
+      this.submitError = 'Failed to connect wallet. Please try again.';
+    }
   }
 }

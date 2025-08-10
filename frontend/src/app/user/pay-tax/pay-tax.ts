@@ -2,9 +2,8 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { UserService } from '../user.service';
+import { SolanaService } from '../../services/solana/solana.service';
 import { TaxPayment } from '../../shared/services/blockchain.service';
-import { AuthService } from '../../auth/auth.service';
 
 @Component({
   selector: 'app-pay-tax',
@@ -34,40 +33,62 @@ export class PayTax implements OnInit {
   showConfirmation = false;
 
   constructor(
-    private authService: AuthService,
-    private userService: UserService,
+    private solanaService: SolanaService,
     private router: Router
   ) { }
 
   ngOnInit(): void {
-    // Check if user is logged in
-    this.authService.connected$.subscribe((connected: boolean) => {
-      this.isLoggedIn = connected;
+    // Check if wallet is connected
+    this.solanaService.walletState$.subscribe((walletState) => {
+      this.isLoggedIn = walletState.connected;
 
       // If not logged in, redirect to login silently
-      if (!connected) {
+      if (!walletState.connected) {
         this.router.navigate(['/login']);
         return;
       }
 
       // Get user's public key
-      this.publicKey = this.authService.getPublicKey();
+      this.publicKey = walletState.publicKey;
 
-      // Load tax information
+      // Load tax information and payment history
       this.loadTaxInformation();
+      this.loadPaymentHistory();
     });
   }
 
   loadTaxInformation(): void {
-    // Get current tax due
-    this.userService.getCurrentTaxDue().subscribe((taxDue: {ward: string, year: number, amount: number, dueDate: Date}) => {
-      this.taxDue = taxDue;
-
-      // Get recent payments
-      this.userService.getTaxPayments().subscribe((payments: TaxPayment[]) => {
-        this.recentPayments = payments.slice(0, 5); // Show only 5 most recent payments
+    // Get current tax due from blockchain
+    this.solanaService.getWardTaxes().subscribe({
+      next: (wardTaxes) => {
+        if (wardTaxes.length > 0) {
+          this.taxDue = {
+            ward: `Ward ${wardTaxes[0].ward}`,
+            year: 2024, // Current tax year
+            amount: wardTaxes[0].amount
+          };
+        }
+        this.loadPaymentHistory();
+      },
+      error: (error) => {
+        console.error('Error loading tax information:', error);
         this.isLoading = false;
-      });
+        this.submitError = true;
+        this.errorMessage = 'Failed to load tax information';
+      }
+    });
+  }
+
+  loadPaymentHistory(): void {
+    this.solanaService.getTaxPayments().subscribe({
+      next: (payments) => {
+        this.recentPayments = payments;
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error('Error loading payment history:', error);
+        this.isLoading = false;
+      }
     });
   }
 
@@ -86,29 +107,28 @@ export class PayTax implements OnInit {
     this.submitError = false;
     this.submitSuccess = false;
 
-    // Submit tax payment
-    this.userService.payTax(
-      parseInt(this.taxDue.ward),
-      this.taxDue.year
-    ).subscribe({
-      next: (payment: string) => {
-        this.isSubmitting = false;
-        this.submitSuccess = true;
-        this.showConfirmation = false;
+    // Submit tax payment using real Solana blockchain
+    const wardNumber = parseInt(this.taxDue.ward.replace('Ward ', ''));
+    
+    this.solanaService.payTax({
+      ward: wardNumber,
+      year: this.taxDue.year
+    }).then((txSignature) => {
+      this.isSubmitting = false;
+      this.submitSuccess = true;
+      this.showConfirmation = false;
+      console.log('Tax payment successful. Transaction:', txSignature);
 
-        // Add the new payment to recent payments (payment is actually a transaction ID)
-        // For now, just reload the payments list
-        this.loadTaxInformation();
+      // Reload tax information and payment history
+      this.loadTaxInformation();
 
-        // In a real app, we would update the tax due information
-        // For now, just set it to null to simulate payment
-        this.taxDue = null;
-      },
-      error: (error: any) => {
-        this.isSubmitting = false;
-        this.submitError = true;
-        this.errorMessage = error.message || 'Failed to process payment';
-      }
+      // Clear tax due after successful payment
+      this.taxDue = null;
+    }).catch((error: any) => {
+      this.isSubmitting = false;
+      this.submitError = true;
+      this.errorMessage = error.message || 'Failed to process payment';
+      console.error('Error paying tax:', error);
     });
   }
 

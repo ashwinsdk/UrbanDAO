@@ -2,8 +2,8 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { UserService, Project } from '../user.service';
-import { AuthService } from '../../auth/auth.service';
+import { SolanaService } from '../../services/solana/solana.service';
+import { Project } from '../../shared/services/blockchain.service';
 
 @Component({
   selector: 'app-view-projects',
@@ -28,22 +28,40 @@ export class ViewProjects implements OnInit {
   wards: string[] = [];
   
   constructor(
-    private userService: UserService,
-    private authService: AuthService,
+    private solanaService: SolanaService,
     private router: Router
   ) {}
   
   ngOnInit(): void {
-    this.loadProjects();
-    this.wards = this.userService.getWards();
+    // Check wallet connection
+    this.solanaService.walletState$.subscribe((walletState) => {
+      if (!walletState.connected) {
+        this.router.navigate(['/login']);
+        return;
+      }
+      this.loadProjects();
+    });
+    
+    // Load wards (hardcoded for now)
+    this.wards = [
+      'Ward 1', 'Ward 2', 'Ward 3', 'Ward 4', 'Ward 5',
+      'Ward 6', 'Ward 7', 'Ward 8', 'Ward 9', 'Ward 10'
+    ];
   }
   
   loadProjects(): void {
     this.isLoading = true;
-    this.userService.getProjects().subscribe(projects => {
-      this.projects = projects;
-      this.applyFilters(); // Apply any active filters
-      this.isLoading = false;
+    // Load projects from blockchain
+    this.solanaService.getProjects().subscribe({
+      next: (projects: any) => {
+        this.projects = projects;
+        this.applyFilters(); // Apply any active filters
+        this.isLoading = false;
+      },
+      error: (error: any) => {
+        console.error('Error loading projects:', error);
+        this.isLoading = false;
+      }
     });
   }
   

@@ -2,9 +2,8 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { UserService } from '../../user/user.service';
+import { SolanaService } from '../../services/solana/solana.service';
 import { Grievance, GrievanceStatus } from '../../shared/services/blockchain.service';
-import { AuthService } from '../../auth/auth.service';
 import { Observable, of } from 'rxjs';
 
 @Component({
@@ -44,41 +43,57 @@ export class EditGrievance implements OnInit {
   responseText: string = '';
   
   constructor(
-    private userService: UserService,
-    private authService: AuthService,
+    private solanaService: SolanaService,
     private route: ActivatedRoute,
     private router: Router
   ) {}
   
   ngOnInit(): void {
-    this.loadGrievances();
-    this.walletAddress = this.authService.getPublicKey();
+    // Check if wallet is connected
+    this.solanaService.walletState$.subscribe((walletState) => {
+      if (!walletState.connected) {
+        this.router.navigate(['/login']);
+        return;
+      }
+      
+      // Get wallet address
+      this.walletAddress = walletState.publicKey;
+      
+      // Load grievances
+      this.loadGrievances();
+    });
     
-    // Check for grievance ID in route params
+    // Check if there's a specific grievance ID in the route
     this.route.params.subscribe(params => {
-      if (params['id']) {
-        this.loadGrievanceDetails(params['id']);
+      const grievanceId = params['id'];
+      if (grievanceId) {
+        this.selectGrievanceById(grievanceId);
       }
     });
   }
   
   loadGrievances(): void {
     this.isLoading = true;
-    this.userService.getGrievances().subscribe(grievances => {
-      this.grievances = grievances;
-      this.applyFilters();
-      this.isLoading = false;
+    // Load grievances from blockchain
+    this.solanaService.getGrievances().subscribe({
+      next: (grievances: any) => {
+        this.grievances = grievances;
+        this.applyFilters();
+        this.isLoading = false;
+      },
+      error: (error: any) => {
+        console.error('Error loading grievances:', error);
+        this.isLoading = false;
+      }
     });
   }
   
-  loadGrievanceDetails(id: string): void {
-    this.userService.getGrievances().subscribe(grievances => {
-      const grievance = grievances.find(g => g.id === id);
-      if (grievance) {
-        this.selectedGrievance = { ...grievance };
-        this.responseText = grievance.response || '';
-      }
-    });
+  selectGrievanceById(id: string): void {
+    const grievance = this.grievances.find(g => g.id === id);
+    if (grievance) {
+      this.selectedGrievance = { ...grievance };
+      this.responseText = grievance.response || '';
+    }
   }
   
   applyFilters(): void {
@@ -125,29 +140,35 @@ export class EditGrievance implements OnInit {
   confirmStatusUpdate(status: GrievanceStatus): void {
     if (!this.selectedGrievance) return;
     
-    // Create updated grievance object
-    const updatedGrievance: Grievance = {
-      ...this.selectedGrievance,
-      status: status,
-      response: this.responseText || undefined
-    };
-    
-    // In a real app, this would call an API to update the grievance
-    // For now, we'll simulate by updating our local list
-    const updatedGrievances = this.grievances.map(g => 
-      g.id === updatedGrievance.id ? updatedGrievance : g
-    );
-    
-    this.grievances = updatedGrievances;
-    this.updateGrievances(updatedGrievances);
-    this.applyFilters();
-    this.showSuccessModal('Status Updated', `Grievance ${updatedGrievance.id} status has been updated to ${status}.`);
+    this.updateGrievanceStatus(this.selectedGrievance, status);
   }
   
-  // Real blockchain integration required - mock implementation removed
-  private updateGrievances(grievances: Grievance[]) {
-    console.error('Real blockchain integration required: grievance updates not implemented');
-    this.grievances = grievances;
+  private updateGrievanceStatus(grievance: Grievance, newStatus: GrievanceStatus): void {
+    // Update grievance status using real Solana blockchain
+    this.solanaService.updateGrievanceStatus(grievance.id, newStatus).then((txSignature) => {
+      // Update the local grievance object
+      grievance.status = newStatus;
+      this.showModal = false;
+      
+      // Show success message
+      this.modalTitle = 'Success';
+      this.modalMessage = `Grievance status updated to ${newStatus}. Transaction: ${txSignature}`;
+      this.modalAction = 'success';
+      this.showModal = true;
+      
+      console.log('Grievance status updated successfully. Transaction:', txSignature);
+      
+      // Auto-close success modal after 3 seconds
+      setTimeout(() => {
+        this.showModal = false;
+      }, 3000);
+    }).catch((error: any) => {
+      console.error('Error updating grievance status:', error);
+      this.modalTitle = 'Error';
+      this.modalMessage = error.message || 'Failed to update grievance status. Please try again.';
+      this.modalAction = 'error';
+      this.showModal = true;
+    });
   }
   
   showSuccessModal(title: string, message: string): void {

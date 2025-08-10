@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { UserService } from '../../user/user.service';
-import { AuthService } from '../../auth/auth.service';
+import { Router } from '@angular/router';
+import { SolanaService } from '../../services/solana/solana.service';
 
 interface TaxRate {
   ward: string;
@@ -42,24 +42,45 @@ export class SetTax implements OnInit {
   
   // Connected wallet
   walletAddress: string | null = null;
+  isConnected = false;
   
   // Years for selection
   availableYears: number[] = [];
   
+  // Current tax rates
+  currentTaxRates: any[] = [];
+  
   constructor(
-    private userService: UserService,
-    private authService: AuthService
+    private solanaService: SolanaService,
+    private router: Router
   ) {}
   
   ngOnInit(): void {
-    this.walletAddress = this.authService.getPublicKey();
+    // Check if wallet is connected
+    this.solanaService.walletState$.subscribe((walletState) => {
+      this.isConnected = walletState.connected;
+      if (!walletState.connected) {
+        this.router.navigate(['/login']);
+        return;
+      }
+      
+      // Get wallet address
+      this.walletAddress = walletState.publicKey;
+      
+      // Load current tax rates
+      this.loadCurrentTaxRates();
+    });
+    
     this.loadWards();
-    this.loadExistingTaxRates();
     this.generateYearOptions();
   }
   
   loadWards(): void {
-    this.wards = this.userService.getWards();
+    // Load wards (hardcoded for now)
+    this.wards = [
+      'Ward 1', 'Ward 2', 'Ward 3', 'Ward 4', 'Ward 5',
+      'Ward 6', 'Ward 7', 'Ward 8', 'Ward 9', 'Ward 10'
+    ];
     if (this.wards.length > 0) {
       this.newTaxRate.ward = this.wards[0]; // Select first ward by default
     }
@@ -70,10 +91,24 @@ export class SetTax implements OnInit {
     this.availableYears = [currentYear, currentYear + 1, currentYear + 2];
   }
   
-  loadExistingTaxRates(): void {
-    // Real blockchain integration required - mock implementation removed
-    console.error('Real blockchain integration required: loadExistingTaxRates not implemented');
-    this.taxRates = [];
+  loadCurrentTaxRates(): void {
+    this.isLoading = true;
+    // Load current tax rates from blockchain
+    this.solanaService.getWardTaxes().subscribe({
+      next: (wardTaxes: any) => {
+        this.currentTaxRates = wardTaxes.map((wt: any) => ({
+          ward: wt.ward,
+          currentRate: wt.amount,
+          lastUpdated: new Date() // Would come from blockchain
+        }));
+        this.isLoading = false;
+      },
+      error: (error: any) => {
+        console.error('Error loading tax rates:', error);
+        this.currentTaxRates = [];
+        this.isLoading = false;
+      }
+    });
   }
   
   openConfirmModal(): void {

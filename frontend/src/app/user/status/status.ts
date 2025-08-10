@@ -1,8 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { UserService } from '../user.service';
-import { AuthService } from '../../auth/auth.service';
+import { SolanaService } from '../../services/solana/solana.service';
 import { Router } from '@angular/router';
 
 @Component({
@@ -36,25 +35,21 @@ export class Status implements OnInit {
   filteredFeedback: any[] = [];
   
   constructor(
-    private authService: AuthService,
-    private userService: UserService,
+    private solanaService: SolanaService,
     private router: Router
   ) {}
   
   ngOnInit(): void {
     // Check wallet connection status
-    this.authService.connected$.subscribe(connected => {
-      this.isConnected = connected;
-      if (connected) {
+    this.solanaService.walletState$.subscribe((walletState) => {
+      this.isConnected = walletState.connected;
+      this.publicKey = walletState.publicKey;
+      
+      if (walletState.connected) {
         this.loadAllData();
       } else {
-        this.isLoading = false;
+        this.router.navigate(['/login']);
       }
-    });
-    
-    // Get public key if connected
-    this.authService.publicKey$.subscribe(publicKey => {
-      this.publicKey = publicKey;
     });
   }
   
@@ -62,25 +57,58 @@ export class Status implements OnInit {
   loadAllData(): void {
     this.isLoading = true;
     
-    // Load grievances
-    this.userService.getGrievances().subscribe(grievances => {
-      this.grievances = grievances;
-      this.applyFilters();
-      this.isLoading = false;
+    // Load grievances from blockchain
+    this.solanaService.getGrievances().subscribe({
+      next: (grievances: any) => {
+        this.grievances = grievances;
+        this.filteredGrievances = grievances;
+        this.checkLoadingComplete();
+      },
+      error: (error: any) => {
+        console.error('Error loading grievances:', error);
+        this.checkLoadingComplete();
+      }
     });
     
-    // Load payments
-    this.userService.getTaxPayments().subscribe(payments => {
-      this.payments = payments;
-      this.applyFilters();
+    // Load payments from blockchain
+    this.solanaService.getTaxPayments().subscribe({
+      next: (payments: any) => {
+        this.payments = payments;
+        this.filteredPayments = payments;
+        this.checkLoadingComplete();
+      },
+      error: (error: any) => {
+        console.error('Error loading payments:', error);
+        this.checkLoadingComplete();
+      }
     });
     
-    // Real blockchain integration required - mock implementation removed
-    console.error('Real blockchain integration required: feedback loading not implemented');
-    this.feedback = [];
-    this.applyFilters();
+    // Load feedback from blockchain
+    this.solanaService.getFeedback().subscribe({
+      next: (feedback: any) => {
+        this.feedback = feedback;
+        this.filteredFeedback = feedback;
+        this.checkLoadingComplete();
+      },
+      error: (error: any) => {
+        console.error('Error loading feedback:', error);
+        this.checkLoadingComplete();
+      }
+    });
   }
-  
+
+  // Check if all data has finished loading
+  private loadingCounter = 0;
+  private totalLoadingTasks = 3;
+
+  checkLoadingComplete(): void {
+    this.loadingCounter++;
+    if (this.loadingCounter >= this.totalLoadingTasks) {
+      this.isLoading = false;
+      this.applyFilters();
+    }
+  }
+
   // Switch between tabs
   setActiveTab(tab: 'grievances' | 'payments' | 'feedback'): void {
     this.activeTab = tab;

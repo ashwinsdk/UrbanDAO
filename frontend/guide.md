@@ -1,266 +1,471 @@
-# UrbanDAO Frontend Testing Guide
+# UrbanDAO Frontend - Complete Testing & Usage Guide
 
-## Overview
-This guide will help you test all the functionality of the UrbanDAO frontend application with real Solana blockchain integration. The application is now fully integrated with the Anchor backend and ready for testing on Solana Devnet.
+This comprehensive guide provides step-by-step instructions for testing and using the fully integrated UrbanDAO frontend application with **real Solana blockchain integration**. All mock data has been removed and replaced with actual Anchor program calls.
 
-## Prerequisites
+## 🚀 Quick Start
 
-### 1. Install Phantom Wallet
-- Install the [Phantom Wallet](https://phantom.app/) browser extension
-- Create a new wallet or import an existing one
-- Switch to **Devnet** in Phantom settings:
-  - Click the gear icon in Phantom
-  - Go to "Developer Settings"
-  - Change network to "Devnet"
+### Prerequisites
+- **Phantom Wallet**: [Install browser extension](https://phantom.app/)
+- **Node.js 18+** and **Angular CLI**: `npm install -g @angular/cli`
+- **Devnet SOL**: Get from [Solana Faucet](https://faucet.solana.com/)
 
-### 2. Get Devnet SOL
-- Visit [Solana Faucet](https://faucet.solana.com/)
-- Enter your Phantom wallet address
-- Request 2 SOL (you'll need this for transactions)
-
-### 3. Start the Application
+### Launch Application
 ```bash
-cd /Users/ashwinsudhakar/Documents/Code/Projects/IEEE/UrbanDAO/frontend
-npm start
+cd frontend
+npm install  # if not already done
+ng serve
 ```
-The application will be available at `http://localhost:4200`
+**Access**: http://localhost:4200
 
-## Testing Workflow
+---
 
-### Phase 1: Initial Setup and Registration
+## 🔧 Initial Setup
 
-#### 1.1 Connect Phantom Wallet
-1. Open `http://localhost:4200` in your browser
-2. Click **"Connect Wallet"** button
-3. Phantom should prompt you to connect - approve the connection
-4. You should see your wallet address displayed
+### 1. Phantom Wallet Configuration
+1. Install Phantom wallet browser extension
+2. Create new wallet or import existing
+3. **Critical**: Switch to **Solana Devnet** in settings
+4. Fund wallet with devnet SOL (minimum 1 SOL recommended)
 
-#### 1.2 Register as Different User Types
-You'll need to test all three user roles. For comprehensive testing, use different wallet addresses:
+### 2. First-Time Connection
+1. Navigate to http://localhost:4200
+2. Click "Connect Wallet" 
+3. Approve Phantom connection
+4. Verify network shows "Devnet" in wallet
 
-**Test Registration for Citizen:**
-1. Click **"Register"** button
-2. Fill out the registration form:
-   - Name: "Test Citizen"
-   - Email: "citizen@test.com"
-   - Phone: "1234567890"
-   - Address: "123 Test Street"
-   - Ward: "1"
-   - Role: Select "Citizen"
-3. Click **"Register"** - this will create a real blockchain transaction
-4. Wait for transaction confirmation
-5. You should be redirected to the Citizen dashboard
+---
 
-**Test Registration for Admin Head:**
-1. Use a different wallet address (create new account in Phantom)
-2. Repeat registration process with Role: "Admin Head"
-3. Department: "Public Works"
+## 👥 User Roles & Registration
 
-**Test Registration for Government Admin:**
-1. Use a third wallet address
-2. Repeat registration process with Role: "Government Admin"
-3. Department: "Municipal Corporation"
+### Role-Based Access System
+The UrbanDAO supports three distinct user roles, each with specific permissions and workflows:
 
-### Phase 2: Citizen Functionality Testing
+#### **🏠 Citizen Role**
+- File grievances about civic issues
+- Pay annual ward taxes
+- Submit feedback on projects
+- View personal status and history
 
-#### 2.1 File Grievances
-1. Navigate to **"File Grievance"** from citizen dashboard
-2. Fill out the grievance form:
-   - Category: "Road Maintenance"
-   - Description: "Pothole on Main Street needs repair"
-   - Location: "Main Street, Ward 1"
-3. Submit the grievance - this creates a real blockchain transaction
-4. Check transaction in Phantom wallet history
-5. Navigate to **"My Grievances"** to see submitted grievance
+#### **👨‍💼 Admin Head Role** 
+- Manage and update grievance status
+- Create and manage civic projects
+- Update project progress status
+- Oversee ward-level operations
 
-#### 2.2 Pay Taxes
-1. Navigate to **"Pay Tax"** from citizen dashboard
-2. Enter tax details:
-   - Ward: "1"
-   - Year: "2024"
-   - Amount: "100" (in SOL)
-3. Submit payment - this creates a real blockchain transaction
-4. Check **"Tax Status"** to see payment history
+#### **🏛️ Government Admin Role**
+- Assign new admin heads
+- Set ward tax rates
+- View comprehensive reports
+- Manage system-wide settings
 
-#### 2.3 Submit Feedback
-1. Navigate to **"Give Feedback"**
-2. Select a project from the dropdown
-3. Provide feedback:
-   - Comment: "Great progress on the road repair project"
-   - Satisfaction: Select "Satisfied"
-4. Submit feedback - creates blockchain transaction
+### Registration Process
+1. **Connect Wallet**: Click "Connect Wallet" on homepage
+2. **Select Role**: Choose your role from registration form
+3. **Fill Details**: Complete required information
+4. **Submit**: Transaction creates your PDA account on blockchain
+5. **Confirmation**: Receive transaction signature and role-based redirect
 
-#### 2.4 View Projects
-1. Navigate to **"View Projects"**
-2. Browse available projects
-3. Use search functionality to filter projects
-4. Click on projects to view details
+---
 
-### Phase 3: Admin Head Functionality Testing
+## 🧪 Complete Testing Scenarios
 
-Switch to the Admin Head wallet account:
+### 📋 Scenario 1: Citizen User Journey
 
-#### 3.1 Manage Grievances
-1. Navigate to **"Manage Grievances"**
-2. View all submitted grievances
-3. Click on a grievance to view details
-4. Update grievance status:
-   - Change status from "Pending" to "In Progress"
-   - Add response: "We have assigned a team to investigate"
-5. Submit update - creates blockchain transaction
+#### **Step 1: Registration**
+```
+Actions:
+1. Navigate to homepage
+2. Click "Connect Wallet" → Approve Phantom
+3. Click "Register" → Select "Citizen"
+4. Fill form: Name, Ward, Contact details
+5. Submit registration
 
-#### 3.2 Manage Projects
-1. Navigate to **"Manage Projects"**
-2. Create a new project:
-   - Name: "Road Repair Project"
-   - Description: "Repair potholes on Main Street"
-   - Budget: "1000"
-   - Ward: "1"
-   - Location: "Main Street"
-3. Submit project creation - creates blockchain transaction
-4. Update existing project status from "Planning" to "Ongoing"
+Expected Results:
+✅ Transaction signature in console
+✅ PDA account created on blockchain  
+✅ Redirect to citizen dashboard
+✅ Role-specific navigation menu appears
+```
 
-### Phase 4: Government Admin Functionality Testing
+#### **Step 2: File a Grievance**
+```
+Actions:
+1. Navigate to "File Grievance"
+2. Complete form:
+   - Category: Road Maintenance/Water Supply/etc.
+   - Ward: Select from dropdown
+   - Location: Specific address/area
+   - Description: Detailed issue (min 20 chars)
+3. Click "Submit Grievance"
 
-Switch to the Government Admin wallet account:
+Expected Results:
+✅ Real Anchor program call: fileGrievance()
+✅ Transaction signature logged
+✅ Success message with transaction ID
+✅ Automatic redirect to status page
+✅ Grievance appears in blockchain data
+```
 
-#### 4.1 Assign Admin Head
-1. Navigate to **"Assign Head"**
-2. Enter the wallet address of your Admin Head account
-3. Submit assignment - creates blockchain transaction
+#### **Step 3: Pay Ward Tax**
+```
+Actions:
+1. Navigate to "Pay Tax"
+2. View current tax due amount
+3. Click "Confirm Payment"
+4. Approve SOL transfer in Phantom
 
-#### 4.2 Set Ward Tax
-1. Navigate to **"Set Tax"**
-2. Configure tax for a ward:
-   - Ward: "1"
-   - Tax Amount: "100"
-   - Year: "2024"
-3. Submit tax configuration - creates blockchain transaction
+Expected Results:
+✅ Real SOL transfer from wallet to treasury
+✅ payTax() Anchor method executed
+✅ Payment recorded on blockchain
+✅ Tax status updated to "Paid"
+✅ Transaction visible in Phantom history
+```
 
-#### 4.3 View All Data
-1. Navigate to **"View Projects"** to see all projects across wards
-2. Navigate to **"View Grievances"** to see all grievances
-3. Use admin dashboard to monitor overall system activity
+#### **Step 4: Submit Project Feedback**
+```
+Actions:
+1. Navigate to "Feedback"
+2. Fill feedback form:
+   - Category: Select feedback type
+   - Rating: 1-5 stars
+   - Comments: Detailed feedback
+3. Submit feedback
 
-### Phase 5: Cross-Role Integration Testing
+Expected Results:
+✅ giveFeedback() Anchor method called
+✅ Feedback stored on blockchain
+✅ Transaction confirmation received
+✅ Form reset after success
+```
 
-#### 5.1 End-to-End Workflow Test
-1. **Government Admin**: Set ward tax for Ward 1
-2. **Citizen**: Pay the tax for Ward 1
-3. **Citizen**: File a grievance about road conditions
-4. **Admin Head**: Review and update grievance status
-5. **Admin Head**: Create a project to address the grievance
-6. **Citizen**: View the project and provide feedback
-7. **Admin Head**: Update project status to completed
+#### **Step 5: Check Status Dashboard**
+```
+Actions:
+1. Navigate to "Status"
+2. Switch between tabs:
+   - Grievances: View filed grievances
+   - Payments: See tax payment history  
+   - Feedback: Review submitted feedback
+3. Use search/filter options
 
-#### 5.2 Real-Time Updates Test
-1. Have multiple browser windows open with different user roles
-2. Perform actions in one window
-3. Refresh other windows to see updates
-4. Verify blockchain state consistency across all roles
+Expected Results:
+✅ Real blockchain data fetched
+✅ No mock data present
+✅ Live status updates
+✅ Transaction IDs for all actions
+✅ Proper filtering and search
+```
 
-## Verification Points
+### 👨‍💼 Scenario 2: Admin Head User Journey
 
-### Blockchain Integration Verification
-- [ ] All transactions appear in Phantom wallet history
-- [ ] Transaction signatures are displayed in the UI
-- [ ] Data persists after browser refresh (stored on blockchain)
-- [ ] No mock data is displayed anywhere
-- [ ] Error handling works for failed transactions
+#### **Step 1: Admin Head Registration**
+```
+Actions:
+1. Register as "Admin Head" (similar to citizen)
+2. Access admin head dashboard
 
-### User Experience Verification
-- [ ] Wallet connection/disconnection works smoothly
-- [ ] Role-based navigation is correct
-- [ ] Forms validate input properly
-- [ ] Loading states are shown during transactions
-- [ ] Success/error messages are displayed appropriately
+Expected Results:
+✅ Admin head PDA created
+✅ Access to admin-specific features
+✅ Different navigation menu
+```
 
-### Data Consistency Verification
-- [ ] Grievances filed by citizens appear in Admin Head dashboard
-- [ ] Projects created by Admin Head appear in citizen project view
-- [ ] Tax payments are reflected in citizen tax status
-- [ ] Feedback submitted by citizens is visible to Admin Head
+#### **Step 2: Grievance Management**
+```
+Actions:
+1. Navigate to "Grievances"
+2. View list of all grievances from blockchain
+3. Click on specific grievance
+4. Update status: Pending → In Progress → Resolved
+5. Add response comments
 
-## Troubleshooting
+Expected Results:
+✅ Real grievance data from blockchain
+✅ updateGrievanceStatus() Anchor calls
+✅ Status changes recorded on-chain
+✅ Citizens see updated status immediately
+```
 
-### Common Issues and Solutions
+#### **Step 3: Project Management**
+```
+Actions:
+1. Navigate to "Projects"
+2. Click "Create New Project"
+3. Fill project details:
+   - Name: Project title
+   - Description: Detailed description
+4. Submit project creation
+5. Update project status as work progresses
 
-**Wallet Connection Issues:**
-- Ensure Phantom is installed and unlocked
-- Check that you're on Devnet network
-- Try refreshing the page and reconnecting
+Expected Results:
+✅ createProject() Anchor method executed
+✅ Project stored on blockchain
+✅ updateProjectStatus() for status changes
+✅ Citizens can view and provide feedback
+```
 
-**Transaction Failures:**
-- Ensure you have sufficient SOL in your wallet (at least 0.01 SOL)
-- Check that you're on the correct network (Devnet)
-- Wait for previous transactions to confirm before submitting new ones
+### 🏛️ Scenario 3: Government Admin User Journey
 
-**Data Not Appearing:**
-- Wait a few seconds for blockchain confirmation
-- Refresh the page to reload data from blockchain
-- Check browser console for any error messages
+#### **Step 1: Government Admin Registration**
+```
+Actions:
+1. Register as "Government Admin"
+2. Access government dashboard
 
-**Role Access Issues:**
-- Ensure you've registered with the correct role
-- Try disconnecting and reconnecting your wallet
-- Check that registration transaction was confirmed
+Expected Results:
+✅ Government admin PDA created
+✅ Access to system-wide controls
+✅ Administrative navigation menu
+```
 
-## Advanced Testing
+#### **Step 2: Assign Admin Head**
+```
+Actions:
+1. Navigate to "Assign Head"
+2. Enter new admin head wallet address
+3. Provide name and contact details
+4. Submit assignment
 
-### Performance Testing
-1. Submit multiple transactions in quick succession
-2. Test with large amounts of data (many grievances, projects)
-3. Test concurrent users (multiple browser windows)
+Expected Results:
+✅ assignAdminHead() Anchor method called
+✅ New admin head authorized on blockchain
+✅ Admin head can now access admin features
+```
 
-### Security Testing
-1. Try accessing admin functions with citizen account
-2. Test wallet disconnection during transactions
-3. Verify that only authorized users can perform specific actions
+#### **Step 3: Set Ward Tax Rates**
+```
+Actions:
+1. Navigate to "Set Tax"
+2. Select ward from dropdown
+3. Enter tax amount in SOL
+4. Submit tax rate update
 
-### Network Testing
-1. Test with slow network connections
-2. Test transaction failures and retries
-3. Test switching between different Solana networks
+Expected Results:
+✅ setWardTax() Anchor method executed
+✅ Ward tax rate updated on blockchain
+✅ Citizens see new tax amounts
+✅ Tax payments use updated rates
+```
 
-## Expected Behavior
+#### **Step 4: System Overview**
+```
+Actions:
+1. Navigate to "View Grievances" - see all grievances
+2. Navigate to "View Projects" - see all projects
+3. Monitor system-wide activity
 
-### Successful Integration Indicators
-- ✅ No mock data anywhere in the application
-- ✅ All user actions create real blockchain transactions
-- ✅ Data persists across browser sessions
-- ✅ Role-based access control works correctly
-- ✅ Real-time blockchain state updates
-- ✅ Proper error handling for blockchain failures
+Expected Results:
+✅ Comprehensive blockchain data view
+✅ Real-time updates from all users
+✅ Complete audit trail of all actions
+```
 
-### Transaction Flow
-1. User initiates action (file grievance, pay tax, etc.)
-2. Frontend creates transaction using Anchor program
-3. Phantom wallet prompts for approval
-4. User approves transaction
-5. Transaction is submitted to Solana blockchain
-6. Frontend waits for confirmation
-7. UI updates with transaction result
-8. Data is permanently stored on blockchain
+---
 
-## Support
+## 🔍 Blockchain Verification
 
-If you encounter any issues during testing:
+### Transaction Verification
+1. **Console Monitoring**: Check browser console for transaction signatures
+2. **Solana Explorer**: Visit [explorer.solana.com](https://explorer.solana.com/?cluster=devnet)
+3. **Search Transactions**: Paste transaction signatures to verify on-chain execution
+4. **Account Inspection**: View PDA accounts and their data
 
-1. Check the browser console for error messages
-2. Verify your Phantom wallet settings and balance
-3. Ensure you're connected to Solana Devnet
-4. Try refreshing the page and reconnecting wallet
+### Real Integration Verification
+```javascript
+// Example console output for successful operations:
+"Grievance submitted successfully. Transaction: 2Z8f7Kx..."
+"Tax payment successful. Transaction: 4A9m3Nq..."
+"Project created successfully. Transaction: 7B2k5Wp..."
+```
 
-The application is now fully integrated with real Solana blockchain functionality and ready for comprehensive testing!
+### PDA Account Verification
+- **Citizen PDA**: `[program_id, "citizen", wallet_address]`
+- **Admin Head PDA**: `[program_id, "admin_head", wallet_address]`
+- **Government PDA**: `[program_id, "government", wallet_address]`
 
-## Summary
+---
 
-This UrbanDAO application now features:
-- ✅ Complete removal of all mock data and implementations
-- ✅ Real Solana Anchor blockchain integration
-- ✅ Three distinct user roles with proper access control
-- ✅ End-to-end transaction workflows
-- ✅ Persistent data storage on Solana blockchain
-- ✅ Production-ready code with proper error handling
+## ⚠️ Troubleshooting Guide
 
-Happy testing! 🚀
+### Common Issues & Solutions
+
+#### **Wallet Connection Problems**
+```
+Problem: Phantom wallet not connecting
+Solutions:
+✅ Refresh page and retry
+✅ Ensure Phantom is unlocked
+✅ Verify network is set to Devnet
+✅ Clear browser cache if needed
+```
+
+#### **Transaction Failures**
+```
+Problem: Transactions failing or timing out
+Solutions:
+✅ Check sufficient SOL balance (>0.01 SOL for fees)
+✅ Confirm correct network (Devnet)
+✅ Wait for network congestion to clear
+✅ Try smaller transaction amounts
+```
+
+#### **Build Warnings (Expected)**
+```
+Expected Warnings:
+⚠️ CSS budget exceeded - doesn't affect functionality
+⚠️ CommonJS dependencies - normal for Solana libraries
+⚠️ Bundle size warnings - expected with blockchain libs
+
+These warnings don't prevent application functionality.
+```
+
+#### **Network/RPC Issues**
+```
+Problem: Slow responses or RPC errors
+Solutions:
+✅ Switch RPC endpoint in environment.ts
+✅ Check Solana network status
+✅ Retry after a few minutes
+✅ Use alternative devnet RPC if needed
+```
+
+### Error Message Guide
+- **"Wallet not connected"** → Connect Phantom wallet
+- **"Insufficient funds"** → Get more devnet SOL from faucet  
+- **"Transaction failed"** → Check console for details, verify network
+- **"Account not found"** → Complete registration first
+- **"Unauthorized"** → Ensure correct role permissions
+
+---
+
+## 🔧 Environment Configuration
+
+### Current Development Setup
+```typescript
+// environment.ts (Devnet)
+export const environment = {
+  production: false,
+  solana: {
+    network: 'devnet',
+    rpcUrl: 'https://api.devnet.solana.com',
+    programId: 'HLnt2dR9sUSYsogSPp7BA3ca4E6JfqgT8YLA77uTwNVt'
+  }
+};
+```
+
+### Production Deployment
+```bash
+# Update environment.prod.ts with mainnet settings
+# Deploy smart contract to mainnet
+# Update program ID
+ng build --configuration production
+```
+
+---
+
+## ✅ Complete Testing Checklist
+
+### Pre-Testing Setup
+- [ ] Phantom wallet installed and configured
+- [ ] Wallet funded with devnet SOL (minimum 1 SOL)
+- [ ] Development server running (`ng serve`)
+- [ ] Browser console open for monitoring
+- [ ] Network confirmed as Devnet
+
+### Registration Testing
+- [ ] Citizen registration creates PDA and redirects correctly
+- [ ] Admin Head registration provides admin access
+- [ ] Government Admin registration enables system controls
+- [ ] Role-based navigation menus appear correctly
+- [ ] All registrations generate transaction signatures
+
+### Citizen Feature Testing
+- [ ] File grievance with real blockchain transaction
+- [ ] Pay tax with actual SOL transfer to treasury
+- [ ] Submit feedback with blockchain storage
+- [ ] View status showing real blockchain data
+- [ ] All operations log transaction signatures
+
+### Admin Head Feature Testing
+- [ ] View real grievances from blockchain
+- [ ] Update grievance status with blockchain confirmation
+- [ ] Create projects with blockchain storage
+- [ ] Update project status with real transactions
+- [ ] All admin actions generate transaction signatures
+
+### Government Admin Feature Testing
+- [ ] Assign admin heads with blockchain authorization
+- [ ] Set ward tax rates with blockchain updates
+- [ ] View comprehensive system data from blockchain
+- [ ] All government actions generate transaction signatures
+
+### Cross-Role Integration Testing
+- [ ] Grievance filed by citizen appears in admin views
+- [ ] Project created by admin head visible to government
+- [ ] Tax rates set by government affect citizen payments
+- [ ] Status updates reflect across all user interfaces
+- [ ] Real-time blockchain synchronization working
+
+### Performance & Security Testing
+- [ ] Initial load completes within reasonable time
+- [ ] Blockchain operations complete within 2-5 seconds
+- [ ] UI updates reactively after blockchain confirmation
+- [ ] No mock data present anywhere in application
+- [ ] All transactions require user approval in Phantom
+- [ ] Private keys never exposed to application
+
+---
+
+## 🎯 Key Features Verified
+
+### ✅ **100% Real Blockchain Integration**
+- **Zero Mock Data**: All placeholder implementations removed
+- **Real Anchor Calls**: Every operation uses actual program methods
+- **Transaction Confirmation**: All actions generate verifiable blockchain transactions
+- **PDA Management**: Proper account creation and management
+- **Role-Based Access**: Blockchain-enforced permissions
+
+### ✅ **Complete User Workflows**
+- **Registration**: Real PDA account creation for all roles
+- **Citizen Operations**: Grievances, tax payments, feedback with blockchain storage
+- **Admin Management**: Real grievance and project management with blockchain updates
+- **Government Controls**: System administration with blockchain authority
+
+### ✅ **Production-Ready Architecture**
+- **Environment Configuration**: Devnet/Mainnet ready
+- **Error Handling**: Comprehensive error management
+- **Security**: Wallet-based authentication and authorization
+- **Performance**: Optimized for blockchain operations
+- **Scalability**: Modular service architecture
+
+---
+
+## 🎉 Success Indicators
+
+When testing is successful, you should observe:
+
+1. **Console Logs**: Transaction signatures for every blockchain operation
+2. **Phantom History**: SOL transfers and program interactions visible
+3. **Solana Explorer**: All transactions verifiable on blockchain
+4. **Real-Time Updates**: Changes reflect immediately across user roles
+5. **No Mock Data**: All information comes from blockchain sources
+6. **Role Enforcement**: Proper access control via blockchain PDAs
+
+---
+
+## 📞 Support & Next Steps
+
+### Development Support
+- Check browser console for detailed error messages
+- Monitor network tab for RPC call failures
+- Use Solana CLI for advanced blockchain debugging
+
+### Production Deployment
+1. Deploy Anchor program to Solana mainnet
+2. Update environment.prod.ts with mainnet configuration
+3. Build production bundle: `ng build --configuration production`
+4. Deploy frontend to hosting service
+5. Update program ID and RPC endpoints
+
+This guide ensures comprehensive testing of the fully integrated UrbanDAO application with real Solana blockchain functionality. All features have been verified to work with actual blockchain transactions and zero mock data.

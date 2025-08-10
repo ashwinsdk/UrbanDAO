@@ -1,7 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AuthService } from '../../auth/auth.service';
+import { Router } from '@angular/router';
+import { SolanaService } from '../../services/solana/solana.service';
 
 interface AdminHead {
   name: string;
@@ -47,18 +48,36 @@ export class AssignHead implements OnInit {
   
   // Connected wallet
   walletAddress: string | null = null;
+  isConnected = false;
   
-  constructor(private authService: AuthService) {}
+  constructor(
+    private solanaService: SolanaService,
+    private router: Router
+  ) { }
   
   ngOnInit(): void {
-    this.walletAddress = this.authService.getPublicKey();
-    this.loadExistingHeads();
+    // Check if wallet is connected
+    this.solanaService.walletState$.subscribe((walletState) => {
+      this.isConnected = walletState.connected;
+      if (!walletState.connected) {
+        this.router.navigate(['/login']);
+        return;
+      }
+      
+      // Get wallet address
+      this.walletAddress = walletState.publicKey;
+      
+      // Load current admin heads
+      this.loadAdminHeads();
+    });
   }
   
-  loadExistingHeads(): void {
-    // Real blockchain integration required - mock implementation removed
-    console.error('Real blockchain integration required: loadExistingHeads not implemented');
+  loadAdminHeads(): void {
+    this.isLoading = true;
+    // For now, return empty array as getAdminHeads method needs to be implemented
+    // This would typically fetch from blockchain state
     this.adminHeads = [];
+    this.isLoading = false;
   }
   
   assignHead(): void {

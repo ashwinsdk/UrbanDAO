@@ -1,10 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
 import { Project, ProjectStatus } from '../../shared/services/blockchain.service';
-import { UserService } from '../../user/user.service';
-import { AuthService } from '../../auth/auth.service';
+import { SolanaService } from '../../services/solana/solana.service';
 
 @Component({
   selector: 'app-project-alloc',
@@ -45,13 +44,24 @@ export class ProjectAlloc implements OnInit {
   walletAddress: string | null = null;
   
   constructor(
-    private userService: UserService,
-    private authService: AuthService
+    private solanaService: SolanaService,
+    private router: Router
   ) {}
   
   ngOnInit(): void {
-    this.loadProjects();
-    this.walletAddress = this.authService.getPublicKey();
+    // Check if wallet is connected
+    this.solanaService.walletState$.subscribe((walletState) => {
+      if (!walletState.connected) {
+        this.router.navigate(['/login']);
+        return;
+      }
+      
+      // Get wallet address
+      this.walletAddress = walletState.publicKey;
+      
+      // Load projects
+      this.loadProjects();
+    });
   }
   
   createEmptyProject(): Project {
@@ -75,10 +85,17 @@ export class ProjectAlloc implements OnInit {
   
   loadProjects(): void {
     this.isLoading = true;
-    this.userService.getProjects().subscribe(projects => {
-      this.projects = projects;
-      this.applyFilters();
-      this.isLoading = false;
+    // Load projects from blockchain
+    this.solanaService.getProjects().subscribe({
+      next: (projects: any) => {
+        this.projects = projects;
+        this.applyFilters();
+        this.isLoading = false;
+      },
+      error: (error: any) => {
+        console.error('Error loading projects:', error);
+        this.isLoading = false;
+      }
     });
   }
   
@@ -126,22 +143,38 @@ export class ProjectAlloc implements OnInit {
     this.newProject = this.createEmptyProject();
   }
   
-  saveNewProject(): void {
-    if (!this.validateProject(this.newProject)) return;
-    
-    // Generate a new ID
-    this.newProject.id = `P${Math.floor(Math.random() * 10000).toString().padStart(3, '0')}`;
-    
-    // In a real app, this would call an API to save the project
-    // For now, we'll simulate by adding to our local list
-    const newProjects = [this.newProject, ...this.projects];
-    this.projects = newProjects;
-    this.updateProjects(newProjects);
-    
-    this.showSuccessModal('Project Created', `Project ${this.newProject.name} has been created successfully.`);
-    this.isCreatingProject = false;
-    this.newProject = this.createEmptyProject();
-    this.applyFilters();
+  createProject(): void {
+    if (!this.validateProject(this.newProject)) {
+      return;
+    }
+
+    // Create project using real Solana blockchain
+    this.solanaService.createProject({
+      name: this.newProject.name,
+      details: this.newProject.description
+    }).then((txSignature) => {
+      // Add the new project to our local list
+      const createdProject: Project = {
+        ...this.newProject,
+        id: txSignature, // Use transaction signature as ID
+        status: ProjectStatus.Planning
+      };
+      
+      this.projects.unshift(createdProject);
+      this.applyFilters();
+      
+      // Reset form and close modal
+      this.newProject = this.createEmptyProject();
+      this.isCreatingProject = false;
+      
+      console.log('Project created successfully. Transaction:', txSignature);
+      
+      // Show success message
+      this.showSuccessModal('Project Created', `Project "${createdProject.name}" has been created successfully. Transaction: ${txSignature}`);
+    }).catch((error: any) => {
+      console.error('Error creating project:', error);
+      this.showErrorModal('Error', error.message || 'Failed to create project. Please try again.');
+    });
   }
   
   updateProject(): void {
@@ -169,22 +202,20 @@ export class ProjectAlloc implements OnInit {
     this.showSuccessModal('Project Updated', `Project ${this.selectedProject.name} has been updated successfully.`);
   }
   
-  updateProjectStatus(project: Project, status: ProjectStatus): void {
-    const updatedProject = { ...project, status };
-    
-    // In a real app, this would call an API to update the project
-    // For now, we'll simulate by updating our local list
-    const updatedProjects = this.projects.map(p => 
-      p.id === updatedProject.id ? updatedProject : p
-    );
-    
-    this.projects = updatedProjects;
-    this.updateProjects(updatedProjects);
-    this.applyFilters();
-    
-    if (this.selectedProject?.id === project.id) {
-      this.selectedProject = updatedProject;
-    }
+  updateProjectStatus(project: Project, newStatus: ProjectStatus): void {
+    // Update project status using real Solana blockchain
+    this.solanaService.updateProjectStatus(project.id, newStatus).then((txSignature) => {
+      // Update the local project object
+      project.status = newStatus;
+      
+      console.log('Project status updated successfully. Transaction:', txSignature);
+      
+      // Show success message
+      this.showSuccessModal('Status Updated', `Project "${project.name}" status has been updated to ${newStatus}. Transaction: ${txSignature}`);
+    }).catch((error: any) => {
+      console.error('Error updating project status:', error);
+      this.showErrorModal('Error', error.message || 'Failed to update project status. Please try again.');
+    });
   }
   
   validateProject(project: Project): boolean {

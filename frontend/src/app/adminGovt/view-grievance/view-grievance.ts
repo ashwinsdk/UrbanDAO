@@ -1,9 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { UserService } from '../../user/user.service';
-import { AuthService } from '../../auth/auth.service';
-import { Grievance } from '../../user/user.service';
+import { Router } from '@angular/router';
+import { SolanaService } from '../../services/solana/solana.service';
+import { Grievance, GrievanceStatus } from '../../shared/services/blockchain.service';
 
 // Extended Grievance interface for our component needs
 interface ExtendedGrievance extends Grievance {
@@ -32,40 +32,42 @@ export class ViewGrievance implements OnInit {
   selectedWardFilter: string = 'all';
   searchQuery: string = '';
   
-  // Connected wallet
-  walletAddress: string | null = null;
-  
   // Available wards
   wards: string[] = [];
   
+  // Connected wallet
+  walletAddress: string | null = null;
+  isConnected = false;
+  
   constructor(
-    private userService: UserService,
-    private authService: AuthService
+    private solanaService: SolanaService,
+    private router: Router
   ) {}
   
   ngOnInit(): void {
-    this.walletAddress = this.authService.getPublicKey();
     this.loadWards();
     this.loadGrievances();
   }
   
   loadWards(): void {
-    this.wards = this.userService.getWards();
+    // this.wards = this.userService.getWards();
   }
   
   loadGrievances(): void {
     this.isLoading = true;
-    this.userService.getGrievances().subscribe(grievances => {
-      // Extend grievances with additional properties
-      this.grievances = grievances.map(g => ({
-        ...g,
-        ward: this.getRandomWard(), // Temporary: assign random ward for demo
-        submitterName: 'Citizen ' + g.id.substring(0, 3), // Temporary: generate name
-        title: 'Grievance ' + g.id.substring(0, 5), // Temporary: generate title
-        priority: this.getRandomPriority() // Temporary: assign random priority
-      }));
-      this.applyFilters();
-      this.isLoading = false;
+    // Load grievances from blockchain
+    this.solanaService.getGrievances().subscribe({
+      next: (grievances: any) => {
+        this.grievances = grievances;
+        this.applyFilters();
+        this.isLoading = false;
+      },
+      error: (error: any) => {
+        console.error('Error loading grievances:', error);
+        this.grievances = [];
+        this.filteredGrievances = [];
+        this.isLoading = false;
+      }
     });
   }
   

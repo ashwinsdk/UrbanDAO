@@ -1,7 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AuthService } from '../../auth/auth.service';
+import { Router } from '@angular/router';
+import { SolanaService } from '../../services/solana/solana.service';
+import { Project as BlockchainProject, ProjectStatus } from '../../shared/services/blockchain.service';
 
 // Project interface
 interface Project {
@@ -47,13 +49,30 @@ export class ViewProject implements OnInit {
   
   // Wallet connection
   walletAddress: string | null = null;
+  isConnected = false;
   
-  constructor(private authService: AuthService) {}
+  constructor(
+    private solanaService: SolanaService,
+    private router: Router
+  ) { }
   
   ngOnInit(): void {
-    this.walletAddress = this.authService.getPublicKey();
+    // Check if wallet is connected
+    this.solanaService.walletState$.subscribe((walletState) => {
+      this.isConnected = walletState.connected;
+      if (!walletState.connected) {
+        this.router.navigate(['/login']);
+        return;
+      }
+      
+      // Get wallet address
+      this.walletAddress = walletState.publicKey;
+      
+      // Load all projects
+      this.loadProjects();
+    });
+    
     this.loadWards();
-    this.loadProjects();
   }
   
   loadWards(): void {
@@ -66,12 +85,20 @@ export class ViewProject implements OnInit {
   
   loadProjects(): void {
     this.isLoading = true;
-    
-    // Real blockchain integration required - mock implementation removed
-    console.error('Real blockchain integration required: loadProjects not implemented');
-    this.projects = [];
-    this.applyFilters();
-    this.isLoading = false;
+    // Load projects from blockchain
+    this.solanaService.getProjects().subscribe({
+      next: (projects: any) => {
+        this.projects = projects;
+        this.applyFilters();
+        this.isLoading = false;
+      },
+      error: (error: any) => {
+        console.error('Error loading projects:', error);
+        this.projects = [];
+        this.filteredProjects = [];
+        this.isLoading = false;
+      }
+    });
   }
   
   applyFilters(): void {
