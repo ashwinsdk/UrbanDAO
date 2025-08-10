@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, of } from 'rxjs';
+import { BehaviorSubject, Observable, of, throwError } from 'rxjs';
 import { map, switchMap, tap, catchError } from 'rxjs/operators';
 import { 
   BlockchainService, 
@@ -209,12 +209,8 @@ export class UserService {
   }
 
   getCurrentTaxDue(): Observable<{ward: string, year: number, amount: number, dueDate: Date}> {
-    // Mock tax due information - in real app, this would calculate based on user's ward and payment history
-    return of({
-      ward: '1', // Default ward as string
-      year: new Date().getFullYear(),
-      amount: 1000, // 1000 SOL
-      dueDate: new Date(new Date().setMonth(new Date().getMonth() + 1)) // Next month
-    });
+    // Real blockchain integration required - mock implementation removed
+    console.error('Real blockchain integration required: getCurrentTaxDue not implemented');
+    return throwError(() => new Error('Real blockchain integration required'));
   }
 }

@@ -95,7 +95,7 @@ export class EditGrievance implements OnInit {
           grievance.id.toLowerCase().includes(term) ||
           (grievance.category && grievance.category.toLowerCase().includes(term)) ||
           (grievance.description && grievance.description.toLowerCase().includes(term)) ||
-          grievance.details.toLowerCase().includes(term)
+          (grievance.details && grievance.details.toLowerCase().includes(term))
         );
       }
       
@@ -139,19 +139,15 @@ export class EditGrievance implements OnInit {
     );
     
     this.grievances = updatedGrievances;
-    this.grievancesSubject.next(updatedGrievances);
+    this.updateGrievances(updatedGrievances);
     this.applyFilters();
     this.showSuccessModal('Status Updated', `Grievance ${updatedGrievance.id} status has been updated to ${status}.`);
   }
   
-  // Simulate a BehaviorSubject for our mock data
-  private get grievancesSubject() {
-    return {
-      next: (grievances: Grievance[]) => {
-        // In a real app with a proper service, this would update the BehaviorSubject
-        this.grievances = grievances;
-      }
-    };
+  // Real blockchain integration required - mock implementation removed
+  private updateGrievances(grievances: Grievance[]) {
+    console.error('Real blockchain integration required: grievance updates not implemented');
+    this.grievances = grievances;
   }
   
   showSuccessModal(title: string, message: string): void {

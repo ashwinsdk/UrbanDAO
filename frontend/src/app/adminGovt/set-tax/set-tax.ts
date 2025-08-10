@@ -71,28 +71,9 @@ export class SetTax implements OnInit {
   }
   
   loadExistingTaxRates(): void {
-    // In a real app, this would fetch from blockchain or backend
-    // For now, we'll use mock data
-    this.taxRates = [
-      {
-        ward: 'Ward 1',
-        year: 2025,
-        amount: 0.5,
-        lastUpdated: new Date(2024, 11, 15)
-      },
-      {
-        ward: 'Ward 2',
-        year: 2025,
-        amount: 0.45,
-        lastUpdated: new Date(2024, 11, 10)
-      },
-      {
-        ward: 'Ward 3',
-        year: 2025,
-        amount: 0.55,
-        lastUpdated: new Date(2024, 11, 12)
-      }
-    ];
+    // Real blockchain integration required - mock implementation removed
+    console.error('Real blockchain integration required: loadExistingTaxRates not implemented');
+    this.taxRates = [];
   }
   
   openConfirmModal(): void {

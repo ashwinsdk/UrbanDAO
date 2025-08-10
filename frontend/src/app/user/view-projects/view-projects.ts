@@ -64,7 +64,7 @@ export class ViewProjects implements OnInit {
         const query = this.searchQuery.toLowerCase();
         return (
           project.name.toLowerCase().includes(query) ||
-          project.details.toLowerCase().includes(query) ||
+          (project.details && project.details.toLowerCase().includes(query)) ||
           (project.description && project.description.toLowerCase().includes(query)) ||
           (project.location && project.location.toLowerCase().includes(query))
         );

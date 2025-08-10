@@ -75,43 +75,9 @@ export class Status implements OnInit {
       this.applyFilters();
     });
     
-    // Mock feedback data (since the service doesn't have a method for this yet)
-    // In a real app, this would come from the service
-    this.feedback = [
-      {
-        id: 'fb-001',
-        category: 'General Feedback',
-        subject: 'Website Usability',
-        message: 'The new website is much easier to navigate.',
-        rating: 4,
-        status: 'Acknowledged',
-        submittedDate: new Date(2023, 5, 15),
-        responseDate: new Date(2023, 5, 17),
-        response: 'Thank you for your positive feedback!'
-      },
-      {
-        id: 'fb-002',
-        category: 'Technical Issue',
-        subject: 'Payment Processing Error',
-        message: 'I encountered an error when trying to pay my tax.',
-        rating: 2,
-        status: 'In Progress',
-        submittedDate: new Date(2023, 6, 10),
-        responseDate: null,
-        response: null
-      },
-      {
-        id: 'fb-003',
-        category: 'Project Suggestion',
-        subject: 'Community Garden',
-        message: 'I suggest creating a community garden in Ward 3.',
-        rating: 5,
-        status: 'Pending',
-        submittedDate: new Date(2023, 6, 20),
-        responseDate: null,
-        response: null
-      }
-    ];
+    // Real blockchain integration required - mock implementation removed
+    console.error('Real blockchain integration required: feedback loading not implemented');
+    this.feedback = [];
     this.applyFilters();
   }
   

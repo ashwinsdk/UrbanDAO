@@ -13,24 +13,10 @@ interface RegisteredWallet {
 }
 
 // Storage key for registered wallets
-const STORAGE_KEY = 'urbandao_registered_wallets';
+const STORAGE_KEY = 'urbandao_registered_wallets_v2';
 
-// Mock Solana Wallet API
-declare global {
-    interface Window {
-        solana?: {
-            isPhantom?: boolean;
-            isConnected: boolean;
-            publicKey: {
-                toString: () => string;
-            };
-            connect: () => Promise<void>;
-            disconnect: () => Promise<void>;
-            on: (event: string, callback: () => void) => void;
-            off: (event: string, callback: () => void) => void;
-        };
-    }
-}
+// Real Solana Wallet API integration required
+// Using Phantom wallet interface from wallet.service.ts to avoid conflicts
 
 // Default admin addresses for initialization
 const DEFAULT_ADMIN_GOVT = 'FVTUBAwwMY3mpzNmR8QEncdi5HCR3fawxL38svymmnps';
@@ -83,14 +69,7 @@ export class AuthService {
 
   private setupWalletListeners(): void {
     if (typeof window !== 'undefined' && window.solana) {
-      // Listen for wallet events
-      window.solana.on?.('connect', () => {
-        this.handleWalletConnection();
-      });
-
-      window.solana.on?.('disconnect', () => {
-        this.handleWalletDisconnection();
-      });
+      console.log('Phantom wallet event handling delegated to WalletService');
     }
   }
 

@@ -67,46 +67,11 @@ export class ViewProject implements OnInit {
   loadProjects(): void {
     this.isLoading = true;
     
-    // Simulate API call with timeout
-    setTimeout(() => {
-      // Mock data
-      this.projects = this.generateMockProjects(15);
-      this.applyFilters();
-      this.isLoading = false;
-    }, 1000);
-  }
-  
-  generateMockProjects(count: number): Project[] {
-    const statuses: ('Proposed' | 'Approved' | 'In Progress' | 'Completed' | 'Rejected')[] = 
-      ['Proposed', 'Approved', 'In Progress', 'Completed', 'Rejected'];
-    
-    return Array(count).fill(0).map((_, i) => {
-      const id = `PRJ-${String(i + 1).padStart(3, '0')}`;
-      const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
-      const randomWard = this.wards[Math.floor(Math.random() * this.wards.length)];
-      const randomBudget = Math.round(Math.random() * 10000) / 100;
-      
-      const submissionDate = new Date();
-      submissionDate.setDate(submissionDate.getDate() - Math.floor(Math.random() * 60));
-      
-      const updateDate = new Date(submissionDate);
-      updateDate.setDate(updateDate.getDate() + Math.floor(Math.random() * 30));
-      
-      return {
-        id,
-        title: `Project ${id}`,
-        description: `This is a sample project description for ${id}. It includes details about the project scope, goals, and expected outcomes.`,
-        ward: randomWard,
-        budget: randomBudget,
-        status: randomStatus,
-        dateSubmitted: submissionDate,
-        dateUpdated: updateDate,
-        votes: Math.floor(Math.random() * 100),
-        submitter: `Citizen-${Math.floor(Math.random() * 1000)}`,
-        documents: Math.random() > 0.5 ? ['proposal.pdf', 'budget.xlsx'] : [],
-        images: Math.random() > 0.3 ? ['site-image-1.jpg', 'site-image-2.jpg'] : []
-      };
-    });
+    // Real blockchain integration required - mock implementation removed
+    console.error('Real blockchain integration required: loadProjects not implemented');
+    this.projects = [];
+    this.applyFilters();
+    this.isLoading = false;
   }
   
   applyFilters(): void {

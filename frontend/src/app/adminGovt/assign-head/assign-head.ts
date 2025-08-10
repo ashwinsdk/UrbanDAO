@@ -56,22 +56,9 @@ export class AssignHead implements OnInit {
   }
   
   loadExistingHeads(): void {
-    // In a real app, this would fetch from blockchain or backend
-    // For now, we'll use mock data
-    this.adminHeads = [
-      {
-        name: 'John Smith',
-        department: 'Roads and Infrastructure',
-        walletAddress: '5Tz4...',
-        dateAssigned: new Date(2025, 2, 15)
-      },
-      {
-        name: 'Emily Johnson',
-        department: 'Public Health',
-        walletAddress: '8xFr...',
-        dateAssigned: new Date(2025, 1, 10)
-      }
-    ];
+    // Real blockchain integration required - mock implementation removed
+    console.error('Real blockchain integration required: loadExistingHeads not implemented');
+    this.adminHeads = [];
   }
   
   assignHead(): void {
@@ -116,10 +103,9 @@ export class AssignHead implements OnInit {
   }
   
   connectWallet(): void {
-    // In a real app, this would connect to Phantom or other Solana wallets
-    alert('This would connect to a Solana wallet in production');
-    // For demo, we'll just set a mock address
-    this.walletAddress = 'Demo' + Math.random().toString(36).substring(2, 10);
+    // Real blockchain integration required - mock implementation removed
+    console.error('Real blockchain integration required: wallet connection not implemented');
+    alert('Real blockchain integration required: wallet connection not implemented');
   }
   
   useConnectedWallet(): void {

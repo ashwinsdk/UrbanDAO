@@ -82,7 +82,7 @@
                 <p class="grievance-category">{{ grievance.category || 'General' }}</p>
                 <span class="badge" [ngClass]="getStatusClass(grievance.status)">{{ grievance.status }}</span>
               </div>
-              <p class="grievance-desc">{{ (grievance.description || grievance.details) | slice:0:60 }}{{ (grievance.description || grievance.details).length > 60 ? '...' : '' }}</p>
+              <p class="grievance-desc">{{ (grievance.description || grievance.details || '') | slice:0:60 }}{{ (grievance.description || grievance.details || '').length > 60 ? '...' : '' }}</p>
               <p class="grievance-date">{{ grievance.dateSubmitted | date:'mediumDate' }}</p>
             </div>
           </div>

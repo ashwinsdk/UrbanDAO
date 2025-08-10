@@ -67,7 +67,9 @@ export class ProjectAlloc implements OnInit {
       location: '',
       ward: 0,
       createdBy: '',
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      allocatedFunds: 0,
+      completionPercentage: 0
     };
   }
   
@@ -93,7 +95,7 @@ export class ProjectAlloc implements OnInit {
         return (
           project.id.toLowerCase().includes(term) ||
           project.name.toLowerCase().includes(term) ||
-          project.details.toLowerCase().includes(term) ||
+          (project.details && project.details.toLowerCase().includes(term)) ||
           (project.description && project.description.toLowerCase().includes(term)) ||
           (project.location && project.location.toLowerCase().includes(term)) ||
           (project.ward && project.ward.toString().toLowerCase().includes(term))
@@ -134,7 +136,7 @@ export class ProjectAlloc implements OnInit {
     // For now, we'll simulate by adding to our local list
     const newProjects = [this.newProject, ...this.projects];
     this.projects = newProjects;
-    this.projectsSubject.next(newProjects);
+    this.updateProjects(newProjects);
     
     this.showSuccessModal('Project Created', `Project ${this.newProject.name} has been created successfully.`);
     this.isCreatingProject = false;
@@ -161,7 +163,7 @@ export class ProjectAlloc implements OnInit {
     );
     
     this.projects = updatedProjects;
-    this.projectsSubject.next(updatedProjects);
+    this.updateProjects(updatedProjects);
     this.applyFilters();
     
     this.showSuccessModal('Project Updated', `Project ${this.selectedProject.name} has been updated successfully.`);
@@ -177,7 +179,7 @@ export class ProjectAlloc implements OnInit {
     );
     
     this.projects = updatedProjects;
-    this.projectsSubject.next(updatedProjects);
+    this.updateProjects(updatedProjects);
     this.applyFilters();
     
     if (this.selectedProject?.id === project.id) {
@@ -214,14 +216,10 @@ export class ProjectAlloc implements OnInit {
     return true;
   }
   
-  // Simulate a BehaviorSubject for our mock data
-  private get projectsSubject() {
-    return {
-      next: (projects: Project[]) => {
-        // In a real app with a proper service, this would update the BehaviorSubject
-        this.projects = projects;
-      }
-    };
+  // Real blockchain integration required - mock implementation removed
+  private updateProjects(projects: Project[]) {
+    console.error('Real blockchain integration required: project updates not implemented');
+    this.projects = projects;
   }
   
   showSuccessModal(title: string, message: string): void {
