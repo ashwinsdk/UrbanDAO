@@ -3,18 +3,20 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/utils/Base64.sol";
 import "./AccessRoles.sol";
 
 /**
  * @title TaxReceipt
  * @notice Soul-bound ERC721 NFT representing tax payment receipts
- * @dev Non-transferable NFTs that prove tax compliance for citizens
+ * @dev Non-transferable NFTs that prove tax compliance for citizens with metadata support
  */
-contract TaxReceipt is ERC721, ERC721Enumerable, AccessControl, Pausable {
+contract TaxReceipt is ERC721, ERC721Enumerable, ERC721URIStorage, AccessControl, Pausable {
     
-    // Override required for ERC721Enumerable
+    // Override required for ERC721Enumerable and ERC721URIStorage
     function _beforeTokenTransfer(
         address from,
         address to,
@@ -63,6 +65,111 @@ contract TaxReceipt is ERC721, ERC721Enumerable, AccessControl, Pausable {
         _nextTokenId = 1;
     }
 
+    // Base URI for IPFS gateway to resolve CIDs
+    string private _baseTokenURI = "ipfs://"; 
+    
+    // Default image CID to be used for receipts
+    string public defaultImageCID = "bafybeihnesjjdqhqvlnei5kep52tqv6zv3k7nposxaqfdwzlkgh6zorxtu";
+    
+    /**
+     * @notice Set the base URI for token metadata
+     * @param baseURI The new base URI
+     * @dev Only callable by OWNER_ROLE
+     */
+    function setBaseURI(string memory baseURI) external onlyRole(AccessRoles.OWNER_ROLE) {
+        _baseTokenURI = baseURI;
+    }
+    
+    /**
+     * @notice Set the default image CID for receipts
+     * @param newCID The new IPFS CID for the default receipt image
+     * @dev Only callable by OWNER_ROLE
+     */
+    function setDefaultImageCID(string memory newCID) external onlyRole(AccessRoles.OWNER_ROLE) {
+        defaultImageCID = newCID;
+    }
+    
+    /**
+     * @notice Get base URI for token metadata
+     * @return Base URI string
+     */
+    function _baseURI() internal view override returns (string memory) {
+        return _baseTokenURI;
+    }
+    
+    /**
+     * @notice Generate the name for a receipt token
+     * @param tokenId The token ID
+     * @param year The tax year
+     * @return The generated name
+     */
+    function _generateTokenName(uint256 tokenId, uint256 year) internal pure returns (string memory) {
+        return string(abi.encodePacked("Tax Receipt #", toString(tokenId), " - ", toString(year)));
+    }
+    
+    /**
+     * @notice Generate the description for a receipt token
+     * @param year The tax year
+     * @param amount The tax amount
+     * @param timestamp The timestamp
+     * @return The generated description
+     */
+    function _generateTokenDescription(uint256 year, uint256 amount, uint256 timestamp) internal pure returns (string memory) {
+        return string(abi.encodePacked(
+            "Official tax payment receipt for ", 
+            toString(year), 
+            " - Amount: ", 
+            formatAmount(amount), 
+            " - Issued: ",
+            formatTimestamp(timestamp)
+        ));
+    }
+    
+    /**
+     * @notice Generate attributes section for metadata
+     * @param year The tax year
+     * @param amount The tax amount
+     * @param timestamp The timestamp
+     * @param docsHash The document hash
+     * @return The attributes JSON section
+     */
+    function _generateAttributes(uint256 year, uint256 amount, uint256 timestamp, bytes32 docsHash) internal pure returns (string memory) {
+        return string(abi.encodePacked(
+            '{"trait_type": "Year", "value": "', toString(year), '"}, ',
+            '{"trait_type": "Amount", "value": "', formatAmount(amount), '"}, ',
+            '{"trait_type": "Timestamp", "value": "', formatTimestamp(timestamp), '"}, ',
+            '{"trait_type": "Document Hash", "value": "', bytes32ToString(docsHash), '"}'
+        ));
+    }
+
+    /**
+     * @notice Generate on-chain metadata for a receipt token
+     * @param tokenId The token ID
+     * @return JSON metadata for the token
+     */
+    function generateTokenMetadata(uint256 tokenId) public view returns (string memory) {
+        require(_ownerOf(tokenId) != address(0), "TaxReceipt: token does not exist");
+        
+        Receipt memory receipt = receipts[tokenId];
+        
+        // Generate components
+        string memory receiptName = _generateTokenName(tokenId, receipt.year);
+        string memory description = _generateTokenDescription(receipt.year, receipt.amount, receipt.timestamp);
+        string memory attributes = _generateAttributes(receipt.year, receipt.amount, receipt.timestamp, receipt.docsHash);
+        
+        // Create JSON metadata
+        string memory json = Base64.encode(bytes(string(abi.encodePacked(
+            '{',
+            '"name": "', receiptName, '", ',
+            '"description": "', description, '", ',
+            '"image": "ipfs://', defaultImageCID, '", ',
+            '"attributes": [', attributes, ']',
+            '}'
+        ))));
+        
+        return string(abi.encodePacked('data:application/json;base64,', json));
+    }
+    
     /**
      * @notice Mint a tax receipt NFT for a citizen
      * @param citizen The citizen who paid the tax
@@ -105,6 +212,9 @@ contract TaxReceipt is ERC721, ERC721Enumerable, AccessControl, Pausable {
 
         // Mint the NFT
         _safeMint(citizen, tokenId);
+        
+        // Set token URI with dynamically generated metadata
+        _setTokenURI(tokenId, generateTokenMetadata(tokenId));
 
         emit TaxReceiptMinted(tokenId, citizen, year, amount, docsHash);
     }
@@ -228,10 +338,26 @@ contract TaxReceipt is ERC721, ERC721Enumerable, AccessControl, Pausable {
     function supportsInterface(bytes4 interfaceId)
         public
         view
-        override(ERC721, ERC721Enumerable, AccessControl)
+        override(ERC721, ERC721Enumerable, ERC721URIStorage, AccessControl)
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
+    }
+    
+    function _burn(uint256 tokenId)
+        internal
+        override(ERC721, ERC721URIStorage)
+    {
+        super._burn(tokenId);
+    }
+    
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        override(ERC721, ERC721URIStorage)
+        returns (string memory)
+    {
+        return super.tokenURI(tokenId);
     }
 
     /**
@@ -248,5 +374,77 @@ contract TaxReceipt is ERC721, ERC721Enumerable, AccessControl, Pausable {
      */
     function isSoulBound() external pure returns (bool) {
         return true;
+    }
+    
+    /**
+     * @notice Convert a uint256 to string
+     * @param value The uint256 value
+     * @return String representation
+     */
+    function toString(uint256 value) internal pure returns (string memory) {
+        if (value == 0) {
+            return "0";
+        }
+        
+        uint256 temp = value;
+        uint256 digits;
+        
+        while (temp != 0) {
+            digits++;
+            temp /= 10;
+        }
+        
+        bytes memory buffer = new bytes(digits);
+        while (value != 0) {
+            digits -= 1;
+            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
+            value /= 10;
+        }
+        
+        return string(buffer);
+    }
+    
+    /**
+     * @notice Format an amount with decimal places
+     * @param amount The amount to format
+     * @return Formatted amount as string
+     */
+    function formatAmount(uint256 amount) internal pure returns (string memory) {
+        // Format as ether units (assuming amount is in wei)
+        uint256 eth = amount / 1e18;
+        uint256 decimals = (amount % 1e18) / 1e16; // Get 2 decimal places
+        
+        if (decimals > 0) {
+            return string(abi.encodePacked(toString(eth), ".", toString(decimals), " ETH"));
+        } else {
+            return string(abi.encodePacked(toString(eth), " ETH"));
+        }
+    }
+    
+    /**
+     * @notice Format a timestamp as a readable date string
+     * @param timestamp The timestamp to format
+     * @return Formatted timestamp as string
+     */
+    function formatTimestamp(uint256 timestamp) internal pure returns (string memory) {
+        // Simple timestamp string (can be improved with date formatting in production)
+        return toString(timestamp);
+    }
+    
+    /**
+     * @notice Convert bytes32 to hex string
+     * @param data The bytes32 data
+     * @return Hex string
+     */
+    function bytes32ToString(bytes32 data) internal pure returns (string memory) {
+        bytes memory hexChars = "0123456789abcdef";
+        bytes memory result = new bytes(64);
+        
+        for (uint256 i = 0; i < 32; i++) {
+            result[i*2] = hexChars[uint8(data[i] >> 4)];
+            result[i*2+1] = hexChars[uint8(data[i] & 0x0f)];
+        }
+        
+        return string(result);
     }
 }

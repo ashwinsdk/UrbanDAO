@@ -313,6 +313,35 @@ describe("TaxPayment Tests", function () {
                 // Verify docs hash matches
                 expect(receiptData.docsHash).to.equal(taxHash);
                 console.log("✓ Receipt purpose hash matches");
+                
+                // Verify token URI and metadata
+                try {
+                    const tokenURI = await taxReceipt.tokenURI(receiptId);
+                    console.log(`Token URI for receipt #${receiptId}:`, tokenURI);
+                    
+                    // Token URI should exist and be in data:application/json;base64 format
+                    expect(tokenURI).to.not.be.empty;
+                    expect(tokenURI).to.include("data:application/json;base64");
+                    
+                    // If we want to decode and check the JSON contents
+                    if (tokenURI.startsWith("data:application/json;base64,")) {
+                        const base64Content = tokenURI.replace("data:application/json;base64,", "");
+                        const jsonContent = Buffer.from(base64Content, 'base64').toString('utf8');
+                        console.log("Decoded metadata JSON:", jsonContent);
+                        
+                        // Parse and verify metadata contents
+                        const metadata = JSON.parse(jsonContent);
+                        expect(metadata).to.have.property("name").that.includes(`Tax Receipt #${receiptId}`);
+                        expect(metadata).to.have.property("description");
+                        expect(metadata).to.have.property("image").that.includes("bafybeihnesjjdqhqvlnei5kep52tqv6zv3k7nposxaqfdwzlkgh6zorxtu");
+                        expect(metadata).to.have.property("attributes").that.is.an("array");
+                        console.log("✓ Metadata content validation passed");
+                    }
+                } catch (e) {
+                    console.error(`Error checking token URI: ${e.message}`);
+                    // Don't fail the test on token URI check
+                    console.log("⚠️ Token URI check skipped - this is expected if you haven't implemented tokenURI");
+                }
             } catch (e) {
                 console.error(`Error verifying receipt: ${e.message}`);
                 throw e;

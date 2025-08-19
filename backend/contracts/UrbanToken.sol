@@ -24,6 +24,10 @@ contract UrbanToken is ERC20, ERC20Permit, ERC20Votes, ERC20Capped, ERC20Burnabl
 
     // State variables
     mapping(address => bool) public hasReceivedOnboardingReward;
+    
+    // Token metadata
+    string private _tokenImageURI;
+    string private _tokenDescription;
 
     // Events
     event OnboardingReward(address indexed citizen, uint256 amount);
@@ -38,7 +42,9 @@ contract UrbanToken is ERC20, ERC20Permit, ERC20Votes, ERC20Capped, ERC20Burnabl
     constructor(
         address owner,
         string memory name,
-        string memory symbol
+        string memory symbol,
+        string memory imageURI,
+        string memory description
     ) 
         ERC20(name, symbol) 
         ERC20Permit(name)
@@ -46,6 +52,10 @@ contract UrbanToken is ERC20, ERC20Permit, ERC20Votes, ERC20Capped, ERC20Burnabl
     {
         _grantRole(AccessRoles.OWNER_ROLE, owner);
         _setRoleAdmin(AccessRoles.OWNER_ROLE, AccessRoles.OWNER_ROLE);
+        
+        // Set token metadata
+        _tokenImageURI = imageURI;
+        _tokenDescription = description;
         
         // Initial supply to owner for initial distribution
         _mint(owner, 10_000_000 * 10**18); // 10 million tokens for initial bootstrap
@@ -191,5 +201,56 @@ contract UrbanToken is ERC20, ERC20Permit, ERC20Votes, ERC20Capped, ERC20Burnabl
      */
     function hasClaimedOnboardingReward(address citizen) external view returns (bool) {
         return hasReceivedOnboardingReward[citizen];
+    }
+
+    /**
+     * @notice Set token image URI
+     * @param imageURI The URI of the token image
+     * @dev Only callable by OWNER_ROLE
+     */
+    function setTokenImageURI(string memory imageURI) external onlyRole(AccessRoles.OWNER_ROLE) {
+        _tokenImageURI = imageURI;
+    }
+
+    /**
+     * @notice Get token image URI
+     * @return The URI of the token image
+     */
+    function tokenImageURI() external view returns (string memory) {
+        return _tokenImageURI;
+    }
+
+    /**
+     * @notice Set token description
+     * @param description The description of the token
+     * @dev Only callable by OWNER_ROLE
+     */
+    function setTokenDescription(string memory description) external onlyRole(AccessRoles.OWNER_ROLE) {
+        _tokenDescription = description;
+    }
+
+    /**
+     * @notice Get token description
+     * @return The description of the token
+     */
+    function tokenDescription() external view returns (string memory) {
+        return _tokenDescription;
+    }
+
+    /**
+     * @notice Get complete token metadata as JSON
+     * @return JSON metadata string
+     */
+    function tokenMetadata() external view returns (string memory) {
+        string memory json = string(abi.encodePacked(
+            '{',
+            '"name": "', name(), '", ',
+            '"symbol": "', symbol(), '", ',
+            '"decimals": 18, ',
+            '"description": "', _tokenDescription, '", ',
+            '"image": "', _tokenImageURI, '"',
+            '}'
+        ));
+        return json;
     }
 }

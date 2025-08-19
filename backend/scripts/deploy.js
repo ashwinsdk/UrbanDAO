@@ -39,7 +39,9 @@ async function main() {
         treasury: process.env.TREASURY || deployer.address,
         minDelay: 24 * 60 * 60, // 24 hours in seconds
         tokenName: "UrbanDAO Token",
-        tokenSymbol: "URBAN"
+        tokenSymbol: "URBAN",
+        tokenImageURI: "ipfs://bafybeihnesjjdqhqvlnei5kep52tqv6zv3k7nposxaqfdwzlkgh6zorxtu",
+        tokenDescription: "UrbanDAO governance token for city management and community voting"
     };
 
     console.log("🔧 Configuration:");
@@ -65,7 +67,9 @@ async function main() {
         const urbanToken = await UrbanToken.deploy(
             deployer.address,
             config.tokenName,
-            config.tokenSymbol
+            config.tokenSymbol,
+            config.tokenImageURI,
+            config.tokenDescription
         );
         await urbanToken.waitForDeployment();
         deployedContracts.UrbanToken = await urbanToken.getAddress();
@@ -103,6 +107,13 @@ async function main() {
         await taxReceipt.waitForDeployment();
         deployedContracts.TaxReceipt = await taxReceipt.getAddress();
         console.log("✅ TaxReceipt deployed to:", deployedContracts.TaxReceipt);
+        
+        // Configure TaxReceipt metadata
+        console.log("⚙️ Configuring TaxReceipt metadata...");
+        // IPFS CID for receipt image
+        const defaultImageCID = "bafybeihnesjjdqhqvlnei5kep52tqv6zv3k7nposxaqfdwzlkgh6zorxtu";
+        await taxReceipt.setDefaultImageCID(defaultImageCID);
+        console.log("✅ TaxReceipt metadata configured with IPFS image CID:", defaultImageCID);
 
         // Step 6: Deploy TaxModule
         console.log("\n6️⃣ Deploying TaxModule...");
@@ -180,7 +191,8 @@ async function main() {
 
         // Configure TaxReceipt minting role for TaxModule
         console.log("⚙️ Granting TaxReceipt minting role to TaxModule...");
-        const OWNER_ROLE = await taxReceipt.OWNER_ROLE();
+        // Use ethers utils to compute the OWNER_ROLE hash directly
+        const OWNER_ROLE = ethers.keccak256(ethers.toUtf8Bytes("OWNER_ROLE"));
         await taxReceipt.grantRole(OWNER_ROLE, deployedContracts.TaxModule);
         console.log("✅ TaxReceipt minting role granted");
 
@@ -209,7 +221,13 @@ async function main() {
             deployer: deployer.address,
             timestamp: new Date().toISOString(),
             contracts: deployedContracts,
-            config: config
+            config: config,
+            metadata: {
+                taxReceipt: {
+                    defaultImageCID: defaultImageCID,
+                    baseTokenURI: "ipfs://"
+                }
+            }
         };
 
         fs.writeFileSync(
@@ -274,7 +292,9 @@ async function verifyContracts(contracts, config) {
             constructorArguments: [
                 config.ownerGovt,
                 config.tokenName,
-                config.tokenSymbol
+                config.tokenSymbol,
+                config.tokenImageURI,
+                config.tokenDescription
             ]
         });
 
