@@ -1,0 +1,6 @@
+node_modules/
+PinataAPI-KEYS.txt
+artifacts/
+cache/
+coverage/
+build-info/
