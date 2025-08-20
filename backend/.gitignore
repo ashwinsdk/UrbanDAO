@@ -6,3 +6,4 @@ coverage/
 build-info/
 .env
 .openzeppelin/
+.role.env
