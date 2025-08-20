@@ -15,6 +15,9 @@ async function setupRolesForTest(contracts, accounts, testName = "Unspecified te
     }
 
     console.log(`\n🔄 Setting up roles for: ${testName}...`);
+    
+    // First step is to make sure the deployer has DEFAULT_ADMIN_ROLE
+    // This is critical since DEFAULT_ADMIN_ROLE is needed to grant other roles
 
     // Get critical contracts
     const { urbanCore, urbanToken, grievanceHub, projectRegistry } = contracts;
@@ -83,12 +86,37 @@ async function safeGrantRole(contract, role, address, deployer, owner, contractN
             if (typeof contract.hasRole === 'function') {
                 const hasRole = await contract.hasRole(role, address);
                 if (hasRole) {
-                    // console.log(`✓ ${address.substring(0, 8)}... already has ${roleString} on ${contractName}`);
-                    return;
+                    console.log(`✓ ${address.substring(0, 8)}... already has ${roleString} on ${contractName}`);
+                    return true;
                 }
             }
         } catch (e) {
             console.log(`❌ Error in hasRole check: ${e.message}`);
+        }
+        
+        // Special case for DEFAULT_ADMIN_ROLE - try direct access
+        // This is the most important role and must be set up first
+        if (role === ethers.ZeroHash) {
+            try {
+                // Get actual owner of contract via owner() if available
+                let contractOwner;
+                if (typeof contract.owner === 'function') {
+                    try {
+                        contractOwner = await contract.owner();
+                        console.log(`Found contract owner: ${contractOwner.substring(0, 8)}...`);
+                    } catch (e) {}
+                }
+                
+                // Use the actual owner if available
+                if (contractOwner) {
+                    const signer = await ethers.getSigner(contractOwner);
+                    console.log(`Using contract owner to grant admin role: ${contractOwner.substring(0, 8)}...`);
+                    await contract.connect(signer).grantRole(role, address);
+                    return true;
+                }
+            } catch (e) {
+                console.log(`Contract owner approach failed: ${e.message}`);
+            }
         }
 
         // Attempt grant with deployer
@@ -96,7 +124,8 @@ async function safeGrantRole(contract, role, address, deployer, owner, contractN
             try {
                 console.log(`Granting ${roleString} for ${contractName} to ${address.substring(0, 8)}... using ${deployer.address.substring(0, 8)}...`);
                 await contract.connect(deployer).grantRole(role, address);
-                return;
+                console.log(`✅ Successfully granted ${roleString} to ${address.substring(0, 8)}... using deployer`);
+                return true;
             } catch (e) {
                 console.log(`Error granting ${roleString} for ${contractName}: ${e.message}`);
             }
@@ -107,7 +136,8 @@ async function safeGrantRole(contract, role, address, deployer, owner, contractN
             try {
                 console.log(`Trying with owner to grant ${roleString}...`);
                 await contract.connect(owner).grantRole(role, address);
-                return;
+                console.log(`✅ Successfully granted ${roleString} to ${address.substring(0, 8)}... using owner`);
+                return true;
             } catch (e) {
                 console.log(`Owner grant also failed: ${e.message}`);
             }
@@ -117,12 +147,33 @@ async function safeGrantRole(contract, role, address, deployer, owner, contractN
         try {
             console.log(`Trying direct grant of ${roleString} for ${contractName} to ${address.substring(0, 8)}...`);
             await contract.grantRole(role, address);
+            console.log(`✅ Successfully granted ${roleString} to ${address.substring(0, 8)}... using direct access`);
+            return true;
         } catch (e) {
             console.log(`Direct grant also failed: ${e.message}`);
+        }
+        
+        // Try using a different signer - one of the accounts in the test
+        try {
+            const signers = await ethers.getSigners();
+            console.log(`Trying with first 3 signers to grant ${roleString}...`);
+            
+            for (let i = 0; i < 3 && i < signers.length; i++) {
+                const signer = signers[i];
+                try {
+                    console.log(`Attempt with signer ${i}: ${signer.address.substring(0, 8)}...`);
+                    await contract.connect(signer).grantRole(role, address);
+                    console.log(`✅ Successfully granted ${roleString} to ${address.substring(0, 8)}... using signer ${i}`);
+                    return true;
+                } catch (e) {}
+            }
+        } catch (e) {
+            console.log(`All signer attempts failed: ${e.message}`);
         }
     } catch (e) {
         console.log(`Critical error in safeGrantRole: ${e.message}`);
     }
+    return false;
 }
 
 module.exports = {

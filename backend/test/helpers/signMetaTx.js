@@ -61,8 +61,18 @@ function buildRequest(params) {
  * @returns {string} - Signature
  */
 async function signMetaTx(signer, forwarder, request) {
+    // Handle both contract instances with getAddress method and older ones with address property
+    let forwarderAddress;
+    if (typeof forwarder.getAddress === 'function') {
+        forwarderAddress = await forwarder.getAddress();
+    } else if (forwarder.address) {
+        forwarderAddress = forwarder.address;
+    } else {
+        throw new Error('MetaForwarder has neither getAddress method nor address property');
+    }
+    
     const domain = buildDomain(
-        await forwarder.getAddress(),
+        forwarderAddress,
         await signer.provider.getNetwork().then(n => n.chainId)
     );
     
@@ -178,11 +188,21 @@ class MetaTxTestHelper {
     async executeAsUser(user, target, functionName, args = [], value = 0) {
         const callData = encodeCallData(target, functionName, args);
         
+        // Handle both contract instances with getAddress method and older ones with address property
+        let targetAddress;
+        if (typeof target.getAddress === 'function') {
+            targetAddress = await target.getAddress();
+        } else if (target.address) {
+            targetAddress = target.address;
+        } else {
+            throw new Error('Target contract has neither getAddress method nor address property');
+        }
+        
         return await signAndExecuteMetaTx({
             signer: user,
             relayer: this.relayer,
             forwarder: this.forwarder,
-            to: await target.getAddress(),
+            to: targetAddress,
             data: callData,
             value: value
         });
@@ -209,5 +229,14 @@ module.exports = {
     signAndExecuteMetaTx,
     encodeCallData,
     verifyMetaTxExecution,
-    MetaTxTestHelper
+    MetaTxTestHelper,
+    // Helper function to get contract address regardless of ethers version
+    getContractAddress: async (contract) => {
+        if (typeof contract.getAddress === 'function') {
+            return await contract.getAddress();
+        } else if (contract.address) {
+            return contract.address;
+        }
+        throw new Error('Contract has neither getAddress method nor address property');
+    }
 };
