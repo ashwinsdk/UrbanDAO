@@ -1,0 +1,54 @@
+{
+  "network": "sepolia",
+  "chainId": "11155111",
+  "roles": {
+    "OWNER_ROLE": {
+      "address": "0xE1d7C37f7fa7e189e0191c02379fE97BcB1c5984",
+      "description": "Contract owner with highest privileges",
+      "status": "verified"
+    },
+    "ADMIN_GOVT_ROLE": {
+      "address": "0xE1d7C37f7fa7e189e0191c02379fE97BcB1c5984",
+      "description": "Government administrator role",
+      "status": "verified",
+      "txHash": "0x8d88dd38bf9b697ee1f09f40d2839e401758e90ac10fac331ae9f98eee6b1417"
+    },
+    "ADMIN_HEAD_ROLE": {
+      "address": "0x224C1f97FF0570E3447D2A18E46ba5244ef19a6c",
+      "description": "Area head administrator",
+      "status": "verified",
+      "txHash": "0xf9d62b8ee5113b97fbc9d8f848b74a896c890521698881d2a1fb3dbf2ca9b48f"
+    },
+    "PROJECT_MANAGER_ROLE": {
+      "address": "0x15900204E45560D7efb2df13e859824746da0A82",
+      "description": "Project manager responsible for overseeing projects",
+      "status": "verified",
+      "txHash": "0x0f613f2c8ed3ba89c26d02501c11f5d2bf3978d6de2e5cd5fc13d1f9cead5515"
+    },
+    "TAX_COLLECTOR_ROLE": {
+      "address": "0x99da9Ab65660a4cbcd7B56b3055cB9794fCd7B9a",
+      "description": "Tax collector responsible for tax assessment",
+      "status": "verified",
+      "txHash": "0x0e9d017c040b2fc80ca94ba6e0e462a016b7ed2bc72abfd21a9212d7621946bd"
+    },
+    "VALIDATOR_ROLE": {
+      "address": "0x29b0AeFf310BC99ce4009b6599Ac45471354CbA4",
+      "description": "Validator for citizen registration and grievance verification",
+      "status": "verified",
+      "txHash": "0x60fd6a4aefade1bacb6f379201aad9aaff7e3fb35026470620325bf7fd9a4acd"
+    },
+    "CITIZEN_ROLE": {
+      "address": "0x76798487eD5C8E0bC849C2DB53eD880E4a9fcCdE",
+      "description": "Sample citizen user",
+      "status": "unknown"
+    },
+    "TX_PAYER_ROLE": {
+      "address": "0xe0b1Ee4660E296BAe4054F67C5D46493ff455061",
+      "description": "Role for paying transaction fees on behalf of users",
+      "status": "verified",
+      "txHash": "0x161bbfaf806a5d130f3310a818868ee5bfec24201e9201b08662439b5d65f817"
+    }
+  },
+  "contractAddress": "0x0b67690EDDb4e2bc094b996183bAcD77F18B2D55",
+  "lastVerified": "2025-08-20T16:46:00.177Z"
+}

@@ -175,6 +175,58 @@ The `scripts` directory contains helper scripts for common operations:
 - `deploy.js`: Deploy all contracts
 - `deploy-token.js`: Deploy only the UrbanToken contract
 - `verify-token-image.js`: Verify token image URI
+- `verify-roles.js`: Verify current role assignments
+- `manage-roles-fixed.js`: Assign roles according to defined hierarchy
+- `run-role-management.js`: CLI interface for role management
+
+### Role Management
+
+UrbanDAO provides a comprehensive role management system that allows administrators to verify and assign roles without redeploying contracts. The role management scripts follow the role hierarchy defined in `AccessRoles.sol`.
+
+#### Prerequisites for Role Management
+
+1. Create an `.env.roles` file with the following structure:
+
+```
+# Base configuration
+SEPOLIA_RPC_URL=your_sepolia_rpc_endpoint
+ETHERSCAN_API_KEY=your_etherscan_api_key
+
+# Role-specific private keys
+OWNER_ROLE_PRIVATE_KEY=owner_private_key
+ADMIN_GOVT_ROLE_PRIVATE_KEY=admin_govt_private_key
+ADMIN_HEAD_ROLE_PRIVATE_KEY=admin_head_private_key
+PROJECT_MANAGER_ROLE_PRIVATE_KEY=project_manager_private_key
+TAX_COLLECTOR_ROLE_PRIVATE_KEY=tax_collector_private_key
+VALIDATOR_ROLE_PRIVATE_KEY=validator_private_key
+TX_PAYER_ROLE_PRIVATE_KEY=tx_payer_private_key
+
+# Contract address
+URBAN_CORE_ADDRESS=your_deployed_urbancore_address
+```
+
+2. Ensure you have the `docs/roles.json` file with proper role mappings.
+
+#### Using Role Management Scripts
+
+```bash
+# Verify current role assignments
+node scripts/run-role-management.js verify
+
+# Assign missing roles according to hierarchy
+node scripts/run-role-management.js assign
+```
+
+#### Role Assignment Process
+
+Roles are assigned following the hierarchy defined in `AccessRoles.sol`:
+1. Owner assigns AdminGovt roles
+2. AdminGovt assigns AdminHead roles
+3. AdminHead assigns ProjectManager, TaxCollector, and Validator roles
+4. Owner assigns TxPayer roles
+5. Citizen roles are handled through the onboarding process, not these scripts
+
+The scripts automatically check if roles are already assigned to avoid redundant transactions.
 
 ## Gas Optimization & Security
 
