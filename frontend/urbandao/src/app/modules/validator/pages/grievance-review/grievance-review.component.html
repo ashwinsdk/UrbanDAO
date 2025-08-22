@@ -1,0 +1,157 @@
+<div class="grievance-review">
+  <!-- Header with back button -->
+  <header class="review-header">
+    <button class="back-btn" (click)="goBack()">
+      <i class="fas fa-arrow-left"></i> Back to Pending Grievances
+    </button>
+    
+    <h1 *ngIf="!loading && grievance">Review Grievance</h1>
+  </header>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading grievance details...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="!loading && error" class="error-container">
+    <div class="error-icon">
+      <i class="fas fa-exclamation-triangle"></i>
+    </div>
+    <h2>Error</h2>
+    <p>{{ error }}</p>
+    <button class="primary-btn" (click)="goBack()">Back to Grievance List</button>
+  </div>
+
+  <!-- Grievance Review Content -->
+  <div *ngIf="!loading && !error && grievance" class="review-content">
+    <!-- Grievance Details Section -->
+    <div class="details-section">
+      <div class="grievance-header">
+        <div class="header-content">
+          <h2>{{ grievance.title }}</h2>
+          <span *ngIf="grievance.urgent" class="urgent-badge">URGENT</span>
+        </div>
+        <span class="submission-date">Submitted on {{ formatDate(grievance.createdAt) }}</span>
+      </div>
+      
+      <div class="grievance-meta">
+        <div class="meta-item">
+          <span class="meta-label"><i class="fas fa-user"></i> Citizen:</span>
+          <span class="meta-value">{{ grievance.citizenName || formatAddress(grievance.citizenAddress) }}</span>
+        </div>
+        
+        <div class="meta-item">
+          <span class="meta-label"><i class="fas fa-map-marker-alt"></i> Location:</span>
+          <span class="meta-value">{{ grievance.location }}</span>
+        </div>
+        
+        <div class="meta-item">
+          <span class="meta-label"><i class="fas fa-tag"></i> Type:</span>
+          <span class="meta-value">{{ grievance.type }}</span>
+        </div>
+      </div>
+      
+      <div class="grievance-description">
+        <h3>Description</h3>
+        <p>{{ grievance.description }}</p>
+      </div>
+      
+      <!-- Images Carousel -->
+      <div *ngIf="grievance.imageUrls && grievance.imageUrls.length > 0" class="image-carousel">
+        <h3>Evidence Images</h3>
+        
+        <div class="carousel-container">
+          <button class="carousel-btn prev-btn" (click)="prevImage()">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          
+          <div class="carousel-content">
+            <img [src]="grievance.imageUrls[currentImageIndex]" alt="Grievance evidence image">
+            <div class="image-counter">
+              {{ currentImageIndex + 1 }} / {{ grievance.imageUrls.length }}
+            </div>
+          </div>
+          
+          <button class="carousel-btn next-btn" (click)="nextImage()">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Review Form Section -->
+    <div class="review-form-section">
+      <h3>Grievance Validation</h3>
+      <p class="form-description">
+        Please review the grievance details carefully. Your validation will determine if this grievance 
+        moves forward in the process or gets rejected.
+      </p>
+      
+      <form [formGroup]="reviewForm" (ngSubmit)="processGrievance()">
+        <div class="form-group decision-group">
+          <label>Your Decision:</label>
+          <div class="decision-options">
+            <label class="decision-option approve">
+              <input type="radio" formControlName="decision" value="approve">
+              <span class="decision-label">
+                <i class="fas fa-check-circle"></i>
+                Approve
+              </span>
+              <span class="decision-desc">The grievance is valid and should be processed</span>
+            </label>
+            
+            <label class="decision-option reject">
+              <input type="radio" formControlName="decision" value="reject">
+              <span class="decision-label">
+                <i class="fas fa-times-circle"></i>
+                Reject
+              </span>
+              <span class="decision-desc">The grievance is invalid or does not meet requirements</span>
+            </label>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="comments">Comments:</label>
+          <textarea 
+            id="comments" 
+            formControlName="comments" 
+            rows="4" 
+            placeholder="Provide your reasoning for this decision (required)"
+          ></textarea>
+          <div *ngIf="reviewForm.get('comments')?.touched && reviewForm.get('comments')?.invalid" class="error-message">
+            <span *ngIf="reviewForm.get('comments')?.errors?.['required']">Comments are required</span>
+            <span *ngIf="reviewForm.get('comments')?.errors?.['minlength']">Comments must be at least 10 characters</span>
+            <span *ngIf="reviewForm.get('comments')?.errors?.['maxlength']">Comments cannot exceed 500 characters</span>
+          </div>
+        </div>
+        
+        <div class="form-actions">
+          <button type="button" class="cancel-btn" (click)="goBack()">Cancel</button>
+          <button 
+            type="submit" 
+            class="submit-btn" 
+            [disabled]="reviewForm.invalid || processingAction"
+          >
+            <span *ngIf="!processingAction">Submit Decision</span>
+            <span *ngIf="processingAction" class="spinner-sm"></span>
+          </button>
+        </div>
+        
+        <!-- Success Message -->
+        <div *ngIf="actionSuccess" class="success-message">
+          <i class="fas fa-check-circle"></i>
+          <span>Grievance successfully processed! Redirecting...</span>
+        </div>
+        
+        <!-- Error Message -->
+        <div *ngIf="actionError" class="form-error-message">
+          <i class="fas fa-exclamation-triangle"></i>
+          <span>{{ actionError }}</span>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

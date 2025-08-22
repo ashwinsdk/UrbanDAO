@@ -1,0 +1,401 @@
+// Variables
+$dark-bg: #121212;
+$card-bg: #1e1e1e;
+$border-color: #333333;
+$text-primary: #ffffff;
+$text-secondary: #b0b0b0;
+$accent-gradient: linear-gradient(135deg, #5f2c82 0%, #49a09d 100%);
+
+$validated-color: #4caf50;
+$rejected-color: #f44336;
+
+// Mixins
+@mixin card {
+  background-color: $card-bg;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.processed-grievances {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  font-family: 'Roboto Mono', monospace;
+  color: $text-primary;
+  
+  // Header styles
+  .page-header {
+    @include flex-between;
+    margin-bottom: 2rem;
+    
+    .header-content {
+      h1 {
+        font-size: 2rem;
+        margin: 0;
+        font-weight: 700;
+      }
+      
+      p {
+        margin: 0.5rem 0 0;
+        color: $text-secondary;
+      }
+    }
+    
+    .refresh-btn {
+      background-color: transparent;
+      color: $text-secondary;
+      border: 1px solid $border-color;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      
+      &:hover:not([disabled]) {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: $text-primary;
+      }
+      
+      &[disabled] {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      
+      i {
+        margin-right: 0.5rem;
+      }
+    }
+  }
+  
+  // Loading state
+  .loading-container {
+    @include flex-center;
+    flex-direction: column;
+    padding: 3rem 0;
+    
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255, 255, 255, 0.1);
+      border-top-color: #5f2c82;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    p {
+      margin-top: 1rem;
+      color: $text-secondary;
+    }
+  }
+  
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  
+  // Error state
+  .error-container {
+    @include card;
+    text-align: center;
+    padding: 2.5rem 1.5rem;
+    max-width: 500px;
+    margin: 0 auto;
+    
+    .error-icon {
+      font-size: 2.5rem;
+      color: #f44336;
+      margin-bottom: 1rem;
+    }
+    
+    h2 {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    p {
+      color: $text-secondary;
+      margin-bottom: 1.5rem;
+    }
+    
+    .primary-btn {
+      background: $accent-gradient;
+      border: none;
+      color: white;
+      padding: 0.8rem 2rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      
+      &:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+      }
+    }
+  }
+  
+  // Content area
+  .grievances-content {
+    // Filters section
+    .filters-container {
+      @include card;
+      margin-bottom: 1.5rem;
+      
+      .search-box {
+        position: relative;
+        margin-bottom: 1.5rem;
+        
+        i {
+          position: absolute;
+          left: 1rem;
+          top: 50%;
+          transform: translateY(-50%);
+          color: $text-secondary;
+        }
+        
+        input {
+          width: 100%;
+          padding: 0.8rem 1rem 0.8rem 2.5rem;
+          background-color: rgba(255, 255, 255, 0.05);
+          border: 1px solid $border-color;
+          border-radius: 4px;
+          color: $text-primary;
+          font-family: 'Roboto Mono', monospace;
+          
+          &:focus {
+            outline: none;
+            border-color: #5f2c82;
+            box-shadow: 0 0 0 2px rgba(95, 44, 130, 0.2);
+          }
+          
+          &::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+          }
+        }
+      }
+      
+      .filter-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        
+        .filter-select {
+          flex: 1;
+          min-width: 200px;
+          
+          label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            color: $text-secondary;
+          }
+          
+          select {
+            width: 100%;
+            padding: 0.7rem;
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid $border-color;
+            border-radius: 4px;
+            color: $text-primary;
+            appearance: none;
+            font-family: 'Roboto Mono', monospace;
+            cursor: pointer;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23b0b0b0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.7rem center;
+            background-size: 1em;
+            
+            &:focus {
+              outline: none;
+              border-color: #5f2c82;
+              box-shadow: 0 0 0 2px rgba(95, 44, 130, 0.2);
+            }
+            
+            option {
+              background-color: #1e1e1e;
+            }
+          }
+        }
+      }
+    }
+    
+    // Empty state
+    .empty-state {
+      @include card;
+      @include flex-center;
+      flex-direction: column;
+      padding: 3rem 1.5rem;
+      text-align: center;
+      
+      i {
+        font-size: 3rem;
+        color: $text-secondary;
+        margin-bottom: 1rem;
+      }
+      
+      h3 {
+        font-size: 1.5rem;
+        margin: 0 0 1rem;
+      }
+      
+      p {
+        color: $text-secondary;
+        margin: 0 0 1.5rem;
+      }
+      
+      .secondary-btn {
+        background-color: transparent;
+        color: $text-primary;
+        border: 1px solid $border-color;
+        padding: 0.8rem 1.5rem;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        
+        &:hover {
+          background-color: rgba(255, 255, 255, 0.05);
+          border-color: #5f2c82;
+        }
+      }
+    }
+    
+    // Table styles
+    .grievances-table-container {
+      @include card;
+      padding: 0;
+      overflow-x: auto;
+      
+      .grievances-table {
+        width: 100%;
+        border-collapse: collapse;
+        
+        th, td {
+          padding: 1rem;
+          text-align: left;
+          border-bottom: 1px solid $border-color;
+        }
+        
+        th {
+          background-color: rgba(0, 0, 0, 0.3);
+          color: $text-secondary;
+          font-weight: 600;
+          font-size: 0.9rem;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        
+        tbody tr {
+          transition: background-color 0.2s ease;
+          
+          &:hover {
+            background-color: rgba(255, 255, 255, 0.03);
+          }
+        }
+        
+        .title-cell {
+          max-width: 200px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        
+        .comments-cell {
+          max-width: 250px;
+          
+          .truncated-text {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+        }
+        
+        .status-badge {
+          display: inline-block;
+          padding: 0.3rem 0.8rem;
+          border-radius: 4px;
+          font-size: 0.8rem;
+          font-weight: 600;
+          text-transform: lowercase;
+          
+          &.validated {
+            background-color: rgba($validated-color, 0.15);
+            color: $validated-color;
+          }
+          
+          &.rejected {
+            background-color: rgba($rejected-color, 0.15);
+            color: $rejected-color;
+          }
+        }
+        
+        .view-btn {
+          background-color: transparent;
+          border: 1px solid $border-color;
+          color: $text-primary;
+          padding: 0.4rem 0.8rem;
+          border-radius: 4px;
+          font-size: 0.8rem;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          
+          &:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-color: #5f2c82;
+          }
+          
+          i {
+            margin-right: 0.3rem;
+          }
+        }
+      }
+    }
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .processed-grievances {
+    padding: 1.5rem 1rem;
+    
+    .page-header {
+      flex-direction: column;
+      align-items: flex-start;
+      
+      .refresh-btn {
+        margin-top: 1rem;
+      }
+    }
+    
+    .grievances-content {
+      .filter-group {
+        flex-direction: column;
+        gap: 0.8rem;
+        
+        .filter-select {
+          min-width: 100%;
+        }
+      }
+      
+      .grievances-table-container {
+        .grievances-table {
+          th, td {
+            padding: 0.8rem 0.5rem;
+            font-size: 0.85rem;
+          }
+        }
+      }
+    }
+  }
+}

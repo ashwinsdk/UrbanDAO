@@ -1,0 +1,184 @@
+<div class="project-details-page">
+  <!-- Header Section -->
+  <header class="page-header">
+    <div class="header-content">
+      <button class="back-btn" (click)="goBack()">
+        <i class="fas fa-arrow-left"></i> Back to Projects
+      </button>
+      <h1 *ngIf="project">{{ project?.title }}</h1>
+    </div>
+    <div class="header-actions">
+      <button class="refresh-btn" (click)="refreshDetails()" [disabled]="loading">
+        <i class="fas fa-sync-alt"></i> Refresh
+      </button>
+      <button *ngIf="canSubmitMilestone()" class="primary-btn" (click)="goToMilestoneForm()">
+        <i class="fas fa-flag"></i> Submit Milestone
+      </button>
+    </div>
+  </header>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading project details...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="!loading && error" class="error-container">
+    <div class="error-icon">
+      <i class="fas fa-exclamation-triangle"></i>
+    </div>
+    <h2>Error</h2>
+    <p>{{ error }}</p>
+    <button class="primary-btn" (click)="refreshDetails()">Try Again</button>
+    <button class="secondary-btn" (click)="goBack()">Go Back</button>
+  </div>
+
+  <!-- Project Details -->
+  <div *ngIf="!loading && !error && project" class="project-content">
+    <!-- Project Summary Card -->
+    <div class="summary-card">
+      <div class="card-header">
+        <h2>Project Summary</h2>
+        <span class="status-badge" [ngClass]="getStatusClass()">
+          {{ project.status }}
+        </span>
+      </div>
+
+      <div class="card-content">
+        <!-- Project Info -->
+        <div class="project-info">
+          <div class="info-row">
+            <div class="label">Project ID:</div>
+            <div class="value">{{ project.id }}</div>
+          </div>
+          <div class="info-row">
+            <div class="label">Area ID:</div>
+            <div class="value">{{ project.areaId }}</div>
+          </div>
+          <div class="info-row">
+            <div class="label">Manager:</div>
+            <div class="value address">{{ formatAddress(project.manager) }}</div>
+          </div>
+          <div class="info-row">
+            <div class="label">Created:</div>
+            <div class="value">{{ formatDate(project.createdAt) }}</div>
+          </div>
+          <div class="info-row">
+            <div class="label">Upvotes:</div>
+            <div class="value">
+              <i class="fas fa-thumbs-up"></i> {{ project.citizenUpvotes }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Funding Info -->
+        <div class="funding-info">
+          <h3>Funding Details</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <div class="label">Goal</div>
+              <div class="value">{{ project.fundingGoal }} ETH</div>
+            </div>
+            <div class="info-item">
+              <div class="label">Escrowed</div>
+              <div class="value">{{ project.escrowed }} ETH</div>
+            </div>
+            <div class="info-item">
+              <div class="label">Released</div>
+              <div class="value">{{ project.released }} ETH</div>
+            </div>
+            <div class="info-item">
+              <div class="label">Remaining</div>
+              <div class="value">{{ project.remainingFunds }} ETH</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Milestone Progress -->
+        <div class="milestone-progress">
+          <h3>Milestone Progress</h3>
+          <div class="milestone-progress">
+          <div class="progress-text">
+            {{ project?.currentMilestone ? (project.currentMilestone - 1) : 0 }} / {{ project?.milestoneCount || 0 }} Completed
+          </div>
+          <div class="progress-bar">
+            <div class="progress" [style.width.%]="calculateProgress()"></div>
+          </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Project Description -->
+    <div class="description-card">
+      <div class="card-header">
+        <h2>Project Description</h2>
+      </div>
+      <div class="card-content">
+        <p class="description-text">{{ project.description }}</p>
+      </div>
+    </div>
+
+    <!-- Milestones -->
+    <div class="milestones-card">
+      <div class="card-header">
+        <h2>Milestones</h2>
+      </div>
+      <div class="card-content">
+        <!-- No Milestones -->
+        <div *ngIf="milestones.length === 0" class="no-milestones">
+          <i class="fas fa-flag"></i>
+          <p>No milestones have been completed yet.</p>
+          <button *ngIf="canSubmitMilestone()" class="primary-btn" (click)="goToMilestoneForm()">
+            Submit First Milestone
+          </button>
+        </div>
+
+        <!-- Milestone List -->
+        <div *ngIf="milestones.length > 0" class="milestone-list">
+          <div *ngFor="let milestone of milestones" class="milestone-item">
+            <div class="milestone-header">
+              <div class="milestone-number">Milestone {{ milestone?.milestoneNumber || 'Unknown' }}</div>
+              <div class="milestone-amount">{{ milestone?.amount || '0' }} ETH</div>
+            </div>
+            <div class="milestone-details">
+              <div class="detail-row">
+                <div class="detail-label">Completed:</div>
+                <div class="detail-value">{{ formatDate(milestone?.completedAt) }}</div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-label">Submitted By:</div>
+                <div class="detail-value">{{ formatAddress(milestone?.submittedBy) }}</div>
+              </div>
+            </div>
+            <div class="milestone-proof">
+              <h4>Proof of Completion</h4>
+              <div class="proof-content">{{ milestone?.proofContent || 'No proof content available' }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions-card" *ngIf="canSubmitMilestone()">
+      <div class="card-header">
+        <h2>Project Actions</h2>
+      </div>
+      <div class="card-content">
+        <div class="action-info">
+          <p *ngIf="project.status === 'FUNDED'">
+            This project has been funded. You can now submit milestones to receive funding.
+          </p>
+          <p *ngIf="project.status === 'IN_PROGRESS'">
+            This project is in progress. Continue submitting milestones as you complete them.
+          </p>
+          <button class="primary-btn full-width" (click)="goToMilestoneForm()">
+            <i class="fas fa-flag"></i> Submit Next Milestone
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

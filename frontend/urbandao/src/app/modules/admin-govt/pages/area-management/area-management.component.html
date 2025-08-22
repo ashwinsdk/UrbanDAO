@@ -1,0 +1,206 @@
+<div class="area-management-container">
+  <h1 class="page-title">Area Management</h1>
+
+  <!-- Loading and error states -->
+  <div class="loading-container" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>Loading areas...</p>
+  </div>
+
+  <div class="error-container" *ngIf="error">
+    <div class="error-message">
+      <i class="fas fa-exclamation-triangle"></i>
+      <p>{{ error }}</p>
+    </div>
+    <button class="btn btn-primary" (click)="loadAreas()">Retry</button>
+  </div>
+
+  <div class="success-container" *ngIf="successMessage">
+    <div class="success-message">
+      <i class="fas fa-check-circle"></i>
+      <p>{{ successMessage }}</p>
+    </div>
+    <button class="btn btn-text" (click)="successMessage = null">Dismiss</button>
+  </div>
+
+  <!-- Area management content -->
+  <div class="area-management-content" *ngIf="!loading && !error">
+    <div class="area-list-container">
+      <div class="list-header">
+        <h2>Areas</h2>
+        <div class="search-container">
+          <input 
+            type="text" 
+            placeholder="Search areas..." 
+            [(ngModel)]="searchQuery" 
+            (input)="filterAreas()"
+            class="search-input"
+          >
+          <button class="search-clear" *ngIf="searchQuery" (click)="clearSearch()">
+            <i class="fas fa-times"></i>
+          </button>
+          <i class="fas fa-search search-icon"></i>
+        </div>
+      </div>
+
+      <!-- Area list -->
+      <div class="area-list">
+        <div class="area-item" 
+             *ngFor="let area of filteredAreas" 
+             [ngClass]="{'selected': selectedArea?.id === area.id}"
+             (click)="selectArea(area)">
+          <div class="area-item-header">
+            <h3>{{ area.name }}</h3>
+            <span class="area-id">ID: {{ area.id }}</span>
+          </div>
+          <div class="area-item-details">
+            <div class="detail-item">
+              <i class="fas fa-users"></i>
+              <span>{{ area.citizenCount }} Citizens</span>
+            </div>
+            <div class="detail-item">
+              <i class="fas fa-user-tie"></i>
+              <span *ngIf="area.adminHead !== '0x0000000000000000000000000000000000000000'">
+                {{ area.adminHeadName || 'Admin Head' }} ({{ formatAddress(area.adminHead) }})
+              </span>
+              <span *ngIf="area.adminHead === '0x0000000000000000000000000000000000000000'" class="no-admin">
+                No Admin Head
+              </span>
+            </div>
+            <div class="detail-item">
+              <i class="fas fa-clock"></i>
+              <span>Created: {{ formatTimestamp(area.createdAt) }}</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Empty state for area list -->
+        <div class="empty-state" *ngIf="areas.length === 0">
+          <i class="fas fa-map-marked-alt"></i>
+          <p>No areas have been created yet</p>
+        </div>
+        
+        <!-- No search results -->
+        <div class="empty-state" *ngIf="areas.length > 0 && filteredAreas.length === 0">
+          <i class="fas fa-search"></i>
+          <p>No areas match your search</p>
+          <button class="btn btn-text" (click)="clearSearch()">Clear search</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="area-details-container">
+      <!-- Create new area form -->
+      <div class="create-area-container" *ngIf="!selectedArea">
+        <h2>Create New Area</h2>
+        <p class="description">Create a new geographical area that will be managed by an Admin Head.</p>
+        
+        <form [formGroup]="createAreaForm" (ngSubmit)="createArea()">
+          <div class="form-group">
+            <label for="areaName">Area Name</label>
+            <input 
+              type="text" 
+              id="areaName" 
+              formControlName="areaName" 
+              placeholder="Enter area name"
+              [ngClass]="{'invalid': createAreaForm.get('areaName')?.invalid && createAreaForm.get('areaName')?.touched}"
+            >
+            <div class="validation-error" *ngIf="createAreaForm.get('areaName')?.invalid && createAreaForm.get('areaName')?.touched">
+              <span *ngIf="createAreaForm.get('areaName')?.errors?.['required']">Area name is required</span>
+              <span *ngIf="createAreaForm.get('areaName')?.errors?.['minlength']">Area name must be at least 3 characters</span>
+              <span *ngIf="createAreaForm.get('areaName')?.errors?.['maxlength']">Area name cannot exceed 50 characters</span>
+            </div>
+          </div>
+          
+          <button 
+            type="submit" 
+            class="btn btn-primary" 
+            [disabled]="createAreaForm.invalid || creating">
+            <span *ngIf="!creating">Create Area</span>
+            <span *ngIf="creating">
+              <div class="btn-spinner"></div>
+              Creating...
+            </span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Selected area details and admin assignment -->
+      <div class="selected-area-container" *ngIf="selectedArea">
+        <div class="selected-area-header">
+          <h2>{{ selectedArea.name }}</h2>
+          <button class="btn btn-text" (click)="clearSelectedArea()">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        
+        <div class="area-detail-stats">
+          <div class="detail-stat">
+            <span class="label">Area ID:</span>
+            <span class="value">{{ selectedArea.id }}</span>
+          </div>
+          <div class="detail-stat">
+            <span class="label">Created:</span>
+            <span class="value">{{ formatTimestamp(selectedArea.createdAt) }}</span>
+          </div>
+          <div class="detail-stat">
+            <span class="label">Citizens:</span>
+            <span class="value">{{ selectedArea.citizenCount }}</span>
+          </div>
+          <div class="detail-stat">
+            <span class="label">Current Admin Head:</span>
+            <span class="value" *ngIf="selectedArea.adminHead !== '0x0000000000000000000000000000000000000000'">
+              {{ selectedArea.adminHeadName || 'Unknown' }} ({{ selectedArea.adminHead }})
+            </span>
+            <span class="value no-admin" *ngIf="selectedArea.adminHead === '0x0000000000000000000000000000000000000000'">
+              No Admin Head assigned
+            </span>
+          </div>
+        </div>
+        
+        <div class="admin-head-assignment">
+          <h3>Assign Admin Head</h3>
+          <p class="description">Assign an Admin Head to this area. This address will be granted the Admin Head role if they don't already have it.</p>
+          
+          <form [formGroup]="assignAdminForm" (ngSubmit)="assignAdminHead()">
+            <div class="form-group">
+              <label for="adminAddress">Admin Head Address</label>
+              <input 
+                type="text" 
+                id="adminAddress" 
+                formControlName="adminAddress" 
+                placeholder="Enter Ethereum address (0x...)"
+                [ngClass]="{'invalid': assignAdminForm.get('adminAddress')?.invalid && assignAdminForm.get('adminAddress')?.touched}"
+              >
+              <div class="validation-error" *ngIf="assignAdminForm.get('adminAddress')?.invalid && assignAdminForm.get('adminAddress')?.touched">
+                <span *ngIf="assignAdminForm.get('adminAddress')?.errors?.['required']">Admin address is required</span>
+                <span *ngIf="assignAdminForm.get('adminAddress')?.errors?.['pattern']">Invalid Ethereum address format</span>
+              </div>
+            </div>
+            
+            <div class="button-group">
+              <button 
+                type="submit" 
+                class="btn btn-primary" 
+                [disabled]="assignAdminForm.invalid || creating">
+                <span *ngIf="!creating">Assign Admin Head</span>
+                <span *ngIf="creating">
+                  <div class="btn-spinner"></div>
+                  Assigning...
+                </span>
+              </button>
+              
+              <button 
+                type="button" 
+                class="btn btn-danger" 
+                [disabled]="selectedArea.adminHead === '0x0000000000000000000000000000000000000000' || creating"
+                (click)="removeAdminHead()">
+                Remove Admin Head
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,247 @@
+<div class="grievance-container">
+  <!-- Back Navigation -->
+  <div class="back-nav">
+    <button class="back-btn" (click)="navigateBack()">
+      <i class="fas fa-arrow-left"></i> Back
+    </button>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading grievance data...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="!loading && error" class="error-container">
+    <div class="error-icon">
+      <i class="fas fa-exclamation-triangle"></i>
+    </div>
+    <h2>Error</h2>
+    <p>{{ error }}</p>
+    <button class="primary-btn" (click)="grievanceId ? loadGrievanceDetails(grievanceId) : loadAdminAreaId()">
+      Try Again
+    </button>
+  </div>
+
+  <!-- List View (shown when no grievanceId is provided) -->
+  <ng-container *ngIf="!loading && !error && !grievanceId">
+    <div class="grievances-list-view">
+      <header class="list-header">
+        <h1>Grievance Management</h1>
+        <div class="filters">
+          <div class="filter-group">
+            <label for="status-filter">Status:</label>
+            <select id="status-filter" #statusFilter (change)="filterGrievances(statusFilter.value)">
+              <option value="all">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="validated">Validated</option>
+              <option value="rejected">Rejected</option>
+              <option value="escalated">Escalated</option>
+              <option value="resolved">Resolved</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="sort-by">Sort by:</label>
+            <select id="sort-by" #sortBy (change)="sortGrievances(sortBy.value)">
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="severity_high">Highest Severity</option>
+              <option value="severity_low">Lowest Severity</option>
+              <option value="recently_updated">Recently Updated</option>
+            </select>
+          </div>
+        </div>
+      </header>
+
+      <!-- Empty State -->
+      <div *ngIf="filteredGrievances.length === 0" class="empty-state">
+        <i class="fas fa-inbox"></i>
+        <p>No grievances found matching your criteria</p>
+      </div>
+
+      <!-- Grievance List -->
+      <div *ngIf="filteredGrievances.length > 0" class="grievance-list">
+        <div *ngFor="let grievance of filteredGrievances" class="grievance-card" (click)="navigateToGrievance(grievance.id)">
+          <div class="grievance-header">
+            <div class="grievance-id">#{{ grievance.id }}</div>
+            <div class="grievance-status" [ngClass]="grievance.status.toLowerCase()">
+              {{ grievance.status }}
+            </div>
+          </div>
+          <div class="grievance-title">{{ grievance.title }}</div>
+          <div class="grievance-meta">
+            <div class="meta-item">
+              <i class="fas fa-user"></i>
+              <span>{{ formatAddress(grievance.citizenAddress) }}</span>
+            </div>
+            <div class="meta-item">
+              <i class="fas fa-calendar-alt"></i>
+              <span>{{ formatDate(grievance.createdAt) }}</span>
+            </div>
+            <div class="meta-item severity">
+              <i class="fas fa-exclamation-triangle"></i>
+              <span>Level {{ grievance.severityLevel }}</span>
+            </div>
+            <div class="meta-item area">
+              <i class="fas fa-map-marker-alt"></i>
+              <span>Area {{ grievance.area }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- Detail View (shown when grievanceId is provided) -->
+  <ng-container *ngIf="!loading && !error && grievanceId && grievance">
+    <div class="grievance-detail-view">
+      <header class="detail-header">
+        <h1>
+          Grievance #{{ grievance.id }}
+          <span class="status-badge" [ngClass]="grievance.status.toLowerCase()">{{ grievance.status }}</span>
+        </h1>
+      </header>
+
+      <!-- Success Message -->
+      <div *ngIf="success" class="success-message">
+        <i class="fas fa-check-circle"></i>
+        <p>{{ success }}</p>
+        <button class="close-btn" (click)="success = null">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <!-- Grievance Details -->
+      <div class="detail-section">
+        <div class="detail-card">
+          <div class="card-header">
+            <h2>Grievance Details</h2>
+          </div>
+          <div class="card-content">
+            <div class="detail-row">
+              <div class="detail-label">Title</div>
+              <div class="detail-value">{{ grievance.title }}</div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Citizen</div>
+              <div class="detail-value citizen-address">{{ grievance.citizen }}</div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Area</div>
+              <div class="detail-value">{{ grievance.area }}</div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Severity Level</div>
+              <div class="detail-value">
+                <span class="severity-level" [ngClass]="'level-' + grievance.severityLevel">
+                  Level {{ grievance.severityLevel }}
+                </span>
+              </div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Created</div>
+              <div class="detail-value">{{ formatDate(grievance.createdAt) }}</div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Last Updated</div>
+              <div class="detail-value">{{ formatDate(grievance.lastUpdated) }}</div>
+            </div>
+            <div class="detail-row description">
+              <div class="detail-label">Description</div>
+              <div class="detail-value description-text">{{ grievance.description }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- History Records would go here, if available from the contract -->
+
+        <!-- Admin Actions Form -->
+        <div *ngIf="grievance.status === 'VALIDATED' || grievance.status === 'PENDING'" class="action-card">
+          <div class="card-header">
+            <h2>Admin Actions</h2>
+          </div>
+          <div class="card-content">
+            <form [formGroup]="actionForm" (ngSubmit)="submitAction()">
+              <!-- Action Type Selection -->
+              <div class="form-group">
+                <label for="action-type">Select Action:</label>
+                <select 
+                  id="action-type" 
+                  formControlName="action"
+                  (change)="changeActionType($event)"
+                  [class.invalid]="actionForm.get('action')?.invalid && actionForm.get('action')?.touched"
+                >
+                  <option value="" disabled selected>Select an action...</option>
+                  <option *ngIf="grievance.status === 'VALIDATED'" value="escalate_to_project">Escalate to Project</option>
+                  <option *ngIf="grievance.status === 'VALIDATED'" value="reject">Reject Grievance</option>
+                </select>
+                <div *ngIf="actionForm.get('action')?.invalid && actionForm.get('action')?.touched" class="error-message">
+                  Please select an action
+                </div>
+              </div>
+
+              <!-- Project Manager Address (only for escalate_to_project) -->
+              <div *ngIf="actionForm.get('action')?.value === 'escalate_to_project'" class="form-group">
+                <label for="project-manager">Project Manager Address:</label>
+                <input 
+                  type="text" 
+                  id="project-manager" 
+                  formControlName="projectManagerAddress"
+                  placeholder="0x..."
+                  [class.invalid]="actionForm.get('projectManagerAddress')?.invalid && actionForm.get('projectManagerAddress')?.touched"
+                >
+                <div *ngIf="actionForm.get('projectManagerAddress')?.invalid && actionForm.get('projectManagerAddress')?.touched" class="error-message">
+                  Valid Ethereum address required
+                </div>
+              </div>
+
+              <!-- Priority Level (only for escalate_to_project) -->
+              <div *ngIf="actionForm.get('action')?.value === 'escalate_to_project'" class="form-group">
+                <label for="priority-level">Priority Level (1-5):</label>
+                <input 
+                  type="number" 
+                  id="priority-level" 
+                  formControlName="priorityLevel"
+                  min="1" 
+                  max="5"
+                  [class.invalid]="actionForm.get('priorityLevel')?.invalid && actionForm.get('priorityLevel')?.touched"
+                >
+                <div *ngIf="actionForm.get('priorityLevel')?.invalid && actionForm.get('priorityLevel')?.touched" class="error-message">
+                  Priority must be between 1-5
+                </div>
+              </div>
+
+              <!-- Feedback / Comments -->
+              <div class="form-group">
+                <label for="feedback">Feedback / Comments:</label>
+                <textarea 
+                  id="feedback" 
+                  formControlName="feedback"
+                  rows="4"
+                  placeholder="Provide detailed feedback or reason for this action..."
+                  [class.invalid]="actionForm.get('feedback')?.invalid && actionForm.get('feedback')?.touched"
+                ></textarea>
+                <div *ngIf="actionForm.get('feedback')?.invalid && actionForm.get('feedback')?.touched" class="error-message">
+                  Please provide feedback (minimum 10 characters)
+                </div>
+              </div>
+
+              <!-- Submit Button -->
+              <div class="form-actions">
+                <button 
+                  type="submit" 
+                  class="primary-btn" 
+                  [disabled]="actionForm.invalid || loadingAction"
+                >
+                  <span *ngIf="!loadingAction">Submit Action</span>
+                  <span *ngIf="loadingAction" class="spinner-inline"></span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+</div>

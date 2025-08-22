@@ -1,0 +1,149 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "citizen",
+        "type": "address"
+      }
+    ],
+    "name": "getTaxAssessmentCountForCitizen",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "citizen",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "index",
+        "type": "uint256"
+      }
+    ],
+    "name": "getCitizenTaxAssessmentIdAtIndex",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "assessmentId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getTaxAssessment",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint16",
+            "name": "year",
+            "type": "uint16"
+          },
+          {
+            "internalType": "bool",
+            "name": "paid",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "dueDate",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "citizen",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "receiptId",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct TaxModule.TaxAssessment",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "citizen",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint16",
+        "name": "year",
+        "type": "uint16"
+      },
+      {
+        "internalType": "uint256",
+        "name": "dueDate",
+        "type": "uint256"
+      }
+    ],
+    "name": "assessTax",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "assessmentId",
+        "type": "uint256"
+      }
+    ],
+    "name": "payTax",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

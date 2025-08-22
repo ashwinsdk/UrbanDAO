@@ -1,0 +1,410 @@
+@import '../../../../../styles/variables';
+@import '../../../../../styles/mixins';
+
+.area-management-container {
+  width: 100%;
+  padding: 20px;
+  
+  .page-title {
+    margin-bottom: 24px;
+    color: $text-color-primary;
+    font-size: 28px;
+  }
+}
+
+// Loading, Error and Success states
+.loading-container, .error-container, .success-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  margin: 16px 0;
+  background-color: $bg-card;
+  border-radius: $border-radius;
+  
+  .spinner {
+    width: 36px;
+    height: 36px;
+    border: 4px solid rgba($primary-color, 0.3);
+    border-radius: 50%;
+    border-top-color: $primary-color;
+    animation: spin 1s infinite linear;
+    margin-bottom: 16px;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+}
+
+.error-container {
+  border-left: 4px solid $error-color;
+  
+  .error-message {
+    display: flex;
+    align-items: center;
+    margin-bottom: 16px;
+    
+    i {
+      color: $error-color;
+      margin-right: 12px;
+      font-size: 24px;
+    }
+  }
+}
+
+.success-container {
+  border-left: 4px solid $success-color;
+  
+  .success-message {
+    display: flex;
+    align-items: center;
+    margin-bottom: 16px;
+    
+    i {
+      color: $success-color;
+      margin-right: 12px;
+      font-size: 24px;
+    }
+  }
+}
+
+// Area management content
+.area-management-content {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 24px;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// Area list
+.area-list-container {
+  background-color: $bg-card;
+  border-radius: $border-radius;
+  padding: 16px;
+  
+  .list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba($text-color-secondary, 0.1);
+    
+    h2 {
+      font-size: 20px;
+      margin: 0;
+      color: $text-color-primary;
+    }
+    
+    .search-container {
+      position: relative;
+      width: 200px;
+      
+      .search-input {
+        width: 100%;
+        padding: 8px 32px 8px 36px;
+        border: 1px solid rgba($text-color-secondary, 0.2);
+        border-radius: 20px;
+        background-color: darken($bg-card, 3%);
+        color: $text-color-primary;
+        
+        &:focus {
+          outline: none;
+          border-color: $primary-color;
+          box-shadow: 0 0 0 2px rgba($primary-color, 0.2);
+        }
+      }
+      
+      .search-icon {
+        position: absolute;
+        left: 12px;
+        top: 10px;
+        color: $text-color-secondary;
+        font-size: 14px;
+      }
+      
+      .search-clear {
+        position: absolute;
+        right: 10px;
+        top: 8px;
+        background: none;
+        border: none;
+        color: $text-color-secondary;
+        cursor: pointer;
+        
+        &:hover {
+          color: $text-color-primary;
+        }
+      }
+    }
+  }
+  
+  .area-list {
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+    
+    .area-item {
+      padding: 16px;
+      border-radius: $border-radius;
+      background-color: darken($bg-card, 3%);
+      margin-bottom: 12px;
+      cursor: pointer;
+      transition: transform 0.2s ease, background-color 0.2s ease;
+      border-left: 4px solid transparent;
+      
+      &:hover {
+        background-color: darken($bg-card, 5%);
+      }
+      
+      &.selected {
+        border-left-color: $primary-color;
+        background-color: darken($bg-card, 6%);
+      }
+      
+      .area-item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        
+        h3 {
+          margin: 0;
+          color: $text-color-primary;
+          font-size: 16px;
+        }
+        
+        .area-id {
+          background-color: rgba($primary-color, 0.15);
+          padding: 4px 8px;
+          border-radius: 12px;
+          font-size: 12px;
+          color: $primary-color;
+        }
+      }
+      
+      .area-item-details {
+        .detail-item {
+          display: flex;
+          align-items: center;
+          margin-bottom: 8px;
+          font-size: 14px;
+          
+          &:last-child {
+            margin-bottom: 0;
+          }
+          
+          i {
+            color: $text-color-secondary;
+            margin-right: 8px;
+            width: 16px;
+            text-align: center;
+          }
+          
+          .no-admin {
+            color: $warning-color;
+          }
+        }
+      }
+    }
+  }
+}
+
+// Empty state
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  
+  i {
+    font-size: 36px;
+    color: $text-color-secondary;
+    margin-bottom: 16px;
+  }
+  
+  p {
+    color: $text-color-secondary;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+}
+
+// Area details
+.area-details-container {
+  background-color: $bg-card;
+  border-radius: $border-radius;
+  padding: 24px;
+  
+  .create-area-container, .selected-area-container {
+    h2 {
+      font-size: 20px;
+      color: $text-color-primary;
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+    
+    .description {
+      color: $text-color-secondary;
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+  }
+  
+  .selected-area-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    border-bottom: 1px solid rgba($text-color-secondary, 0.1);
+    padding-bottom: 16px;
+  }
+  
+  .area-detail-stats {
+    background-color: darken($bg-card, 3%);
+    padding: 16px;
+    border-radius: $border-radius;
+    margin-bottom: 24px;
+    
+    .detail-stat {
+      display: flex;
+      margin-bottom: 12px;
+      
+      &:last-child {
+        margin-bottom: 0;
+      }
+      
+      .label {
+        width: 140px;
+        color: $text-color-secondary;
+        font-weight: 500;
+      }
+      
+      .value {
+        color: $text-color-primary;
+        word-break: break-word;
+        
+        &.no-admin {
+          color: $warning-color;
+        }
+      }
+    }
+  }
+  
+  .admin-head-assignment {
+    h3 {
+      font-size: 18px;
+      color: $text-color-primary;
+      margin-bottom: 8px;
+    }
+  }
+}
+
+// Forms
+form {
+  .form-group {
+    margin-bottom: 24px;
+    
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: $text-color-primary;
+      font-weight: 500;
+    }
+    
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid rgba($text-color-secondary, 0.3);
+      border-radius: $border-radius;
+      background-color: darken($bg-card, 3%);
+      color: $text-color-primary;
+      
+      &:focus {
+        outline: none;
+        border-color: $primary-color;
+      }
+      
+      &.invalid {
+        border-color: $error-color;
+      }
+    }
+    
+    .validation-error {
+      color: $error-color;
+      font-size: 12px;
+      margin-top: 6px;
+    }
+  }
+  
+  .button-group {
+    display: flex;
+    gap: 12px;
+  }
+}
+
+// Buttons
+.btn {
+  padding: 10px 20px;
+  border-radius: $border-radius;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+  
+  .btn-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 1s infinite linear;
+    margin-right: 8px;
+  }
+}
+
+.btn-primary {
+  background-color: $primary-color;
+  color: $bg-dark;
+  
+  &:hover:not(:disabled) {
+    background-color: lighten($primary-color, 5%);
+  }
+}
+
+.btn-danger {
+  background-color: $error-color;
+  color: #fff;
+  
+  &:hover:not(:disabled) {
+    background-color: lighten($error-color, 5%);
+  }
+}
+
+.btn-text {
+  background: none;
+  color: $text-color-secondary;
+  padding: 6px 12px;
+  
+  &:hover:not(:disabled) {
+    color: $text-color-primary;
+    background-color: rgba($text-color-secondary, 0.1);
+  }
+}

@@ -1,0 +1,161 @@
+<div class="grievance-detail-container">
+  <div class="back-navigation">
+    <button (click)="goBack()" class="btn-back">
+      <span class="icon">←</span> Back to Grievances
+    </button>
+  </div>
+
+  <!-- Loading state -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading grievance details...</p>
+  </div>
+
+  <!-- Error state -->
+  <div *ngIf="error && !loading" class="error-container">
+    <div class="error-icon">✕</div>
+    <h3>Error Loading Grievance</h3>
+    <p>{{ error }}</p>
+    <button class="btn-secondary" (click)="fetchGrievanceDetails()">Try Again</button>
+  </div>
+
+  <!-- Grievance details -->
+  <div *ngIf="!loading && !error && grievance" class="grievance-content">
+    <header class="grievance-header">
+      <div class="title-section">
+        <h1>{{ grievance.title }}</h1>
+        <div class="header-meta">
+          <div class="meta-item">
+            <span class="meta-label">ID:</span>
+            <span class="meta-value">{{ grievance.id }}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Filed on:</span>
+            <span class="meta-value">{{ formatDate(grievance.createdAt) }}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Type:</span>
+            <span class="meta-value">{{ grievance.type }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="status-badge" [ngClass]="getStatusClass(grievance.status)">
+        {{ getStatusLabel(grievance.status) }}
+      </div>
+    </header>
+
+    <div class="grievance-sections">
+      <div class="grievance-main-section">
+        <div class="info-card">
+          <h2>Description</h2>
+          <p class="description">{{ grievance.description }}</p>
+          
+          <div class="location">
+            <h3>Location</h3>
+            <p>{{ grievance.location }}</p>
+          </div>
+          
+          <div *ngIf="grievance.images && grievance.images.length > 0" class="images-section">
+            <h3>Evidence Images</h3>
+            <div class="image-gallery">
+              <div *ngFor="let image of grievance.images" class="image-item">
+                <!-- In a real app, this would load from IPFS -->
+                <img [src]="'https://via.placeholder.com/300x200?text=Image+Evidence'" alt="Grievance evidence">
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div *ngIf="grievance.status !== 'pending'" class="info-card">
+          <h2>Resolution Progress</h2>
+          
+          <div *ngIf="grievance.status === 'validated'" class="progress-info">
+            <div class="progress-icon validated">✓</div>
+            <div class="progress-text">
+              <h3>Grievance Validated</h3>
+              <p>Your grievance has been reviewed and validated. It will be assigned to the appropriate department soon.</p>
+            </div>
+          </div>
+          
+          <div *ngIf="grievance.status === 'assigned'" class="progress-info">
+            <div class="progress-icon assigned">→</div>
+            <div class="progress-text">
+              <h3>In Progress</h3>
+              <p>Your grievance has been assigned to {{ grievance.assignedTo ? formatAddress(grievance.assignedTo) : 'a department' }} for resolution.</p>
+            </div>
+          </div>
+          
+          <div *ngIf="grievance.status === 'resolved'" class="progress-info">
+            <div class="progress-icon resolved">✓</div>
+            <div class="progress-text">
+              <h3>Resolved</h3>
+              <p>
+                Your grievance was resolved on {{ grievance.resolvedAt ? formatDate(grievance.resolvedAt) : 'N/A' }}
+                {{ grievance.resolvedBy ? ' by ' + formatAddress(grievance.resolvedBy) : '' }}.
+              </p>
+            </div>
+          </div>
+          
+          <div *ngIf="grievance.status === 'rejected'" class="progress-info">
+            <div class="progress-icon rejected">✕</div>
+            <div class="progress-text">
+              <h3>Rejected</h3>
+              <p>Your grievance has been reviewed but could not be processed. Please check the comments for more information.</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="info-card">
+          <h2>Comments</h2>
+          
+          <div *ngIf="grievance.comments && grievance.comments.length > 0" class="comments-section">
+            <div *ngFor="let comment of grievance.comments" class="comment-item">
+              <div class="comment-header">
+                <div class="comment-author">{{ formatAddress(comment.author) }}</div>
+                <div class="comment-role">{{ comment.role }}</div>
+                <div class="comment-time">{{ formatDateTime(comment.timestamp) }}</div>
+              </div>
+              <div class="comment-content">
+                {{ comment.text }}
+              </div>
+            </div>
+          </div>
+          
+          <div *ngIf="!grievance.comments || grievance.comments.length === 0" class="no-comments">
+            <p>No comments yet.</p>
+          </div>
+          
+          <div class="add-comment">
+            <textarea [(ngModel)]="newComment" placeholder="Add your comment..." rows="3"></textarea>
+            <button (click)="submitComment()" class="btn-primary" [disabled]="!newComment.trim() || isSubmittingComment">
+              <span class="spinner" *ngIf="isSubmittingComment"></span>
+              {{ isSubmittingComment ? 'Submitting...' : 'Add Comment' }}
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="grievance-sidebar">
+        <div class="info-card">
+          <h2>Status History</h2>
+          
+          <div class="status-timeline">
+            <div *ngFor="let event of grievance.statusHistory; let i = index" class="timeline-item">
+              <div class="timeline-marker" [ngClass]="getStatusClass(event.status)"></div>
+              <div class="timeline-content">
+                <div class="timeline-time">{{ formatDateTime(event.timestamp) }}</div>
+                <div class="timeline-title">{{ getStatusLabel(event.status) }}</div>
+                <div *ngIf="event.actor" class="timeline-actor">By: {{ formatAddress(event.actor) }}</div>
+                <div *ngIf="event.comment" class="timeline-comment">{{ event.comment }}</div>
+              </div>
+            </div>
+          </div>
+          
+          <div *ngIf="!grievance.statusHistory || grievance.statusHistory.length === 0" class="empty-timeline">
+            <p>No status updates yet.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

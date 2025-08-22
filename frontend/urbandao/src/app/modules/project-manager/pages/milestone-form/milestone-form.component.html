@@ -1,0 +1,126 @@
+<div class="milestone-form-page">
+  <!-- Header Section -->
+  <header class="page-header">
+    <div class="header-content">
+      <button class="back-btn" (click)="goToProjectDetails()">
+        <i class="fas fa-arrow-left"></i> Back to Project
+      </button>
+      <h1 *ngIf="project">Submit Milestone: {{ project.title }}</h1>
+    </div>
+  </header>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading project details...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="!loading && error && !project" class="error-container">
+    <div class="error-icon">
+      <i class="fas fa-exclamation-triangle"></i>
+    </div>
+    <h2>Error</h2>
+    <p>{{ error }}</p>
+    <button class="secondary-btn" (click)="goToProjectDetails()">Go Back</button>
+  </div>
+
+  <!-- Form Content -->
+  <div *ngIf="!loading && !error && project" class="form-content">
+    <div class="form-card">
+      <div class="card-header">
+        <h2>Submit Milestone Completion</h2>
+      </div>
+      
+      <div class="card-content">
+        <!-- Project Summary -->
+        <div class="project-summary">
+          <div class="summary-item">
+            <div class="label">Project ID</div>
+            <div class="value">{{ project.id }}</div>
+          </div>
+          <div class="summary-item">
+            <div class="label">Status</div>
+            <div class="value status" [ngClass]="project.status.toLowerCase().replace('_', '-')">
+              {{ project.status }}
+            </div>
+          </div>
+          <div class="summary-item">
+            <div class="label">Current Milestone</div>
+            <div class="value">{{ project.currentMilestone }}</div>
+          </div>
+          <div class="summary-item">
+            <div class="label">Remaining Funds</div>
+            <div class="value">{{ project.remainingFunds }} ETH</div>
+          </div>
+        </div>
+        
+        <!-- Milestone Form -->
+        <form [formGroup]="milestoneForm" (ngSubmit)="onSubmit()" class="milestone-form">
+          <!-- Success Message -->
+          <div *ngIf="success" class="success-message">
+            <i class="fas fa-check-circle"></i>
+            <p>{{ success }}</p>
+          </div>
+          
+          <!-- Error Message -->
+          <div *ngIf="error && project" class="form-error">
+            <i class="fas fa-exclamation-circle"></i>
+            <p>{{ error }}</p>
+          </div>
+          
+          <!-- Milestone Number -->
+          <div class="form-group">
+            <label for="milestoneNumber">Milestone Number</label>
+            <input type="text" id="milestoneNumber" formControlName="milestoneNumber" class="form-control" readonly>
+            <small class="form-text">This is the current milestone number being submitted.</small>
+          </div>
+          
+          <!-- Amount -->
+          <div class="form-group">
+            <label for="amount">Amount (ETH)</label>
+            <input type="number" id="amount" formControlName="amount" class="form-control" step="0.0001" min="0.0001" [max]="project.remainingFunds">
+            <small class="form-text">The amount of ETH to be released for this milestone (max: {{ project.remainingFunds }} ETH)</small>
+            <div *ngIf="milestoneForm.get('amount')?.invalid && (milestoneForm.get('amount')?.dirty || milestoneForm.get('amount')?.touched)" class="error-text">
+              <span *ngIf="milestoneForm.get('amount')?.errors?.['required']">Amount is required.</span>
+              <span *ngIf="milestoneForm.get('amount')?.errors?.['min']">Amount must be at least 0.0001 ETH.</span>
+            </div>
+          </div>
+          
+          <!-- Proof Content -->
+          <div class="form-group">
+            <label for="proofContent">Proof of Completion</label>
+            <textarea id="proofContent" formControlName="proofContent" class="form-control" rows="10" placeholder="Provide detailed proof of milestone completion..."></textarea>
+            <small class="form-text">Describe what you've accomplished in this milestone and provide any relevant links or evidence.</small>
+            <div *ngIf="milestoneForm.get('proofContent')?.invalid && (milestoneForm.get('proofContent')?.dirty || milestoneForm.get('proofContent')?.touched)" class="error-text">
+              <span *ngIf="milestoneForm.get('proofContent')?.errors?.['required']">Proof content is required.</span>
+              <span *ngIf="milestoneForm.get('proofContent')?.errors?.['minlength']">Proof content must be at least 10 characters.</span>
+            </div>
+          </div>
+          
+          <!-- Form Actions -->
+          <div class="form-actions">
+            <button type="button" class="secondary-btn" (click)="goToProjectDetails()">Cancel</button>
+            <button type="submit" class="primary-btn" [disabled]="milestoneForm.invalid || submitting">
+              <div *ngIf="submitting" class="button-spinner"></div>
+              <span *ngIf="!submitting">Submit Milestone</span>
+              <span *ngIf="submitting">Submitting...</span>
+            </button>
+          </div>
+        </form>
+        
+        <!-- Submission Information -->
+        <div class="submission-info">
+          <h3>Important Information</h3>
+          <p>When you submit a milestone:</p>
+          <ul>
+            <li>Your proof will be stored on IPFS, making it permanently accessible.</li>
+            <li>The specified amount will be immediately released to your wallet address.</li>
+            <li>The project status will update to 'IN_PROGRESS' if this is the first milestone.</li>
+            <li>You cannot modify a milestone after submission, so please verify all details.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

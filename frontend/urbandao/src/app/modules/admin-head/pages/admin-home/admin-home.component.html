@@ -1,0 +1,195 @@
+<div class="admin-dashboard">
+  <!-- Header Section -->
+  <header class="dashboard-header">
+    <div class="header-content">
+      <h1>Admin Head Dashboard</h1>
+      <p *ngIf="areaId">Area ID: <span class="area-id">{{ areaId }}</span></p>
+    </div>
+    <div class="header-actions">
+      <button class="refresh-btn" (click)="refreshData()" [disabled]="loading">
+        <i class="fas fa-sync-alt"></i> Refresh
+      </button>
+    </div>
+  </header>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading admin data...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="!loading && error" class="error-container">
+    <div class="error-icon">
+      <i class="fas fa-exclamation-triangle"></i>
+    </div>
+    <h2>Error</h2>
+    <p>{{ error }}</p>
+    <button class="primary-btn" (click)="refreshData()">Try Again</button>
+  </div>
+
+  <!-- Dashboard Content -->
+  <div *ngIf="!loading && !error && areaData" class="dashboard-content">
+    <!-- Summary Cards Row -->
+    <div class="summary-cards">
+      <!-- Area Summary Card -->
+      <div class="summary-card">
+        <div class="card-header">
+          <h2>Area Overview</h2>
+        </div>
+        <div class="card-content">
+          <div class="stat-item">
+            <div class="stat-value">{{ areaData.citizenCount }}</div>
+            <div class="stat-label">Citizens</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value">{{ areaData.grievanceCount }}</div>
+            <div class="stat-label">Grievances</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value">{{ areaData.validators }}</div>
+            <div class="stat-label">Validators</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value">{{ areaData.taxCollectors }}</div>
+            <div class="stat-label">Tax Collectors</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value">{{ areaData.projectManagers }}</div>
+            <div class="stat-label">Project Managers</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grievance Stats Card -->
+      <div class="summary-card">
+        <div class="card-header">
+          <h2>Grievance Statistics</h2>
+        </div>
+        <div class="card-content">
+          <div class="stat-grid">
+            <div class="stat-item">
+              <div class="stat-value pending">{{ grievanceSummary.pending }}</div>
+              <div class="stat-label">Pending</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value validated">{{ grievanceSummary.validated }}</div>
+              <div class="stat-label">Validated</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value rejected">{{ grievanceSummary.rejected }}</div>
+              <div class="stat-label">Rejected</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value resolved">{{ grievanceSummary.resolved }}</div>
+              <div class="stat-label">Resolved</div>
+            </div>
+            <div class="stat-item total">
+              <div class="stat-value">{{ grievanceSummary.total }}</div>
+              <div class="stat-label">Total</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions Card -->
+      <div class="summary-card actions-card">
+        <div class="card-header">
+          <h2>Quick Actions</h2>
+        </div>
+        <div class="card-content">
+          <div class="action-buttons">
+            <button class="action-button" (click)="navigateToGrievances()">
+              <i class="fas fa-exclamation-circle"></i>
+              <span>Manage Grievances</span>
+            </button>
+            <button class="action-button" (click)="navigateToProjects()">
+              <i class="fas fa-project-diagram"></i>
+              <span>Project Allocation</span>
+            </button>
+            <button class="action-button" (click)="navigateToManageRoles()">
+              <i class="fas fa-user-shield"></i>
+              <span>Manage Roles</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detail Cards Row -->
+    <div class="detail-cards">
+      <!-- Recent Grievances Card -->
+      <div class="detail-card">
+        <div class="card-header">
+          <h2>Recent Grievances</h2>
+          <button class="view-all-btn" (click)="navigateToGrievances()">View All</button>
+        </div>
+        <div class="card-content">
+          <div *ngIf="recentGrievances.length === 0" class="empty-state">
+            <i class="fas fa-inbox"></i>
+            <p>No grievances found in this area</p>
+          </div>
+          <div *ngIf="recentGrievances.length > 0" class="grievance-list">
+            <div *ngFor="let grievance of recentGrievances" class="grievance-item">
+              <div class="grievance-header">
+                <div class="grievance-id">#{{ grievance.id }}</div>
+                <div class="grievance-status" [ngClass]="grievance.status.toLowerCase()">
+                  {{ grievance.status }}
+                </div>
+              </div>
+              <div class="grievance-title">{{ grievance.title }}</div>
+              <div class="grievance-meta">
+                <div class="meta-item">
+                  <i class="fas fa-user"></i>
+                  <span>{{ formatAddress(grievance.citizenAddress) }}</span>
+                </div>
+                <div class="meta-item">
+                  <i class="fas fa-calendar-alt"></i>
+                  <span>{{ formatDate(grievance.createdAt) }}</span>
+                </div>
+                <div class="meta-item severity">
+                  <i class="fas fa-exclamation-triangle"></i>
+                  <span>Level {{ grievance.severityLevel }}</span>
+                </div>
+              </div>
+              <button class="view-btn" [routerLink]="['/admin-head/grievances', grievance.id]">
+                View Details
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pending Roles Card -->
+      <div class="detail-card">
+        <div class="card-header">
+          <h2>Pending Role Assignments</h2>
+          <button class="view-all-btn" (click)="navigateToManageRoles()">Manage Roles</button>
+        </div>
+        <div class="card-content">
+          <div *ngIf="pendingRoles.length === 0" class="empty-state">
+            <i class="fas fa-user-check"></i>
+            <p>No pending role assignments</p>
+          </div>
+          <div *ngIf="pendingRoles.length > 0" class="role-list">
+            <div *ngFor="let role of pendingRoles" class="role-item">
+              <div class="role-header">
+                <div class="role-name">{{ role.roleName }}</div>
+                <div class="request-date">{{ formatDate(role.requestDate) }}</div>
+              </div>
+              <div class="role-address">{{ formatAddress(role.address) }}</div>
+              <div class="role-actions">
+                <button class="approve-btn">
+                  <i class="fas fa-check"></i> Approve
+                </button>
+                <button class="reject-btn">
+                  <i class="fas fa-times"></i> Reject
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

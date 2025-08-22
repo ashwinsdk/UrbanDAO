@@ -1,0 +1,84 @@
+<div class="dashboard-container">
+  <header class="dashboard-header">
+    <h1>Welcome, {{userName}}</h1>
+    <p class="subtitle">Your Citizen Dashboard</p>
+  </header>
+
+  <div class="stats-overview">
+    <div class="stats-card">
+      <h2>My Grievances</h2>
+      <div *ngIf="loading.grievances" class="loading-indicator">
+        <div class="spinner"></div>
+        <span>Loading...</span>
+      </div>
+      <div *ngIf="!loading.grievances" class="stats-content">
+        <div class="stat-item">
+          <span class="stat-value">{{grievanceStats.total}}</span>
+          <span class="stat-label">Total</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">{{grievanceStats.pending}}</span>
+          <span class="stat-label">Pending</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">{{grievanceStats.resolved}}</span>
+          <span class="stat-label">Resolved</span>
+        </div>
+      </div>
+      <div class="card-actions">
+        <button (click)="navigateTo('/citizen/grievances')" class="btn-primary">View All</button>
+        <button (click)="navigateTo('/citizen/grievances/new')" class="btn-secondary">File New</button>
+      </div>
+    </div>
+
+    <div class="stats-card">
+      <h2>Tax Management</h2>
+      <div *ngIf="loading.taxes" class="loading-indicator">
+        <div class="spinner"></div>
+        <span>Loading...</span>
+      </div>
+      <div *ngIf="!loading.taxes" class="stats-content">
+        <div class="stat-item">
+          <span class="stat-value">{{taxStats.due | currency:'ETH':'symbol':'1.4-4'}}</span>
+          <span class="stat-label">Due</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">{{taxStats.paid | currency:'ETH':'symbol':'1.4-4'}}</span>
+          <span class="stat-label">Paid</span>
+        </div>
+        <div *ngIf="taxStats.nextDueDate" class="next-due">
+          <span class="due-label">Next payment due:</span>
+          <span class="due-date">{{taxStats.nextDueDate}}</span>
+        </div>
+      </div>
+      <div class="card-actions">
+        <button (click)="navigateTo('/citizen/taxes')" class="btn-primary">View Taxes</button>
+      </div>
+    </div>
+
+    <div class="stats-card">
+      <h2>Local Projects</h2>
+      <div *ngIf="loading.projects" class="loading-indicator">
+        <div class="spinner"></div>
+        <span>Loading...</span>
+      </div>
+      <div *ngIf="!loading.projects" class="stats-content">
+        <div class="stat-item">
+          <span class="stat-value">{{localProjects.total}}</span>
+          <span class="stat-label">Total</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">{{localProjects.ongoing}}</span>
+          <span class="stat-label">Ongoing</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">{{localProjects.completed}}</span>
+          <span class="stat-label">Completed</span>
+        </div>
+      </div>
+      <div class="card-actions">
+        <button (click)="navigateTo('/citizen/projects')" class="btn-primary">View Projects</button>
+      </div>
+    </div>
+  </div>
+</div>

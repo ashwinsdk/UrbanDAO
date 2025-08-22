@@ -1,0 +1,344 @@
+<div class="admin-head-management-container">
+  <h1 class="page-title">Admin Head Management</h1>
+
+  <!-- Loading and error states -->
+  <div class="loading-container" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>Loading data...</p>
+  </div>
+
+  <div class="error-container" *ngIf="error">
+    <div class="error-message">
+      <i class="fas fa-exclamation-triangle"></i>
+      <p>{{ error }}</p>
+    </div>
+    <button class="btn btn-primary" (click)="loadData()">Retry</button>
+  </div>
+
+  <div class="success-container" *ngIf="successMessage">
+    <div class="success-message">
+      <i class="fas fa-check-circle"></i>
+      <p>{{ successMessage }}</p>
+    </div>
+    <button class="btn btn-text" (click)="successMessage = null">Dismiss</button>
+  </div>
+
+  <!-- Admin Head management content -->
+  <div class="admin-head-content" *ngIf="!loading && !error">
+    <div class="tabs-container">
+      <div class="tabs">
+        <div class="tab" 
+             [ngClass]="{'active': activeTab === 'current'}" 
+             (click)="setActiveTab('current')">
+          Current Admin Heads
+          <div class="tab-badge" *ngIf="adminHeads.length > 0">{{ adminHeads.length }}</div>
+        </div>
+        <div class="tab" 
+             [ngClass]="{'active': activeTab === 'requests'}" 
+             (click)="setActiveTab('requests')">
+          Role Requests
+          <div class="tab-badge" *ngIf="roleRequests.length > 0">{{ roleRequests.length }}</div>
+        </div>
+        <div class="tab" 
+             [ngClass]="{'active': activeTab === 'assign'}" 
+             (click)="setActiveTab('assign')">
+          Assign New Admin Head
+        </div>
+      </div>
+
+      <div class="search-container" *ngIf="activeTab !== 'assign'">
+        <input 
+          type="text" 
+          placeholder="Search..." 
+          [(ngModel)]="searchQuery" 
+          (input)="search()"
+          class="search-input"
+        >
+        <button class="search-clear" *ngIf="searchQuery" (click)="clearSearch()">
+          <i class="fas fa-times"></i>
+        </button>
+        <i class="fas fa-search search-icon"></i>
+      </div>
+    </div>
+
+    <!-- Tab content -->
+    <div class="tab-content">
+      <!-- Current Admin Heads tab -->
+      <div class="tab-pane" *ngIf="activeTab === 'current'">
+        <div class="admin-heads-container">
+          <div class="admin-heads-list">
+            <div class="admin-head-item" 
+                 *ngFor="let adminHead of filteredAdminHeads" 
+                 [ngClass]="{'selected': selectedAdminHead?.address === adminHead.address}"
+                 (click)="selectAdminHead(adminHead)">
+              <div class="admin-head-info">
+                <h3>{{ adminHead.name || 'Admin Head' }}</h3>
+                <p class="address">{{ adminHead.address }}</p>
+              </div>
+              <div class="admin-head-area">
+                <span *ngIf="adminHead.areaId" class="area-badge">
+                  <i class="fas fa-map-marker-alt"></i>
+                  {{ adminHead.areaName || 'Area ' + adminHead.areaId }}
+                </span>
+                <span *ngIf="!adminHead.areaId" class="no-area">
+                  <i class="fas fa-times-circle"></i>
+                  No Area Assigned
+                </span>
+              </div>
+            </div>
+            
+            <!-- Empty state for admin heads list -->
+            <div class="empty-state" *ngIf="adminHeads.length === 0">
+              <i class="fas fa-user-tie"></i>
+              <p>No Admin Heads have been assigned yet</p>
+            </div>
+            
+            <!-- No search results -->
+            <div class="empty-state" *ngIf="adminHeads.length > 0 && filteredAdminHeads.length === 0">
+              <i class="fas fa-search"></i>
+              <p>No Admin Heads match your search</p>
+              <button class="btn btn-text" (click)="clearSearch()">Clear search</button>
+            </div>
+          </div>
+
+          <!-- Admin Head details -->
+          <div class="admin-head-details" *ngIf="selectedAdminHead">
+            <div class="details-header">
+              <h2>{{ selectedAdminHead.name || 'Admin Head Details' }}</h2>
+              <button class="btn btn-text" (click)="clearSelectedAdminHead()">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+            
+            <div class="details-content">
+              <div class="detail-item">
+                <span class="label">Address:</span>
+                <span class="value">{{ selectedAdminHead.address }}</span>
+              </div>
+              
+              <div class="detail-item">
+                <span class="label">Name:</span>
+                <span class="value">{{ selectedAdminHead.name || 'Not provided' }}</span>
+              </div>
+              
+              <div class="detail-item">
+                <span class="label">Assigned Area:</span>
+                <span class="value" *ngIf="selectedAdminHead.areaId">
+                  {{ selectedAdminHead.areaName || 'Area ' + selectedAdminHead.areaId }}
+                </span>
+                <span class="value no-area" *ngIf="!selectedAdminHead.areaId">
+                  No Area Assigned
+                </span>
+              </div>
+              
+              <div class="detail-item" *ngIf="selectedAdminHead.metadata">
+                <span class="label">Additional Info:</span>
+                <div class="metadata-container">
+                  <div *ngFor="let key of objectKeys(selectedAdminHead.metadata)" class="metadata-item">
+                    <span class="metadata-label">{{ key }}:</span>
+                    <span class="metadata-value">{{ selectedAdminHead.metadata[key] }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="actions-container">
+              <div class="actions-header">
+                <h3>Admin Head Actions</h3>
+              </div>
+              
+              <div class="actions-content">
+                <!-- Area Management Actions -->
+                <div class="action-section">
+                  <h4>Area Assignment</h4>
+                  
+                  <div *ngIf="!selectedAdminHead.areaId">
+                    <p>This Admin Head is not assigned to any area. Select an area to assign:</p>
+                    
+                    <div class="area-select-container" *ngIf="getUnassignedAreas().length > 0">
+                      <div class="area-select-list">
+                        <div class="area-select-item" *ngFor="let area of getUnassignedAreas()"
+                             (click)="assignAreaToAdminHead(selectedAdminHead, area.id)">
+                          <i class="fas fa-map-marker-alt"></i>
+                          <span>{{ area.name || 'Area ' + area.id }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <p *ngIf="getUnassignedAreas().length === 0" class="no-areas-message">
+                      No unassigned areas available. Create new areas or free up existing ones first.
+                    </p>
+                  </div>
+                  
+                  <div *ngIf="selectedAdminHead.areaId">
+                    <p>Currently assigned to: <strong>{{ selectedAdminHead.areaName || 'Area ' + selectedAdminHead.areaId }}</strong></p>
+                    
+                    <button class="btn btn-warning" 
+                            (click)="removeAreaFromAdminHead(selectedAdminHead)"
+                            [disabled]="processingAction">
+                      <i class="fas fa-unlink"></i>
+                      Unassign from Area
+                    </button>
+                    
+                    <!-- Option to reassign to different area -->
+                    <div class="reassign-section" *ngIf="getUnassignedAreas().length > 0">
+                      <h5>Reassign to different area:</h5>
+                      
+                      <div class="area-select-list">
+                        <div class="area-select-item" *ngFor="let area of getUnassignedAreas()"
+                             (click)="assignAreaToAdminHead(selectedAdminHead, area.id)">
+                          <i class="fas fa-map-marker-alt"></i>
+                          <span>{{ area.name || 'Area ' + area.id }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Role Management Actions -->
+                <div class="action-section">
+                  <h4>Role Management</h4>
+                  
+                  <button class="btn btn-danger"
+                          (click)="revokeAdminHeadRole(selectedAdminHead)"
+                          [disabled]="processingAction">
+                    <i class="fas fa-user-slash"></i>
+                    Revoke Admin Head Role
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="empty-selection" *ngIf="!selectedAdminHead && adminHeads.length > 0">
+            <i class="fas fa-arrow-left"></i>
+            <p>Select an Admin Head from the list to view details and manage</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Role Requests tab -->
+      <div class="tab-pane" *ngIf="activeTab === 'requests'">
+        <div class="role-requests-container">
+          <div class="requests-list">
+            <div class="request-item" *ngFor="let request of filteredRoleRequests">
+              <div class="request-info">
+                <div class="request-header">
+                  <h3>{{ request.name || 'Admin Head Request' }}</h3>
+                  <span class="request-time">{{ formatTimestamp(request.timestamp) }}</span>
+                </div>
+                
+                <p class="address">{{ request.address }}</p>
+                
+                <div class="metadata-container" *ngIf="request.metadata">
+                  <div *ngFor="let key of objectKeys(request.metadata)" class="metadata-item">
+                    <span class="metadata-label">{{ key }}:</span>
+                    <span class="metadata-value">{{ request.metadata[key] }}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="request-actions">
+                <button class="btn btn-success"
+                        (click)="approveRoleRequest(request)"
+                        [disabled]="processingAction">
+                  <i class="fas fa-check"></i>
+                  Approve
+                </button>
+                <button class="btn btn-danger"
+                        (click)="rejectRoleRequest(request)"
+                        [disabled]="processingAction">
+                  <i class="fas fa-times"></i>
+                  Reject
+                </button>
+              </div>
+            </div>
+            
+            <!-- Empty state for role requests -->
+            <div class="empty-state" *ngIf="roleRequests.length === 0">
+              <i class="fas fa-clipboard-list"></i>
+              <p>No pending Admin Head role requests</p>
+            </div>
+            
+            <!-- No search results -->
+            <div class="empty-state" *ngIf="roleRequests.length > 0 && filteredRoleRequests.length === 0">
+              <i class="fas fa-search"></i>
+              <p>No role requests match your search</p>
+              <button class="btn btn-text" (click)="clearSearch()">Clear search</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Assign New Admin Head tab -->
+      <div class="tab-pane" *ngIf="activeTab === 'assign'">
+        <div class="assign-admin-container">
+          <div class="form-header">
+            <h2>Assign New Admin Head</h2>
+            <p class="description">
+              Grant Admin Head role to an address and optionally assign them to an area.
+              If the address already has the Admin Head role, you can still assign them to a new area.
+            </p>
+          </div>
+          
+          <form [formGroup]="assignRoleForm" (ngSubmit)="assignAdminHeadRole()">
+            <div class="form-group">
+              <label for="address">Ethereum Address</label>
+              <input 
+                type="text" 
+                id="address" 
+                formControlName="address" 
+                placeholder="Enter Ethereum address (0x...)"
+                [ngClass]="{'invalid': assignRoleForm.get('address')?.invalid && assignRoleForm.get('address')?.touched}"
+              >
+              <div class="validation-error" *ngIf="assignRoleForm.get('address')?.invalid && assignRoleForm.get('address')?.touched">
+                <span *ngIf="assignRoleForm.get('address')?.errors?.['required']">Address is required</span>
+                <span *ngIf="assignRoleForm.get('address')?.errors?.['pattern']">Invalid Ethereum address format</span>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="name">Name (Optional)</label>
+              <input 
+                type="text" 
+                id="name" 
+                formControlName="name" 
+                placeholder="Enter name for this Admin Head"
+              >
+              <p class="form-hint">Providing a name will help identify this Admin Head in the system</p>
+            </div>
+            
+            <div class="form-group">
+              <label for="areaId">Area Assignment</label>
+              <select 
+                id="areaId" 
+                formControlName="areaId"
+                [ngClass]="{'invalid': assignRoleForm.get('areaId')?.invalid && assignRoleForm.get('areaId')?.touched}"
+              >
+                <option value="">Select an area to manage</option>
+                <option *ngFor="let area of getUnassignedAreas()" [value]="area.id">
+                  {{ area.name || 'Area ' + area.id }}
+                </option>
+              </select>
+              <div class="validation-error" *ngIf="assignRoleForm.get('areaId')?.invalid && assignRoleForm.get('areaId')?.touched">
+                <span *ngIf="assignRoleForm.get('areaId')?.errors?.['required']">Area selection is required</span>
+              </div>
+              <p class="form-hint">Only unassigned areas are shown. If no areas are available, create a new area first.</p>
+            </div>
+            
+            <button 
+              type="submit" 
+              class="btn btn-primary" 
+              [disabled]="assignRoleForm.invalid || processingAction">
+              <span *ngIf="!processingAction">Assign Admin Head</span>
+              <span *ngIf="processingAction">
+                <div class="btn-spinner"></div>
+                Processing...
+              </span>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

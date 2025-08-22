@@ -1,0 +1,88 @@
+<div class="grievances-container">
+  <header class="grievances-header">
+    <div class="title-section">
+      <h1>My Grievances</h1>
+      <p class="subtitle">Track and manage your filed grievances</p>
+    </div>
+    <button class="btn-primary" (click)="createNewGrievance()">
+      <span class="icon">+</span>
+      File New Grievance
+    </button>
+  </header>
+
+  <div class="filters-bar">
+    <div class="filter-group">
+      <label for="statusFilter">Status:</label>
+      <select id="statusFilter" [(ngModel)]="statusFilter" (change)="applyFilters()">
+        <option value="all">All</option>
+        <option value="pending">Pending</option>
+        <option value="validated">Validated</option>
+        <option value="assigned">In Progress</option>
+        <option value="resolved">Resolved</option>
+        <option value="rejected">Rejected</option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label for="sortBy">Sort by:</label>
+      <select id="sortBy" [(ngModel)]="sortBy" (change)="applySorting()">
+        <option value="date-desc">Newest First</option>
+        <option value="date-asc">Oldest First</option>
+        <option value="status">Status</option>
+        <option value="updated">Last Updated</option>
+      </select>
+    </div>
+
+    <button class="btn-icon refresh" (click)="refreshGrievances()" title="Refresh">
+      <span class="icon">↻</span>
+    </button>
+  </div>
+
+  <!-- Loading state -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading grievances...</p>
+  </div>
+
+  <!-- Error state -->
+  <div *ngIf="error && !loading" class="error-container">
+    <div class="error-icon">✕</div>
+    <h3>Error Loading Grievances</h3>
+    <p>{{ error }}</p>
+    <button class="btn-secondary" (click)="refreshGrievances()">Try Again</button>
+  </div>
+
+  <!-- Empty state -->
+  <div *ngIf="!loading && !error && grievances.length === 0" class="empty-container">
+    <div class="empty-icon">📝</div>
+    <h3>No Grievances Found</h3>
+    <p>You haven't filed any grievances yet.</p>
+    <button class="btn-primary" (click)="createNewGrievance()">File Your First Grievance</button>
+  </div>
+
+  <!-- Grievance list -->
+  <div *ngIf="!loading && !error && grievances.length > 0" class="grievance-list">
+    <div *ngFor="let grievance of grievances" class="grievance-card" (click)="viewGrievance(grievance.id)">
+      <div class="grievance-header">
+        <h3 class="grievance-title">{{ grievance.title }}</h3>
+        <div class="status-badge" [ngClass]="getStatusClass(grievance.status)">
+          {{ getStatusLabel(grievance.status) }}
+        </div>
+      </div>
+      
+      <p class="grievance-description">{{ grievance.description | slice:0:150 }}{{ grievance.description.length > 150 ? '...' : '' }}</p>
+      
+      <div class="grievance-footer">
+        <div class="grievance-dates">
+          <span class="date-label">Filed:</span>
+          <span class="date-value">{{ formatDate(grievance.createdAt) }}</span>
+          
+          <span class="date-label">Updated:</span>
+          <span class="date-value">{{ formatDate(grievance.lastUpdated) }}</span>
+        </div>
+        
+        <span class="view-details">View Details →</span>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,299 @@
+<div class="project-allocation">
+  <!-- Back Navigation -->
+  <div class="back-nav">
+    <button class="back-btn" [routerLink]="['/admin-head']">
+      <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </button>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading project data...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="!loading && error" class="error-container">
+    <div class="error-icon">
+      <i class="fas fa-exclamation-triangle"></i>
+    </div>
+    <h2>Error</h2>
+    <p>{{ error }}</p>
+    <button class="primary-btn" (click)="loadAdminData()">Try Again</button>
+  </div>
+
+  <!-- Project Management View -->
+  <ng-container *ngIf="!loading && !error && !selectedProject">
+    <div class="projects-view">
+      <header class="list-header">
+        <h1>Project Management</h1>
+        <div class="header-actions">
+          <button class="create-btn" (click)="showCreateProjectForm()">
+            <i class="fas fa-plus"></i> Create Project
+          </button>
+        </div>
+      </header>
+
+      <!-- Success Message -->
+      <div *ngIf="success" class="success-message">
+        <i class="fas fa-check-circle"></i>
+        <p>{{ success }}</p>
+        <button class="close-btn" (click)="success = null">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <!-- Project Form -->
+      <div *ngIf="projectForm.dirty" class="project-form-container">
+        <div class="form-card">
+          <div class="card-header">
+            <h2>Create New Project</h2>
+            <button class="close-btn" (click)="projectForm.reset(); projectForm.markAsPristine()">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="card-content">
+            <form [formGroup]="projectForm" (ngSubmit)="submitProjectForm()">
+              <!-- Project Title -->
+              <div class="form-group">
+                <label for="project-title">Project Title:</label>
+                <input
+                  type="text"
+                  id="project-title"
+                  formControlName="title"
+                  placeholder="Enter project title"
+                  [class.invalid]="projectForm.get('title')?.invalid && projectForm.get('title')?.touched"
+                >
+                <div *ngIf="projectForm.get('title')?.invalid && projectForm.get('title')?.touched" class="error-message">
+                  <span *ngIf="projectForm.get('title')?.errors?.['required']">Title is required</span>
+                  <span *ngIf="projectForm.get('title')?.errors?.['minlength']">Title must be at least 5 characters long</span>
+                </div>
+              </div>
+
+              <!-- Project Description -->
+              <div class="form-group">
+                <label for="project-description">Project Description:</label>
+                <textarea
+                  id="project-description"
+                  formControlName="description"
+                  rows="4"
+                  placeholder="Enter detailed project description"
+                  [class.invalid]="projectForm.get('description')?.invalid && projectForm.get('description')?.touched"
+                ></textarea>
+                <div *ngIf="projectForm.get('description')?.invalid && projectForm.get('description')?.touched" class="error-message">
+                  <span *ngIf="projectForm.get('description')?.errors?.['required']">Description is required</span>
+                  <span *ngIf="projectForm.get('description')?.errors?.['minlength']">Description must be at least 20 characters long</span>
+                </div>
+              </div>
+
+              <!-- Project Budget -->
+              <div class="form-group">
+                <label for="project-budget">Total Budget (ETH):</label>
+                <input
+                  type="number"
+                  id="project-budget"
+                  formControlName="budget"
+                  step="0.01"
+                  min="0.01"
+                  placeholder="Enter project budget in ETH"
+                  [class.invalid]="projectForm.get('budget')?.invalid && projectForm.get('budget')?.touched"
+                >
+                <div *ngIf="projectForm.get('budget')?.invalid && projectForm.get('budget')?.touched" class="error-message">
+                  <span *ngIf="projectForm.get('budget')?.errors?.['required']">Budget is required</span>
+                  <span *ngIf="projectForm.get('budget')?.errors?.['min']">Budget must be greater than 0</span>
+                </div>
+              </div>
+
+              <!-- Initial Funding -->
+              <div class="form-group">
+                <label for="initial-funding">Initial Funding (ETH):</label>
+                <input
+                  type="number"
+                  id="initial-funding"
+                  formControlName="initialFunding"
+                  step="0.01"
+                  min="0"
+                  placeholder="Enter initial funding amount (optional)"
+                  [class.invalid]="projectForm.get('initialFunding')?.invalid && projectForm.get('initialFunding')?.touched"
+                >
+                <div *ngIf="projectForm.get('initialFunding')?.invalid && projectForm.get('initialFunding')?.touched" class="error-message">
+                  <span *ngIf="projectForm.get('initialFunding')?.errors?.['min']">Initial funding must be non-negative</span>
+                </div>
+              </div>
+
+              <!-- Total Milestones -->
+              <div class="form-group">
+                <label for="total-milestones">Number of Milestones:</label>
+                <input
+                  type="number"
+                  id="total-milestones"
+                  formControlName="totalMilestones"
+                  min="1"
+                  max="10"
+                  step="1"
+                  [class.invalid]="projectForm.get('totalMilestones')?.invalid && projectForm.get('totalMilestones')?.touched"
+                >
+                <div *ngIf="projectForm.get('totalMilestones')?.invalid && projectForm.get('totalMilestones')?.touched" class="error-message">
+                  <span *ngIf="projectForm.get('totalMilestones')?.errors?.['required']">Number of milestones is required</span>
+                  <span *ngIf="projectForm.get('totalMilestones')?.errors?.['min'] || projectForm.get('totalMilestones')?.errors?.['max']">
+                    Milestones must be between 1 and 10
+                  </span>
+                </div>
+              </div>
+
+              <!-- Project Manager -->
+              <div class="form-group">
+                <label for="manager-address">Project Manager:</label>
+                <select
+                  id="manager-address"
+                  formControlName="managerAddress"
+                  [class.invalid]="projectForm.get('managerAddress')?.invalid && projectForm.get('managerAddress')?.touched"
+                >
+                  <option value="" disabled selected>Select a project manager</option>
+                  <option *ngFor="let manager of projectManagers" [value]="manager.address">
+                    {{ formatAddress(manager.address) }} - {{ manager.name || 'Project Manager' }}
+                  </option>
+                </select>
+                <div *ngIf="projectForm.get('managerAddress')?.invalid && projectForm.get('managerAddress')?.touched" class="error-message">
+                  <span *ngIf="projectForm.get('managerAddress')?.errors?.['required']">Project manager is required</span>
+                </div>
+              </div>
+
+              <!-- Submit Button -->
+              <div class="form-actions">
+                <button
+                  type="button"
+                  class="cancel-btn"
+                  (click)="projectForm.reset(); projectForm.markAsPristine()"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  class="primary-btn"
+                  [disabled]="projectForm.invalid || loadingAction"
+                >
+                  <span *ngIf="!loadingAction">Create Project</span>
+                  <span *ngIf="loadingAction" class="spinner-inline"></span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Project List -->
+      <div class="projects-list-container">
+        <div class="filters-bar">
+          <div class="filter-group">
+            <label for="status-filter">Status:</label>
+            <select id="status-filter" #statusFilter (change)="filterProjects(statusFilter.value)">
+              <option value="all">All Statuses</option>
+              <option value="proposed">Proposed</option>
+              <option value="approved">Approved</option>
+              <option value="active">Active</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="sort-by">Sort by:</label>
+            <select id="sort-by" #sortBy (change)="sortProjects(sortBy.value)">
+              <option value="newest">Newest First</option>
+              <option value="budget_high">Highest Budget</option>
+              <option value="budget_low">Lowest Budget</option>
+              <option value="milestones">Completion Progress</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div *ngIf="filteredProjects.length === 0" class="empty-state">
+          <i class="fas fa-clipboard-list"></i>
+          <p>No projects found matching your criteria</p>
+          <button class="primary-btn" (click)="showCreateProjectForm()">Create First Project</button>
+        </div>
+
+        <!-- Project Grid -->
+        <div *ngIf="filteredProjects.length > 0" class="project-grid">
+          <div *ngFor="let project of filteredProjects" class="project-card" (click)="showProjectDetails(project)">
+            <div class="card-header">
+              <div class="project-id">#{{ project.id }}</div>
+              <div class="project-status" [ngClass]="project.status.toLowerCase()">
+                {{ project.status }}
+              </div>
+            </div>
+            <div class="project-title">{{ project.title }}</div>
+            <div class="project-budget">{{ project.budget }} ETH</div>
+            <div class="project-progress">
+              <div class="progress-label">
+                <span>Milestones: {{ project.completedMilestones }}/{{ project.totalMilestones }}</span>
+                <span>{{ getProgressPercentage(project.completedMilestones, project.totalMilestones) }}%</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill" [style.width.%]="getProgressPercentage(project.completedMilestones, project.totalMilestones)"></div>
+              </div>
+            </div>
+            <div class="project-manager">
+              <i class="fas fa-user-hard-hat"></i>
+              <span>{{ formatAddress(project.managerAddress) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- Project Detail View -->
+  <ng-container *ngIf="!loading && !error && selectedProject">
+    <div class="project-detail-view">
+      <header class="detail-header">
+        <h1>
+          Project #{{ selectedProject?.id || '' }}
+          <span class="status-badge" [ngClass]="selectedProject?.status?.toLowerCase() || ''">{{ selectedProject?.status || '' }}</span>
+        </h1>
+      </header>
+
+      <div class="detail-section">
+        <div class="detail-card">
+          <div class="card-header">
+            <h2>{{ selectedProject?.title || 'Project Details' }}</h2>
+            <button class="close-btn" (click)="closeDetails()">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="card-content">
+            <div class="detail-row">
+              <div class="detail-label">Budget</div>
+              <div class="detail-value budget">{{ selectedProject?.budget || '0' }} ETH</div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Project Manager</div>
+              <div class="detail-value manager-address">{{ selectedProject?.managerAddress || 'Not assigned' }}</div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Status</div>
+              <div class="detail-value">
+                <span class="status-badge" [ngClass]="selectedProject?.status?.toLowerCase() || ''">{{ selectedProject?.status || 'Unknown' }}</span>
+              </div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Milestones</div>
+              <div class="detail-value milestone-progress">
+                <div class="progress-count">{{ selectedProject?.completedMilestones || 0 }} / {{ selectedProject?.totalMilestones || 0 }} completed</div>
+                <div class="progress-bar">
+                  <div class="progress-fill" [style.width.%]="getProgressPercentage(selectedProject?.completedMilestones || 0, selectedProject?.totalMilestones || 1)"></div>
+                </div>
+                <div class="progress-percent">{{ getProgressPercentage(selectedProject?.completedMilestones || 0, selectedProject?.totalMilestones || 1) }}%</div>
+              </div>
+            </div>
+            <div class="detail-row description">
+              <div class="detail-label">Description</div>
+              <div class="detail-value description-text">{{ selectedProject?.description || 'No description available' }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+</div>

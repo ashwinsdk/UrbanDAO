@@ -1,0 +1,141 @@
+<div class="dashboard-container">
+  <h1 class="page-title">Central Administration Dashboard</h1>
+
+  <!-- Loading and error states -->
+  <div class="loading-container" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>Loading dashboard data...</p>
+  </div>
+
+  <div class="error-container" *ngIf="error">
+    <div class="error-message">
+      <i class="fas fa-exclamation-triangle"></i>
+      <p>{{ error }}</p>
+    </div>
+    <button class="btn btn-primary" (click)="loadDashboardData()">Retry</button>
+  </div>
+
+  <!-- Dashboard content -->
+  <div class="dashboard-content" *ngIf="!loading && !error">
+    <!-- Stats overview -->
+    <div class="stats-container">
+      <div class="stat-card" *ngFor="let stat of systemStats">
+        <div class="stat-icon">
+          <i class="fas {{ stat.icon }}"></i>
+        </div>
+        <div class="stat-details">
+          <h3>{{ stat.label }}</h3>
+          <p class="stat-value">{{ stat.value }}</p>
+          <div class="stat-change" *ngIf="stat.change !== undefined" 
+              [ngClass]="{'positive': stat.change > 0, 'negative': stat.change < 0}">
+            <i class="fas" [ngClass]="{'fa-arrow-up': stat.change > 0, 'fa-arrow-down': stat.change < 0}"></i>
+            <span>{{ stat.change }}% this month</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Areas overview -->
+    <div class="section-container">
+      <div class="section-header">
+        <h2>Area Overview</h2>
+        <button class="btn btn-primary" (click)="navigateToAreas()">Manage Areas</button>
+      </div>
+      
+      <div class="area-grid">
+        <div class="area-card" *ngFor="let area of areas">
+          <div class="area-header">
+            <h3>{{ area.name }}</h3>
+            <span class="area-id">ID: {{ area.id }}</span>
+          </div>
+          <div class="area-stats">
+            <div class="area-stat">
+              <i class="fas fa-users"></i>
+              <span>{{ area.citizenCount }} Citizens</span>
+            </div>
+            <div class="area-admin">
+              <h4>Admin Head:</h4>
+              <p *ngIf="area.adminHeadAddress !== '0x0000000000000000000000000000000000000000'">
+                {{ area.adminHeadName || 'Unknown' }} ({{ formatAddress(area.adminHeadAddress) }})
+              </p>
+              <p *ngIf="area.adminHeadAddress === '0x0000000000000000000000000000000000000000'" class="no-admin">
+                No Admin Head Assigned
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Empty state -->
+        <div class="empty-state" *ngIf="areas.length === 0">
+          <i class="fas fa-map-marked-alt"></i>
+          <p>No areas have been created yet</p>
+          <button class="btn btn-primary" (click)="navigateToAreas()">Create Area</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent activity -->
+    <div class="section-container">
+      <div class="section-header">
+        <h2>Recent System Activity</h2>
+      </div>
+      
+      <div class="activity-list">
+        <div class="activity-item" *ngFor="let activity of recentActivities">
+          <div class="activity-icon">
+            <i class="fas" 
+               [ngClass]="{
+                 'fa-map-marker-alt': activity.type === 'AreaCreated',
+                 'fa-user-tie': activity.type === 'AdminHeadAssigned' || activity.type === 'RoleAssigned',
+                 'fa-project-diagram': activity.type === 'ProjectCreated',
+                 'fa-exclamation-circle': activity.type === 'GrievanceFiled',
+                 'fa-cog': true
+               }"></i>
+          </div>
+          <div class="activity-details">
+            <p class="activity-description">{{ activity.description }}</p>
+            <p class="activity-timestamp">{{ formatTimestamp(activity.timestamp) }}</p>
+          </div>
+        </div>
+        
+        <!-- Empty state -->
+        <div class="empty-state" *ngIf="recentActivities.length === 0">
+          <i class="fas fa-history"></i>
+          <p>No recent activity to display</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Admin Head Management -->
+    <div class="section-container">
+      <div class="section-header">
+        <h2>Admin Head Management</h2>
+        <button class="btn btn-primary" (click)="navigateToAdminHeads()">Manage Admin Heads</button>
+      </div>
+      
+      <div class="admin-head-summary">
+        <div class="summary-card">
+          <div class="summary-icon">
+            <i class="fas fa-user-tie"></i>
+          </div>
+          <div class="summary-details">
+            <h3>Admin Heads</h3>
+            <p class="summary-count">{{ assignedAdminHeadsCount }}</p>
+            <p class="summary-label">assigned out of {{ areas.length }} areas</p>
+          </div>
+        </div>
+        
+        <div class="summary-card">
+          <div class="summary-icon">
+            <i class="fas fa-map-marker-alt"></i>
+          </div>
+          <div class="summary-details">
+            <h3>Unassigned Areas</h3>
+            <p class="summary-count">{{ unassignedAreasCount }}</p>
+            <p class="summary-label">areas need admin head assignment</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

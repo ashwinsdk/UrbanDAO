@@ -1,0 +1,184 @@
+<div class="project-list-page">
+  <!-- Header Section -->
+  <header class="page-header">
+    <div class="header-content">
+      <h1>Project List</h1>
+      <p>Manage and view all your assigned projects</p>
+    </div>
+    <div class="header-actions">
+      <button class="refresh-btn" (click)="refreshProjects()" [disabled]="loading">
+        <i class="fas fa-sync-alt"></i> Refresh
+      </button>
+      <button class="back-btn" routerLink="/project-manager">
+        <i class="fas fa-arrow-left"></i> Back to Dashboard
+      </button>
+    </div>
+  </header>
+
+  <!-- Filters Section -->
+  <div class="filters-section">
+    <form [formGroup]="filterForm" class="filters-form">
+      <div class="form-group">
+        <label for="status">Status</label>
+        <select id="status" formControlName="status" class="form-control">
+          <option value="all">All Statuses</option>
+          <option value="PROPOSED">Proposed</option>
+          <option value="FUNDED">Funded</option>
+          <option value="IN_PROGRESS">In Progress</option>
+          <option value="COMPLETED">Completed</option>
+          <option value="CANCELLED">Cancelled</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="areaId">Area ID</label>
+        <input type="text" id="areaId" formControlName="areaId" class="form-control" placeholder="Filter by Area ID">
+      </div>
+      
+      <div class="form-group">
+        <label for="sortBy">Sort By</label>
+        <select id="sortBy" formControlName="sortBy" class="form-control">
+          <option value="newest">Newest First</option>
+          <option value="oldest">Oldest First</option>
+          <option value="fundingHigh">Funding (High to Low)</option>
+          <option value="fundingLow">Funding (Low to High)</option>
+          <option value="upvotes">Most Upvotes</option>
+        </select>
+      </div>
+      
+      <div class="form-group search-group">
+        <label for="search">Search</label>
+        <div class="search-input">
+          <i class="fas fa-search search-icon"></i>
+          <input type="text" id="search" formControlName="search" class="form-control" placeholder="Search by title or description">
+        </div>
+      </div>
+      
+      <button type="button" class="reset-btn" (click)="resetFilters()">
+        <i class="fas fa-times"></i> Reset Filters
+      </button>
+    </form>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading projects...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="!loading && error" class="error-container">
+    <div class="error-icon">
+      <i class="fas fa-exclamation-triangle"></i>
+    </div>
+    <h2>Error</h2>
+    <p>{{ error }}</p>
+    <button class="primary-btn" (click)="refreshProjects()">Try Again</button>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!loading && !error && projects.length === 0" class="empty-state">
+    <i class="fas fa-project-diagram"></i>
+    <h2>No Projects Found</h2>
+    <p>You don't have any projects assigned to you yet.</p>
+    <p class="note">Projects are assigned by the AdminHead. Please contact them to be assigned as a manager for a project.</p>
+  </div>
+
+  <!-- No Results After Filtering -->
+  <div *ngIf="!loading && !error && projects.length > 0 && filteredProjects.length === 0" class="empty-state">
+    <i class="fas fa-filter"></i>
+    <h2>No Matching Projects</h2>
+    <p>No projects match the current filters.</p>
+    <button class="primary-btn" (click)="resetFilters()">Reset Filters</button>
+  </div>
+
+  <!-- Projects List Table -->
+  <div *ngIf="!loading && !error && filteredProjects.length > 0" class="projects-table-container">
+    <table class="projects-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Title</th>
+          <th>Status</th>
+          <th>Area ID</th>
+          <th>Funding</th>
+          <th>Progress</th>
+          <th>Created</th>
+          <th>Upvotes</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let project of paginatedProjects">
+          <td class="id-cell">{{ project.id }}</td>
+          <td class="title-cell">
+            <div class="project-title">{{ project.title }}</div>
+            <div class="project-desc">{{ project.description.substring(0, 60) }}{{ project.description.length > 60 ? '...' : '' }}</div>
+          </td>
+          <td>
+            <span class="status-badge" [ngClass]="getStatusClass(project.status)">
+              {{ project.status }}
+            </span>
+          </td>
+          <td>{{ project.areaId }}</td>
+          <td class="funding-cell">
+            <div>Goal: {{ project.fundingGoal }} ETH</div>
+            <div>Released: {{ project.released }} ETH</div>
+          </td>
+          <td>
+            <div class="milestone-progress">
+              <div>{{ project.currentMilestone - 1 }} / {{ project.milestoneCount }}</div>
+              <div class="progress-bar">
+                <div class="progress" [style.width.%]="((project.currentMilestone - 1) / (project.milestoneCount || 1)) * 100"></div>
+              </div>
+            </div>
+          </td>
+          <td>{{ formatDate(project.createdAt) }}</td>
+          <td>
+            <div class="upvotes">
+              <i class="fas fa-thumbs-up"></i> {{ project.citizenUpvotes }}
+            </div>
+          </td>
+          <td>
+            <div class="actions">
+              <button class="action-btn view-btn" (click)="navigateToProjectDetails(project.id)" title="View Details">
+                <i class="fas fa-eye"></i>
+              </button>
+              <button *ngIf="project.status === 'FUNDED' || project.status === 'IN_PROGRESS'" 
+                      class="action-btn milestone-btn" 
+                      [routerLink]="['/project-manager/project', project.id, 'milestone']" 
+                      title="Submit Milestone">
+                <i class="fas fa-flag"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    
+    <!-- Pagination -->
+    <div *ngIf="totalPages > 1" class="pagination">
+      <button class="page-btn" [disabled]="currentPage === 1" (click)="goToPage(currentPage - 1)">
+        <i class="fas fa-chevron-left"></i>
+      </button>
+      
+      <ng-container *ngFor="let page of pages">
+        <button class="page-btn" 
+                [class.active]="page === currentPage" 
+                (click)="goToPage(page)">
+          {{ page }}
+        </button>
+      </ng-container>
+      
+      <button class="page-btn" [disabled]="currentPage === totalPages" (click)="goToPage(currentPage + 1)">
+        <i class="fas fa-chevron-right"></i>
+      </button>
+    </div>
+    
+    <div class="results-count">
+      Showing {{ ((currentPage - 1) * pageSize) + 1 }} - 
+      {{ Math.min(currentPage * pageSize, filteredProjects.length) }} 
+      of {{ filteredProjects.length }} projects
+    </div>
+  </div>
+</div>

@@ -1,0 +1,175 @@
+<div class="tax-payments">
+  <!-- Header Section -->
+  <header class="page-header">
+    <div class="header-content">
+      <h1>Tax Payments</h1>
+      <p>View and manage all tax payments</p>
+    </div>
+    <div class="header-actions">
+      <button class="refresh-btn" (click)="refreshPayments()" [disabled]="loading">
+        <i class="fas fa-sync-alt"></i> Refresh
+      </button>
+      <button class="primary-btn" routerLink="/tax-collector/assessment">
+        <i class="fas fa-plus"></i> New Assessment
+      </button>
+    </div>
+  </header>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading tax payments...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="!loading && error" class="error-container">
+    <div class="error-icon">
+      <i class="fas fa-exclamation-triangle"></i>
+    </div>
+    <h2>Error</h2>
+    <p>{{ error }}</p>
+    <button class="primary-btn" (click)="refreshPayments()">Try Again</button>
+  </div>
+
+  <!-- Payments Content -->
+  <div *ngIf="!loading && !error" class="payments-content">
+    <!-- Filters Section -->
+    <div class="filters-container">
+      <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input 
+          type="text" 
+          [formControl]="searchControl" 
+          placeholder="Search by citizen name, address or property ID"
+        >
+      </div>
+      
+      <div class="filter-group">
+        <div class="filter-select">
+          <label>Status:</label>
+          <select [formControl]="statusFilter">
+            <option value="all">All Statuses</option>
+            <option value="PAID">Paid</option>
+            <option value="PENDING">Pending</option>
+            <option value="OVERDUE">Overdue</option>
+            <option value="PARTIALLY_PAID">Partially Paid</option>
+          </select>
+        </div>
+        
+        <div class="filter-select">
+          <label>Year:</label>
+          <select [formControl]="yearFilter">
+            <option value="all">All Years</option>
+            <option *ngFor="let year of years" [value]="year">{{ year }}</option>
+          </select>
+        </div>
+        
+        <div class="filter-select">
+          <label>Quarter:</label>
+          <select [formControl]="quarterFilter">
+            <option value="all">All Quarters</option>
+            <option *ngFor="let quarter of quarters" [value]="quarter">Q{{ quarter }}</option>
+          </select>
+        </div>
+        
+        <div class="filter-select">
+          <label>Sort By:</label>
+          <select [formControl]="sortOption">
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="amount_high">Amount (High to Low)</option>
+            <option value="amount_low">Amount (Low to High)</option>
+            <option value="due_date">Due Date</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Empty State -->
+    <div *ngIf="allPayments.length === 0" class="empty-state">
+      <i class="fas fa-file-invoice-dollar"></i>
+      <h3>No Tax Payments Found</h3>
+      <p>There are no tax payments in the system yet.</p>
+      <button class="secondary-btn" routerLink="/tax-collector/assessment">Create Tax Assessment</button>
+    </div>
+    
+    <div *ngIf="allPayments.length > 0 && filteredPayments.length === 0" class="empty-state">
+      <i class="fas fa-filter"></i>
+      <h3>No Matching Results</h3>
+      <p>No tax payments match your current filters.</p>
+      <button class="secondary-btn" (click)="searchControl.setValue(''); statusFilter.setValue('all'); yearFilter.setValue('all'); quarterFilter.setValue('all')">
+        Clear Filters
+      </button>
+    </div>
+    
+    <!-- Payments Table -->
+    <div *ngIf="filteredPayments.length > 0" class="payments-table-container">
+      <table class="payments-table">
+        <thead>
+          <tr>
+            <th>Citizen</th>
+            <th>Property ID</th>
+            <th>Amount</th>
+            <th>Period</th>
+            <th>Due Date</th>
+            <th>Payment Date</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let payment of filteredPayments">
+            <td class="citizen-cell">
+              <span (click)="navigateToTaxpayerDetails(payment.citizenAddress)" class="citizen-link">
+                {{ payment.citizenName || formatAddress(payment.citizenAddress) }}
+              </span>
+            </td>
+            <td>{{ payment.propertyId }}</td>
+            <td class="amount-cell">{{ payment.amount }} ETH</td>
+            <td>Q{{ payment.quarter }}, {{ payment.year }}</td>
+            <td>{{ formatDate(payment.dueDate) }}</td>
+            <td>{{ payment.status === 'PAID' || payment.status === 'PARTIALLY_PAID' ? formatDate(payment.paidOn) : 'N/A' }}</td>
+            <td>
+              <span class="status-badge" [ngClass]="getStatusClass(payment.status)">
+                {{ payment.status.replace('_', ' ') }}
+              </span>
+            </td>
+            <td class="actions-cell">
+              <button class="view-btn" (click)="navigateToTaxpayerDetails(payment.citizenAddress)">
+                <i class="fas fa-user"></i> Taxpayer
+              </button>
+              <button *ngIf="payment.receiptId" class="receipt-btn" (click)="viewReceipt(payment.receiptId)">
+                <i class="fas fa-receipt"></i> Receipt
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <!-- Pagination -->
+      <div *ngIf="totalPages > 1" class="pagination">
+        <button 
+          class="pagination-btn"
+          [disabled]="currentPage === 1"
+          (click)="changePage(currentPage - 1)">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+        
+        <button 
+          *ngFor="let page of getPaginationArray()"
+          class="pagination-btn"
+          [class.active]="currentPage === page"
+          (click)="changePage(page)">
+          {{ page }}
+        </button>
+        
+        <button 
+          class="pagination-btn"
+          [disabled]="currentPage === totalPages"
+          (click)="changePage(currentPage + 1)">
+          <i class="fas fa-chevron-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

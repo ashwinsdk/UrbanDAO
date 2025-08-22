@@ -1,0 +1,188 @@
+<div class="tax-dashboard">
+  <!-- Header Section -->
+  <header class="page-header">
+    <div class="header-content">
+      <h1>Tax Collector Dashboard</h1>
+      <p>Welcome back, <span class="user-name">{{ userName }}</span></p>
+    </div>
+    <button class="refresh-btn" (click)="refreshDashboard()" [disabled]="loading">
+      <i class="fas fa-sync-alt"></i> Refresh Data
+    </button>
+  </header>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading dashboard data...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="!loading && error" class="error-container">
+    <div class="error-icon">
+      <i class="fas fa-exclamation-triangle"></i>
+    </div>
+    <h2>Error</h2>
+    <p>{{ error }}</p>
+    <button class="primary-btn" (click)="refreshDashboard()">Try Again</button>
+  </div>
+
+  <!-- Dashboard Content -->
+  <div *ngIf="!loading && !error" class="dashboard-content">
+    <!-- Stats Cards -->
+    <div class="stats-container">
+      <div class="stats-card total-assessments">
+        <div class="icon">
+          <i class="fas fa-file-invoice"></i>
+        </div>
+        <div class="details">
+          <h3>Total Assessments</h3>
+          <p class="value">{{ taxStats.totalAssessments }}</p>
+        </div>
+      </div>
+      
+      <div class="stats-card pending-payments">
+        <div class="icon">
+          <i class="fas fa-hourglass-half"></i>
+        </div>
+        <div class="details">
+          <h3>Pending Payments</h3>
+          <p class="value">{{ taxStats.pendingPayments }}</p>
+        </div>
+      </div>
+      
+      <div class="stats-card completed-payments">
+        <div class="icon">
+          <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="details">
+          <h3>Completed Payments</h3>
+          <p class="value">{{ taxStats.completedPayments }}</p>
+        </div>
+      </div>
+      
+      <div class="stats-card collection-rate">
+        <div class="icon">
+          <i class="fas fa-percentage"></i>
+        </div>
+        <div class="details">
+          <h3>Collection Rate</h3>
+          <p class="value">{{ taxStats.collectionRate }}%</p>
+        </div>
+      </div>
+      
+      <div class="stats-card total-collected">
+        <div class="icon">
+          <i class="fas fa-coins"></i>
+        </div>
+        <div class="details">
+          <h3>Total Collected</h3>
+          <p class="value">{{ taxStats.totalCollected }} ETH</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="actions-container">
+      <h2>Quick Actions</h2>
+      <div class="action-buttons">
+        <button class="action-btn create-assessment" (click)="navigateToAssessment()">
+          <i class="fas fa-plus-circle"></i>
+          <span>Create Tax Assessment</span>
+        </button>
+        
+        <button class="action-btn view-payments" (click)="navigateToPayments()">
+          <i class="fas fa-list-alt"></i>
+          <span>View All Payments</span>
+        </button>
+      </div>
+    </div>
+    
+    <!-- Recent Payments Section -->
+    <div class="section">
+      <div class="section-header">
+        <h2>Recent Tax Payments</h2>
+        <a [routerLink]="['/tax-collector/payments']" class="view-all">View All</a>
+      </div>
+      
+      <!-- Empty State -->
+      <div *ngIf="recentPayments.length === 0" class="empty-state">
+        <i class="fas fa-file-invoice-dollar"></i>
+        <h3>No Recent Payments</h3>
+        <p>Payments will appear here once they are processed.</p>
+      </div>
+      
+      <!-- Recent Payments Table -->
+      <table *ngIf="recentPayments.length > 0" class="data-table">
+        <thead>
+          <tr>
+            <th>Citizen</th>
+            <th>Amount</th>
+            <th>Period</th>
+            <th>Paid On</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let payment of recentPayments">
+            <td class="citizen-cell">
+              {{ payment.citizenName || formatAddress(payment.citizenAddress) }}
+            </td>
+            <td class="amount-cell">{{ payment.amount }} ETH</td>
+            <td>Q{{ payment.quarter }}, {{ payment.year }}</td>
+            <td>{{ formatDate(payment.paidOn) }}</td>
+            <td>
+              <button class="action-link" (click)="navigateToTaxpayerDetails(payment.citizenAddress)">
+                <i class="fas fa-eye"></i> View Details
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- Pending Assessments Section -->
+    <div class="section">
+      <div class="section-header">
+        <h2>Pending Assessments</h2>
+        <a [routerLink]="['/tax-collector/assessment']" class="view-all">View All</a>
+      </div>
+      
+      <!-- Empty State -->
+      <div *ngIf="pendingAssessments.length === 0" class="empty-state">
+        <i class="fas fa-clipboard-list"></i>
+        <h3>No Pending Assessments</h3>
+        <p>Create new tax assessments to see them here.</p>
+      </div>
+      
+      <!-- Pending Assessments Table -->
+      <table *ngIf="pendingAssessments.length > 0" class="data-table">
+        <thead>
+          <tr>
+            <th>Citizen</th>
+            <th>Amount</th>
+            <th>Period</th>
+            <th>Due Date</th>
+            <th>Property ID</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let assessment of pendingAssessments">
+            <td class="citizen-cell">
+              {{ assessment.citizenName || formatAddress(assessment.citizenAddress) }}
+            </td>
+            <td class="amount-cell">{{ assessment.amount }} ETH</td>
+            <td>Q{{ assessment.quarter }}, {{ assessment.year }}</td>
+            <td>{{ formatDate(assessment.dueDate) }}</td>
+            <td>{{ assessment.propertyId }}</td>
+            <td>
+              <button class="action-link" (click)="navigateToTaxpayerDetails(assessment.citizenAddress)">
+                <i class="fas fa-eye"></i> View Details
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

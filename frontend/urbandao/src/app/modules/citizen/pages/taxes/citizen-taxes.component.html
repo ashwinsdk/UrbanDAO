@@ -1,0 +1,184 @@
+<div class="taxes-container">
+  <header class="page-header">
+    <div class="title-section">
+      <h1>My Taxes</h1>
+      <p class="subtitle">View and manage your tax assessments</p>
+    </div>
+  </header>
+
+  <div class="filters-bar">
+    <div class="filter-group">
+      <label for="yearFilter">Year:</label>
+      <select id="yearFilter" [(ngModel)]="filterYear" (change)="applyFilters()">
+        <option *ngFor="let year of availableYears" [value]="year">{{ year }}</option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label for="statusFilter">Status:</label>
+      <select id="statusFilter" [(ngModel)]="filterStatus" (change)="applyFilters()">
+        <option value="all">All</option>
+        <option value="paid">Paid</option>
+        <option value="unpaid">Unpaid</option>
+      </select>
+    </div>
+
+    <button class="btn-icon refresh" (click)="refreshAssessments()" title="Refresh">
+      <span class="icon">↻</span>
+    </button>
+  </div>
+
+  <!-- Loading state -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading tax assessments...</p>
+  </div>
+
+  <!-- Error state -->
+  <div *ngIf="error && !loading" class="error-container">
+    <div class="error-icon">✕</div>
+    <h3>Error Loading Tax Assessments</h3>
+    <p>{{ error }}</p>
+    <button class="btn-secondary" (click)="refreshAssessments()">Try Again</button>
+  </div>
+
+  <!-- Empty state -->
+  <div *ngIf="!loading && !error && taxAssessments.length === 0" class="empty-container">
+    <div class="empty-icon">💰</div>
+    <h3>No Tax Assessments Found</h3>
+    <p>You don't have any tax assessments for the selected filters.</p>
+  </div>
+
+  <!-- Tax assessments list -->
+  <div *ngIf="!loading && !error && taxAssessments.length > 0" class="assessments-list">
+    <div *ngFor="let assessment of taxAssessments" class="assessment-card">
+      <div class="assessment-header">
+        <h3 class="assessment-title">{{ assessment.description }}</h3>
+        <div class="status-badge" [ngClass]="getStatusClass(assessment.isPaid, assessment.dueDate)">
+          {{ getStatusText(assessment.isPaid, assessment.dueDate) }}
+        </div>
+      </div>
+      
+      <div class="assessment-details">
+        <div class="detail-row">
+          <div class="detail-item">
+            <span class="detail-label">Assessment ID:</span>
+            <span class="detail-value">{{ assessment.id }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Tax Type:</span>
+            <span class="detail-value">{{ assessment.type }}</span>
+          </div>
+        </div>
+        
+        <div class="detail-row">
+          <div class="detail-item">
+            <span class="detail-label">Period:</span>
+            <span class="detail-value">{{ assessment.period }} {{ assessment.year }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Due Date:</span>
+            <span class="detail-value" [ngClass]="{'overdue': !assessment.isPaid && assessment.dueDate < currentDate}">
+              {{ formatDate(assessment.dueDate) }}
+            </span>
+          </div>
+        </div>
+        
+        <div class="detail-row">
+          <div class="detail-item amount">
+            <span class="detail-label">Amount:</span>
+            <span class="detail-value">{{ formatCurrency(assessment.amount) }}</span>
+          </div>
+        </div>
+        
+        <div *ngIf="assessment.isPaid" class="payment-info">
+          <div class="payment-date">
+            <span class="detail-label">Paid on:</span>
+            <span class="detail-value">{{ formatDate(assessment.paymentDate!) }}</span>
+          </div>
+          
+          <button *ngIf="assessment.receiptId" class="btn-link" (click)="viewReceipt(assessment.receiptId)">
+            View Receipt
+          </button>
+        </div>
+      </div>
+      
+      <div class="assessment-actions">
+        <button 
+          *ngIf="!assessment.isPaid" 
+          class="btn-primary" 
+          (click)="selectAssessmentForPayment(assessment)"
+        >
+          Pay Now
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payment modal -->
+  <div *ngIf="selectedAssessment" class="modal-overlay">
+    <div class="payment-modal">
+      <div class="modal-header">
+        <h2>Pay Tax Assessment</h2>
+        <button class="close-button" (click)="closePaymentModal()">×</button>
+      </div>
+      
+      <div *ngIf="paymentSuccess" class="success-message">
+        <div class="success-icon">✓</div>
+        <h3>Payment Successful!</h3>
+        <p>Your tax payment has been processed successfully.</p>
+      </div>
+      
+      <div *ngIf="paymentError" class="error-message">
+        <div class="error-icon">!</div>
+        <p>{{ paymentError }}</p>
+      </div>
+      
+      <div *ngIf="!paymentSuccess" class="modal-content">
+        <div class="payment-details">
+          <div class="payment-item">
+            <span class="payment-label">Assessment ID:</span>
+            <span class="payment-value">{{ selectedAssessment.id }}</span>
+          </div>
+          
+          <div class="payment-item">
+            <span class="payment-label">Description:</span>
+            <span class="payment-value">{{ selectedAssessment.description }}</span>
+          </div>
+          
+          <div class="payment-item">
+            <span class="payment-label">Due Date:</span>
+            <span class="payment-value">{{ formatDate(selectedAssessment.dueDate) }}</span>
+          </div>
+          
+          <div class="payment-total">
+            <span class="payment-label">Amount to Pay:</span>
+            <span class="payment-amount">{{ formatCurrency(selectedAssessment.amount) }}</span>
+          </div>
+        </div>
+        
+        <div class="payment-notice">
+          <p>
+            By clicking "Confirm Payment", you authorize a blockchain transaction to transfer 
+            {{ formatCurrency(selectedAssessment.amount) }} from your connected wallet.
+          </p>
+          <p>
+            A non-transferable receipt NFT will be issued to your wallet address as proof of payment.
+          </p>
+        </div>
+        
+        <div class="modal-actions">
+          <button class="btn-secondary" (click)="closePaymentModal()">Cancel</button>
+          <button 
+            class="btn-primary" 
+            (click)="payTax()" 
+            [disabled]="isProcessingPayment"
+          >
+            <span class="spinner" *ngIf="isProcessingPayment"></span>
+            {{ isProcessingPayment ? 'Processing...' : 'Confirm Payment' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,689 @@
+@import '../../../../../styles/variables';
+@import '../../../../../styles/mixins';
+
+.admin-head-management-container {
+  width: 100%;
+  padding: 20px;
+  
+  .page-title {
+    margin-bottom: 24px;
+    color: $text-color-primary;
+    font-size: 28px;
+  }
+}
+
+// Loading, Error and Success states
+.loading-container, .error-container, .success-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  margin: 16px 0;
+  background-color: $bg-card;
+  border-radius: $border-radius;
+  
+  .spinner {
+    width: 36px;
+    height: 36px;
+    border: 4px solid rgba($primary-color, 0.3);
+    border-radius: 50%;
+    border-top-color: $primary-color;
+    animation: spin 1s infinite linear;
+    margin-bottom: 16px;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+}
+
+.error-container {
+  border-left: 4px solid $error-color;
+  
+  .error-message {
+    display: flex;
+    align-items: center;
+    margin-bottom: 16px;
+    
+    i {
+      color: $error-color;
+      margin-right: 12px;
+      font-size: 24px;
+    }
+  }
+}
+
+.success-container {
+  border-left: 4px solid $success-color;
+  
+  .success-message {
+    display: flex;
+    align-items: center;
+    margin-bottom: 16px;
+    
+    i {
+      color: $success-color;
+      margin-right: 12px;
+      font-size: 24px;
+    }
+  }
+}
+
+// Tabs
+.tabs-container {
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  
+  .tabs {
+    display: flex;
+    
+    .tab {
+      padding: 12px 20px;
+      margin-right: 8px;
+      cursor: pointer;
+      border-radius: $border-radius $border-radius 0 0;
+      position: relative;
+      font-weight: 500;
+      transition: background-color 0.2s ease;
+      display: flex;
+      align-items: center;
+      
+      &:hover:not(.active) {
+        background-color: rgba($bg-card, 0.7);
+      }
+      
+      &.active {
+        background-color: $bg-card;
+        color: $primary-color;
+        
+        &::after {
+          content: '';
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 3px;
+          background-color: $primary-color;
+        }
+      }
+      
+      .tab-badge {
+        background-color: $primary-color;
+        color: $bg-dark;
+        border-radius: 12px;
+        padding: 2px 8px;
+        font-size: 12px;
+        margin-left: 8px;
+      }
+    }
+  }
+  
+  .search-container {
+    position: relative;
+    width: 240px;
+    
+    .search-input {
+      width: 100%;
+      padding: 8px 32px 8px 36px;
+      border: 1px solid rgba($text-color-secondary, 0.2);
+      border-radius: 20px;
+      background-color: darken($bg-card, 3%);
+      color: $text-color-primary;
+      
+      &:focus {
+        outline: none;
+        border-color: $primary-color;
+        box-shadow: 0 0 0 2px rgba($primary-color, 0.2);
+      }
+    }
+    
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 10px;
+      color: $text-color-secondary;
+      font-size: 14px;
+    }
+    
+    .search-clear {
+      position: absolute;
+      right: 10px;
+      top: 8px;
+      background: none;
+      border: none;
+      color: $text-color-secondary;
+      cursor: pointer;
+      
+      &:hover {
+        color: $text-color-primary;
+      }
+    }
+  }
+}
+
+// Tab content
+.tab-content {
+  background-color: $bg-card;
+  border-radius: $border-radius;
+  
+  .tab-pane {
+    padding: 24px;
+  }
+}
+
+// Admin Heads list
+.admin-heads-container {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 24px;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+  
+  .admin-heads-list {
+    max-height: 600px;
+    overflow-y: auto;
+    
+    .admin-head-item {
+      padding: 16px;
+      border-radius: $border-radius;
+      background-color: darken($bg-card, 3%);
+      margin-bottom: 12px;
+      cursor: pointer;
+      transition: transform 0.2s ease, background-color 0.2s ease;
+      border-left: 4px solid transparent;
+      
+      &:hover {
+        background-color: darken($bg-card, 5%);
+      }
+      
+      &.selected {
+        border-left-color: $primary-color;
+        background-color: darken($bg-card, 6%);
+      }
+      
+      .admin-head-info {
+        margin-bottom: 12px;
+        
+        h3 {
+          margin: 0 0 6px 0;
+          color: $text-color-primary;
+          font-size: 16px;
+        }
+        
+        .address {
+          color: $text-color-secondary;
+          font-family: monospace;
+          font-size: 14px;
+          margin: 0;
+        }
+      }
+      
+      .admin-head-area {
+        .area-badge {
+          display: inline-flex;
+          align-items: center;
+          background-color: rgba($primary-color, 0.15);
+          color: $primary-color;
+          padding: 4px 10px;
+          border-radius: 12px;
+          font-size: 12px;
+          
+          i {
+            margin-right: 6px;
+          }
+        }
+        
+        .no-area {
+          display: inline-flex;
+          align-items: center;
+          color: $text-color-secondary;
+          font-size: 12px;
+          
+          i {
+            margin-right: 6px;
+          }
+        }
+      }
+    }
+  }
+  
+  // Admin Head details
+  .admin-head-details {
+    background-color: darken($bg-card, 3%);
+    border-radius: $border-radius;
+    
+    .details-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px;
+      border-bottom: 1px solid rgba($text-color-secondary, 0.1);
+      
+      h2 {
+        margin: 0;
+        font-size: 20px;
+      }
+    }
+    
+    .details-content {
+      padding: 16px;
+      
+      .detail-item {
+        margin-bottom: 12px;
+        
+        &:last-child {
+          margin-bottom: 0;
+        }
+        
+        .label {
+          display: block;
+          color: $text-color-secondary;
+          margin-bottom: 4px;
+          font-size: 14px;
+        }
+        
+        .value {
+          display: block;
+          color: $text-color-primary;
+          word-break: break-word;
+          
+          &.no-area {
+            color: $warning-color;
+          }
+        }
+        
+        .metadata-container {
+          background-color: darken($bg-card, 6%);
+          border-radius: $border-radius;
+          padding: 12px;
+          
+          .metadata-item {
+            margin-bottom: 8px;
+            display: flex;
+            
+            &:last-child {
+              margin-bottom: 0;
+            }
+            
+            .metadata-label {
+              width: 120px;
+              color: $text-color-secondary;
+              font-weight: 500;
+            }
+            
+            .metadata-value {
+              flex: 1;
+              color: $text-color-primary;
+            }
+          }
+        }
+      }
+    }
+    
+    .actions-container {
+      .actions-header {
+        padding: 16px;
+        border-bottom: 1px solid rgba($text-color-secondary, 0.1);
+        border-top: 1px solid rgba($text-color-secondary, 0.1);
+        
+        h3 {
+          margin: 0;
+          font-size: 18px;
+        }
+      }
+      
+      .actions-content {
+        padding: 16px;
+        
+        .action-section {
+          margin-bottom: 24px;
+          
+          &:last-child {
+            margin-bottom: 0;
+          }
+          
+          h4 {
+            margin: 0 0 12px 0;
+            font-size: 16px;
+            color: $text-color-primary;
+          }
+          
+          h5 {
+            margin: 16px 0 8px 0;
+            font-size: 14px;
+            color: $text-color-secondary;
+          }
+          
+          p {
+            margin: 0 0 16px 0;
+            color: $text-color-secondary;
+          }
+          
+          .no-areas-message {
+            color: $warning-color;
+            font-style: italic;
+          }
+          
+          .area-select-container {
+            margin-bottom: 16px;
+          }
+          
+          .area-select-list {
+            max-height: 200px;
+            overflow-y: auto;
+            
+            .area-select-item {
+              display: flex;
+              align-items: center;
+              padding: 10px 12px;
+              margin-bottom: 8px;
+              background-color: darken($bg-card, 5%);
+              border-radius: $border-radius;
+              cursor: pointer;
+              transition: background-color 0.2s ease;
+              
+              &:hover {
+                background-color: $primary-color;
+                color: $bg-dark;
+                
+                i {
+                  color: $bg-dark;
+                }
+              }
+              
+              i {
+                margin-right: 8px;
+                color: $primary-color;
+              }
+            }
+          }
+          
+          .reassign-section {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid rgba($text-color-secondary, 0.1);
+          }
+        }
+      }
+    }
+  }
+  
+  .empty-selection {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 300px;
+    background-color: darken($bg-card, 3%);
+    border-radius: $border-radius;
+    
+    i {
+      font-size: 32px;
+      color: $text-color-secondary;
+      margin-bottom: 16px;
+    }
+    
+    p {
+      color: $text-color-secondary;
+      text-align: center;
+      max-width: 240px;
+    }
+  }
+}
+
+// Role requests
+.role-requests-container {
+  .requests-list {
+    .request-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 16px;
+      background-color: darken($bg-card, 3%);
+      border-radius: $border-radius;
+      margin-bottom: 16px;
+      
+      .request-info {
+        flex: 1;
+        
+        .request-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 8px;
+          
+          h3 {
+            margin: 0;
+            font-size: 18px;
+          }
+          
+          .request-time {
+            color: $text-color-secondary;
+            font-size: 12px;
+          }
+        }
+        
+        .address {
+          color: $text-color-secondary;
+          font-family: monospace;
+          margin-bottom: 12px;
+        }
+        
+        .metadata-container {
+          background-color: darken($bg-card, 6%);
+          border-radius: $border-radius;
+          padding: 12px;
+          
+          .metadata-item {
+            margin-bottom: 8px;
+            display: flex;
+            
+            &:last-child {
+              margin-bottom: 0;
+            }
+            
+            .metadata-label {
+              width: 120px;
+              color: $text-color-secondary;
+              font-weight: 500;
+            }
+            
+            .metadata-value {
+              flex: 1;
+              color: $text-color-primary;
+            }
+          }
+        }
+      }
+      
+      .request-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-left: 16px;
+      }
+    }
+  }
+}
+
+// Assign admin form
+.assign-admin-container {
+  max-width: 600px;
+  margin: 0 auto;
+  
+  .form-header {
+    margin-bottom: 24px;
+    
+    h2 {
+      margin: 0 0 8px 0;
+      font-size: 20px;
+    }
+    
+    .description {
+      color: $text-color-secondary;
+      margin: 0;
+    }
+  }
+}
+
+// Forms
+form {
+  .form-group {
+    margin-bottom: 24px;
+    
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: $text-color-primary;
+      font-weight: 500;
+    }
+    
+    input, select {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid rgba($text-color-secondary, 0.3);
+      border-radius: $border-radius;
+      background-color: darken($bg-card, 3%);
+      color: $text-color-primary;
+      
+      &:focus {
+        outline: none;
+        border-color: $primary-color;
+      }
+      
+      &.invalid {
+        border-color: $error-color;
+      }
+    }
+    
+    select {
+      appearance: none;
+      background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23FFFFFF%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.4-12.8z%22%2F%3E%3C%2Fsvg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px top 50%;
+      background-size: 12px auto;
+      padding-right: 30px;
+    }
+    
+    .validation-error {
+      color: $error-color;
+      font-size: 12px;
+      margin-top: 6px;
+    }
+    
+    .form-hint {
+      color: $text-color-secondary;
+      font-size: 12px;
+      margin-top: 6px;
+    }
+  }
+}
+
+// Empty state
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  
+  i {
+    font-size: 36px;
+    color: $text-color-secondary;
+    margin-bottom: 16px;
+  }
+  
+  p {
+    color: $text-color-secondary;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+}
+
+// Buttons
+.btn {
+  padding: 10px 20px;
+  border-radius: $border-radius;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+  
+  .btn-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 1s infinite linear;
+    margin-right: 8px;
+  }
+  
+  i {
+    margin-right: 8px;
+  }
+}
+
+.btn-primary {
+  background-color: $primary-color;
+  color: $bg-dark;
+  
+  &:hover:not(:disabled) {
+    background-color: lighten($primary-color, 5%);
+  }
+}
+
+.btn-success {
+  background-color: $success-color;
+  color: #fff;
+  
+  &:hover:not(:disabled) {
+    background-color: lighten($success-color, 5%);
+  }
+}
+
+.btn-danger {
+  background-color: $error-color;
+  color: #fff;
+  
+  &:hover:not(:disabled) {
+    background-color: lighten($error-color, 5%);
+  }
+}
+
+.btn-warning {
+  background-color: $warning-color;
+  color: $bg-dark;
+  
+  &:hover:not(:disabled) {
+    background-color: lighten($warning-color, 5%);
+  }
+}
+
+.btn-text {
+  background: none;
+  color: $text-color-secondary;
+  padding: 6px 12px;
+  
+  &:hover:not(:disabled) {
+    color: $text-color-primary;
+    background-color: rgba($text-color-secondary, 0.1);
+  }
+}

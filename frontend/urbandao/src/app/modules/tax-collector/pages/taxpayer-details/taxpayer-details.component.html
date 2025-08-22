@@ -1,0 +1,173 @@
+<div class="taxpayer-details">
+  <!-- Header Section -->
+  <header class="page-header">
+    <div class="header-content">
+      <h1>Taxpayer Details</h1>
+      <p *ngIf="taxpayerInfo.name">{{ taxpayerInfo.name }}</p>
+      <p *ngIf="!taxpayerInfo.name">{{ taxpayerAddress }}</p>
+    </div>
+    <div class="header-actions">
+      <button class="refresh-btn" (click)="loadTaxpayerDetails(taxpayerAddress || '')" [disabled]="loading">
+        <i class="fas fa-sync-alt"></i> Refresh
+      </button>
+      <button class="primary-btn" (click)="createNewAssessment()">
+        <i class="fas fa-plus"></i> New Assessment
+      </button>
+    </div>
+  </header>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading taxpayer details...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="!loading && error" class="error-container">
+    <div class="error-icon">
+      <i class="fas fa-exclamation-triangle"></i>
+    </div>
+    <h2>Error</h2>
+    <p>{{ error }}</p>
+    <button class="primary-btn" (click)="loadTaxpayerDetails(taxpayerAddress || '')">Try Again</button>
+  </div>
+
+  <!-- Taxpayer Details Content -->
+  <div *ngIf="!loading && !error" class="details-content">
+    <!-- Profile Card -->
+    <div class="profile-card">
+      <div class="profile-header">
+        <div class="avatar">
+          <i class="fas fa-user"></i>
+        </div>
+        <div class="profile-info">
+          <h2>{{ taxpayerInfo.name || 'Anonymous Taxpayer' }}</h2>
+          <p class="address">{{ taxpayerAddress }}</p>
+          <p class="registered-date" *ngIf="taxpayerInfo.registeredDate">
+            Registered: {{ formatDate(taxpayerInfo.registeredDate) }}
+          </p>
+        </div>
+      </div>
+      
+      <div class="property-info" *ngIf="taxpayerInfo.propertyId">
+        <div class="info-item">
+          <span class="label">Property ID:</span>
+          <span class="value">{{ taxpayerInfo.propertyId }}</span>
+        </div>
+        <div class="info-item" *ngIf="taxpayerInfo.location">
+          <span class="label">Location:</span>
+          <span class="value">{{ taxpayerInfo.location }}</span>
+        </div>
+      </div>
+      
+      <div class="payment-summary">
+        <div class="summary-item">
+          <span class="label">Total Paid:</span>
+          <span class="value highlight">{{ taxpayerInfo.totalPaid }} ETH</span>
+        </div>
+        <div class="summary-item">
+          <span class="label">Pending Assessments:</span>
+          <span class="value">{{ taxpayerInfo.pendingAssessments.length }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="label">Payment History:</span>
+          <span class="value">{{ taxpayerInfo.paymentHistory.length }} payments</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pending Assessments -->
+    <div class="section-card">
+      <div class="section-header">
+        <h2>Pending Assessments</h2>
+      </div>
+      
+      <div class="empty-state" *ngIf="taxpayerInfo.pendingAssessments.length === 0">
+        <i class="fas fa-file-invoice"></i>
+        <h3>No Pending Assessments</h3>
+        <p>This taxpayer has no pending tax assessments.</p>
+        <button class="secondary-btn" (click)="createNewAssessment()">Create Assessment</button>
+      </div>
+      
+      <div class="assessments-list" *ngIf="taxpayerInfo.pendingAssessments.length > 0">
+        <div class="assessment-item" *ngFor="let assessment of taxpayerInfo.pendingAssessments">
+          <div class="assessment-header">
+            <div class="assessment-title">
+              <h3>{{ assessment.propertyId }}</h3>
+              <span class="period">Q{{ assessment.quarter }}, {{ assessment.year }}</span>
+            </div>
+            <div class="amount">{{ assessment.amount }} ETH</div>
+          </div>
+          
+          <div class="assessment-details">
+            <div class="detail-item">
+              <span class="label">Due Date:</span>
+              <span class="value">{{ formatTimestamp(assessment.dueDate) }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Created:</span>
+              <span class="value">{{ formatTimestamp(assessment.createdAt) }}</span>
+            </div>
+            <div class="detail-item" *ngIf="assessment.lateFee">
+              <span class="label">Late Fee:</span>
+              <span class="value">{{ assessment.lateFee }} ETH</span>
+            </div>
+          </div>
+          
+          <div class="assessment-status">
+            <span class="status-badge" [ngClass]="getStatusClass(assessment.status)">
+              {{ assessment.status }}
+            </span>
+          </div>
+          
+          <p class="description" *ngIf="assessment.description">{{ assessment.description }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Payment History -->
+    <div class="section-card">
+      <div class="section-header">
+        <h2>Payment History</h2>
+        <button *ngIf="taxpayerInfo.paymentHistory.length > 3" class="toggle-btn" (click)="toggleHistory()">
+          {{ showFullHistory ? 'Show Recent' : 'Show All' }}
+        </button>
+      </div>
+      
+      <div class="empty-state" *ngIf="taxpayerInfo.paymentHistory.length === 0">
+        <i class="fas fa-receipt"></i>
+        <h3>No Payment History</h3>
+        <p>This taxpayer has not made any tax payments yet.</p>
+      </div>
+      
+      <div class="payment-history" *ngIf="taxpayerInfo.paymentHistory.length > 0">
+        <div class="payment-item" *ngFor="let payment of showFullHistory ? taxpayerInfo.paymentHistory : taxpayerInfo.paymentHistory.slice(0, 3)">
+          <div class="payment-header">
+            <div class="payment-info">
+              <h3>{{ payment.propertyId }}</h3>
+              <span class="period">Q{{ payment.quarter }}, {{ payment.year }}</span>
+            </div>
+            <div class="amount paid">{{ payment.amount }} ETH</div>
+          </div>
+          
+          <div class="payment-details">
+            <div class="detail-item">
+              <span class="label">Payment Date:</span>
+              <span class="value">{{ formatTimestamp(payment.paidTimestamp) }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Method:</span>
+              <span class="value">{{ payment.method || 'Direct Transfer' }}</span>
+            </div>
+            <div class="detail-item" *ngIf="payment.receiptId">
+              <span class="label">Receipt ID:</span>
+              <span class="value receipt-link" (click)="viewReceipt(payment.receiptId)">
+                {{ payment.receiptId.substring(0, 8) }}...
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

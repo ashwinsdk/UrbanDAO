@@ -1,0 +1,117 @@
+<div class="pending-grievances">
+  <!-- Header Section -->
+  <header class="page-header">
+    <div class="header-content">
+      <h1>Pending Grievances</h1>
+      <p>Review and validate citizen-submitted grievances</p>
+    </div>
+    <button class="refresh-btn" (click)="refreshGrievances()" [disabled]="loading">
+      <i class="fas fa-sync-alt"></i> Refresh
+    </button>
+  </header>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading pending grievances...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="!loading && error" class="error-container">
+    <div class="error-icon">
+      <i class="fas fa-exclamation-triangle"></i>
+    </div>
+    <h2>Error</h2>
+    <p>{{ error }}</p>
+    <button class="primary-btn" (click)="refreshGrievances()">Try Again</button>
+  </div>
+
+  <!-- Content Area -->
+  <div *ngIf="!loading && !error" class="grievances-content">
+    <!-- Filters Section -->
+    <div class="filters-container">
+      <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input 
+          type="text" 
+          [formControl]="searchControl" 
+          placeholder="Search by title, description or location"
+        >
+      </div>
+      
+      <div class="filter-group">
+        <div class="filter-select">
+          <label>Type:</label>
+          <select [formControl]="typeFilter">
+            <option value="all">All Types</option>
+            <option *ngFor="let type of grievanceTypes.slice(1)" [value]="type">{{ type }}</option>
+          </select>
+        </div>
+        
+        <div class="filter-select">
+          <label>Urgency:</label>
+          <select [formControl]="urgentFilter">
+            <option value="all">All</option>
+            <option value="urgent">Urgent Only</option>
+            <option value="regular">Regular Only</option>
+          </select>
+        </div>
+        
+        <div class="filter-select">
+          <label>Sort By:</label>
+          <select [formControl]="sortOption">
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Empty State -->
+    <div *ngIf="filteredGrievances.length === 0" class="empty-state">
+      <i class="fas fa-clipboard-check"></i>
+      <h3>No Pending Grievances</h3>
+      <p *ngIf="pendingGrievances.length === 0">There are currently no grievances awaiting validation.</p>
+      <p *ngIf="pendingGrievances.length > 0">No grievances match your current filters.</p>
+      <button *ngIf="pendingGrievances.length > 0" class="secondary-btn" (click)="searchControl.setValue(''); typeFilter.setValue('all'); urgentFilter.setValue('all')">
+        Clear Filters
+      </button>
+    </div>
+    
+    <!-- Grievances List -->
+    <div *ngIf="filteredGrievances.length > 0" class="grievance-grid">
+      <div *ngFor="let grievance of filteredGrievances" class="grievance-card" (click)="navigateToGrievanceReview(grievance.id)">
+        <div class="grievance-header">
+          <h3 class="grievance-title">
+            {{ grievance.title }}
+            <span *ngIf="grievance.urgent" class="urgent-badge">URGENT</span>
+          </h3>
+          <span class="grievance-date">{{ formatDate(grievance.createdAt) }}</span>
+        </div>
+        
+        <div class="grievance-location">
+          <i class="fas fa-map-marker-alt"></i> {{ grievance.location }}
+        </div>
+        
+        <div class="grievance-type">
+          <i class="fas fa-tag"></i> {{ grievance.type }}
+        </div>
+        
+        <div class="grievance-description">
+          {{ grievance.description | slice:0:100 }}{{ grievance.description.length > 100 ? '...' : '' }}
+        </div>
+        
+        <div class="grievance-footer">
+          <div class="citizen-info">
+            <i class="fas fa-user"></i>
+            {{ grievance.citizenName || formatAddress(grievance.citizenAddress) }}
+          </div>
+          
+          <button class="review-btn">
+            Review <i class="fas fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

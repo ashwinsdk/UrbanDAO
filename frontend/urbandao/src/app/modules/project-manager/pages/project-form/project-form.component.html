@@ -1,0 +1,128 @@
+<div class="project-form-container">
+  <div class="form-header">
+    <h1>Create New Project</h1>
+    <p>Fill out the details below to create a new urban development project</p>
+  </div>
+
+  <div class="form-content">
+    <div *ngIf="loading" class="loading-indicator">
+      <div class="spinner"></div>
+      <p>Loading...</p>
+    </div>
+
+    <div *ngIf="!loading && success" class="success-message">
+      <div class="success-icon">✓</div>
+      <h3>Project Created Successfully!</h3>
+      <p>Your project has been submitted and is pending approval.</p>
+      <p>Redirecting to projects list...</p>
+    </div>
+
+    <div *ngIf="!loading && !success">
+      <form [formGroup]="projectForm" (ngSubmit)="onSubmit()" class="project-form">
+        <div class="form-group">
+          <label for="title">Project Title</label>
+          <input 
+            type="text" 
+            id="title" 
+            formControlName="title" 
+            placeholder="Enter project title"
+            [class.is-invalid]="projectForm.get('title')?.invalid && projectForm.get('title')?.touched"
+          >
+          <div *ngIf="projectForm.get('title')?.invalid && projectForm.get('title')?.touched" class="error-message">
+            <span *ngIf="projectForm.get('title')?.errors?.['required']">Project title is required</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="description">Project Description</label>
+          <textarea 
+            id="description" 
+            formControlName="description" 
+            placeholder="Describe the project in detail..."
+            rows="5"
+            [class.is-invalid]="projectForm.get('description')?.invalid && projectForm.get('description')?.touched"
+          ></textarea>
+          <div *ngIf="projectForm.get('description')?.invalid && projectForm.get('description')?.touched" class="error-message">
+            <span *ngIf="projectForm.get('description')?.errors?.['required']">Project description is required</span>
+            <span *ngIf="projectForm.get('description')?.errors?.['minlength']">Description must be at least 20 characters</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="location">Project Location</label>
+          <input 
+            type="text" 
+            id="location" 
+            formControlName="location" 
+            placeholder="Where will this project be implemented?"
+            [class.is-invalid]="projectForm.get('location')?.invalid && projectForm.get('location')?.touched"
+          >
+          <div *ngIf="projectForm.get('location')?.invalid && projectForm.get('location')?.touched" class="error-message">
+            <span *ngIf="projectForm.get('location')?.errors?.['required']">Project location is required</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group half-width">
+            <label for="budget">Budget (ETH)</label>
+            <input 
+              type="number" 
+              id="budget" 
+              formControlName="budget" 
+              placeholder="0.0"
+              step="0.01"
+              min="0"
+              [class.is-invalid]="projectForm.get('budget')?.invalid && projectForm.get('budget')?.touched"
+            >
+            <div *ngIf="projectForm.get('budget')?.invalid && projectForm.get('budget')?.touched" class="error-message">
+              <span *ngIf="projectForm.get('budget')?.errors?.['required']">Budget is required</span>
+              <span *ngIf="projectForm.get('budget')?.errors?.['min']">Budget cannot be negative</span>
+            </div>
+          </div>
+
+          <div class="form-group half-width">
+            <label for="timeline">Timeline (Days)</label>
+            <input 
+              type="number" 
+              id="timeline" 
+              formControlName="timeline" 
+              placeholder="30"
+              step="1"
+              min="1"
+              [class.is-invalid]="projectForm.get('timeline')?.invalid && projectForm.get('timeline')?.touched"
+            >
+            <div *ngIf="projectForm.get('timeline')?.invalid && projectForm.get('timeline')?.touched" class="error-message">
+              <span *ngIf="projectForm.get('timeline')?.errors?.['required']">Timeline is required</span>
+              <span *ngIf="projectForm.get('timeline')?.errors?.['min']">Timeline must be at least 1 day</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="documents">Supporting Documents (IPFS CIDs, comma separated)</label>
+          <input 
+            type="text" 
+            id="documents" 
+            formControlName="documents" 
+            placeholder="QmYjtig7VJQ6XsnUjqqJvj7QaMcCAwtrgNdahSiFofrE7o,QmXgm5QVTy8kYZ3ZiNLEV5ERM3SsUqHvAhQPMgwKuF8K2C"
+          >
+          <small class="form-helper-text">Optional: Add IPFS document CIDs to provide additional project information</small>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" (click)="cancel()">Cancel</button>
+          <button type="submit" class="btn-primary" [disabled]="submitting || projectForm.invalid">
+            <span *ngIf="submitting">
+              <span class="spinner-sm"></span> Creating...
+            </span>
+            <span *ngIf="!submitting">Create Project</span>
+          </button>
+        </div>
+      </form>
+
+      <div *ngIf="error" class="form-error">
+        <p>{{ error }}</p>
+      </div>
+    </div>
+  </div>
+</div>

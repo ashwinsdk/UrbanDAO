@@ -1,0 +1,275 @@
+<div class="projects-container">
+  <header class="page-header">
+    <div class="title-section">
+      <h1>Local Projects</h1>
+      <p class="subtitle">View and support community projects in your area</p>
+    </div>
+  </header>
+
+  <div class="filters-bar">
+    <div class="filter-group">
+      <label for="statusFilter">Status:</label>
+      <select id="statusFilter" [(ngModel)]="filterStatus" (change)="applyFilters()">
+        <option value="all">All Statuses</option>
+        <option value="proposed">Proposed</option>
+        <option value="approved">Approved</option>
+        <option value="in_progress">In Progress</option>
+        <option value="completed">Completed</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label for="categoryFilter">Category:</label>
+      <select id="categoryFilter" [(ngModel)]="filterCategory" (change)="applyFilters()">
+        <option value="all">All Categories</option>
+        <option *ngFor="let category of availableCategories" [value]="category">{{ category }}</option>
+      </select>
+    </div>
+
+    <button class="btn-icon refresh" (click)="fetchProjects()" title="Refresh">
+      <span class="icon">↻</span>
+    </button>
+  </div>
+
+  <!-- Loading state -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading local projects...</p>
+  </div>
+
+  <!-- Error state -->
+  <div *ngIf="error && !loading" class="error-container">
+    <div class="error-icon">✕</div>
+    <h3>Error Loading Projects</h3>
+    <p>{{ error }}</p>
+    <button class="btn-secondary" (click)="fetchProjects()">Try Again</button>
+  </div>
+
+  <!-- Empty state -->
+  <div *ngIf="!loading && !error && projects.length === 0" class="empty-container">
+    <div class="empty-icon">🏙️</div>
+    <h3>No Projects Found</h3>
+    <p>There are no projects in your area matching the selected filters.</p>
+  </div>
+
+  <!-- Projects grid -->
+  <div *ngIf="!loading && !error && projects.length > 0" class="projects-grid">
+    <div *ngFor="let project of projects" class="project-card">
+      <div class="status-badge" [ngClass]="getStatusClass(project.status)">
+        {{ project.status }}
+      </div>
+      
+      <h3 class="project-title" (click)="viewProjectDetails(project)">
+        {{ project.title }}
+      </h3>
+      
+      <div class="project-category">
+        <span class="category-label">{{ project.category }}</span>
+      </div>
+      
+      <p class="project-description">{{ project.description | slice:0:150 }}{{ project.description.length > 150 ? '...' : '' }}</p>
+      
+      <div class="project-meta">
+        <div class="meta-item">
+          <span class="meta-label">Location:</span>
+          <span class="meta-value">{{ project.location }}</span>
+        </div>
+        
+        <div class="meta-item">
+          <span class="meta-label">Start Date:</span>
+          <span class="meta-value">{{ formatDate(project.startDate) }}</span>
+        </div>
+        
+        <div class="meta-item">
+          <span class="meta-label">Manager:</span>
+          <span class="meta-value">{{ formatAddress(project.manager) }}</span>
+        </div>
+      </div>
+      
+      <div class="budget-section">
+        <div class="budget-header">
+          <span class="budget-label">Budget:</span>
+          <span class="budget-value">{{ formatCurrency(project.budget) }}</span>
+        </div>
+        
+        <div class="progress-container">
+          <div class="progress-bar">
+            <div class="progress-fill" [style.width.%]="getProgressPercentage(project)"></div>
+          </div>
+          <div class="progress-text">
+            {{ formatCurrency(project.funds) }} funded ({{ getProgressPercentage(project) | number:'1.0-0' }}%)
+          </div>
+        </div>
+      </div>
+      
+      <div class="milestone-section">
+        <div class="milestone-header">
+          <span class="milestone-label">Milestones:</span>
+          <span class="milestone-value">{{ getCompletedMilestonesCount(project) }}/{{ project.milestones?.length || 0 }}</span>
+        </div>
+        
+        <div class="progress-container">
+          <div class="progress-bar">
+            <div class="progress-fill" [style.width.%]="getMilestoneCompletionPercentage(project)"></div>
+          </div>
+          <div class="progress-text">
+            {{ getMilestoneCompletionPercentage(project) }}% complete
+          </div>
+        </div>
+      </div>
+      
+      <div class="project-actions">
+        <button class="btn-detail" (click)="viewProjectDetails(project)">
+          View Details
+        </button>
+        
+        <button 
+          class="btn-upvote" 
+          [disabled]="project.hasUserUpvoted || isUpvoting" 
+          (click)="upvoteProject(project.id)"
+          [ngClass]="{'upvoted': project.hasUserUpvoted}"
+        >
+          <span *ngIf="isUpvoting" class="spinner"></span>
+          <span class="icon">▲</span>
+          <span class="upvote-count">{{ project.upvotes }}</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Project detail modal -->
+  <div *ngIf="selectedProject" class="modal-overlay">
+    <div class="project-modal">
+      <div class="modal-header">
+        <h2>Project Details</h2>
+        <button class="close-button" (click)="closeProjectDetails()">×</button>
+      </div>
+      
+      <div class="modal-content">
+        <div class="modal-section">
+          <div class="status-badge large" [ngClass]="getStatusClass(selectedProject.status)">
+            {{ selectedProject.status }}
+          </div>
+          
+          <h3 class="modal-title">{{ selectedProject.title }}</h3>
+          
+          <div class="project-category">
+            <span class="category-label">{{ selectedProject.category }}</span>
+          </div>
+        </div>
+        
+        <div class="modal-section">
+          <h4>Description</h4>
+          <p class="description-text">{{ selectedProject.description }}</p>
+        </div>
+        
+        <div class="modal-section">
+          <div class="detail-grid">
+            <div class="detail-item">
+              <span class="detail-label">Location:</span>
+              <span class="detail-value">{{ selectedProject.location }}</span>
+            </div>
+            
+            <div class="detail-item">
+              <span class="detail-label">Manager:</span>
+              <span class="detail-value">{{ formatAddress(selectedProject.manager) }}</span>
+            </div>
+            
+            <div class="detail-item">
+              <span class="detail-label">Start Date:</span>
+              <span class="detail-value">{{ formatDate(selectedProject.startDate) }}</span>
+            </div>
+            
+            <div class="detail-item">
+              <span class="detail-label">End Date:</span>
+              <span class="detail-value">{{ formatDate(selectedProject.endDate) }}</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="modal-section">
+          <h4>Budget and Funding</h4>
+          <div class="budget-detail">
+            <div class="budget-row">
+              <span class="budget-label">Total Budget:</span>
+              <span class="budget-value">{{ formatCurrency(selectedProject.budget) }}</span>
+            </div>
+            
+            <div class="budget-row">
+              <span class="budget-label">Funds Collected:</span>
+              <span class="budget-value">{{ formatCurrency(selectedProject.funds) }}</span>
+            </div>
+            
+            <div class="progress-container">
+              <div class="progress-bar">
+                <div class="progress-fill" [style.width.%]="getProgressPercentage(selectedProject)"></div>
+              </div>
+              <div class="progress-text">
+                {{ getProgressPercentage(selectedProject) | number:'1.0-0' }}% funded
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="modal-section">
+          <h4>Milestones</h4>
+          <div *ngIf="selectedProject.milestones && selectedProject.milestones.length > 0" class="milestones-list">
+            <div *ngFor="let milestone of selectedProject.milestones" class="milestone-item">
+              <div class="milestone-header">
+                <div class="milestone-title">
+                  <div class="milestone-status" [ngClass]="{'completed': milestone.completed}">
+                    <span *ngIf="milestone.completed" class="status-icon">✓</span>
+                  </div>
+                  {{ milestone.title }}
+                </div>
+                <div class="milestone-amount">{{ formatCurrency(milestone.amount) }}</div>
+              </div>
+              
+              <p class="milestone-description">{{ milestone.description }}</p>
+              
+              <div *ngIf="milestone.completed && milestone.completedDate" class="milestone-completion">
+                Completed on {{ formatDate(milestone.completedDate) }}
+              </div>
+              
+              <div *ngIf="milestone.completed && milestone.proofDocuments && milestone.proofDocuments.length > 0" class="milestone-proof">
+                <div class="proof-label">Documentation:</div>
+                <div class="proof-links">
+                  <a *ngFor="let doc of milestone.proofDocuments; let i = index" 
+                     href="{{ doc }}" 
+                     target="_blank" 
+                     class="proof-link">
+                    Document {{ i + 1 }}
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div *ngIf="!selectedProject.milestones || selectedProject.milestones.length === 0" class="no-milestones">
+            <p>No milestones have been defined for this project.</p>
+          </div>
+        </div>
+        
+        <div *ngIf="upvoteError" class="error-message">
+          {{ upvoteError }}
+        </div>
+        
+        <div class="modal-actions">
+          <button class="btn-secondary" (click)="closeProjectDetails()">Close</button>
+          <button 
+            class="btn-upvote" 
+            [disabled]="selectedProject.hasUserUpvoted || isUpvoting" 
+            (click)="upvoteProject(selectedProject.id)"
+            [ngClass]="{'upvoted': selectedProject.hasUserUpvoted}"
+          >
+            <span *ngIf="isUpvoting" class="spinner"></span>
+            <span class="icon">▲</span>
+            <span class="upvote-count">{{ selectedProject.upvotes }}</span>
+            {{ selectedProject.hasUserUpvoted ? 'Upvoted' : 'Upvote Project' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

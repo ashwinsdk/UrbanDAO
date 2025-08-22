@@ -1,0 +1,123 @@
+<div class="processed-grievances">
+  <!-- Header Section -->
+  <header class="page-header">
+    <div class="header-content">
+      <h1>Processed Grievances</h1>
+      <p>Review history of grievances you've validated or rejected</p>
+    </div>
+    <button class="refresh-btn" (click)="refreshGrievances()" [disabled]="loading">
+      <i class="fas fa-sync-alt"></i> Refresh
+    </button>
+  </header>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading processed grievances...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="!loading && error" class="error-container">
+    <div class="error-icon">
+      <i class="fas fa-exclamation-triangle"></i>
+    </div>
+    <h2>Error</h2>
+    <p>{{ error }}</p>
+    <button class="primary-btn" (click)="refreshGrievances()">Try Again</button>
+  </div>
+
+  <!-- Content Area -->
+  <div *ngIf="!loading && !error" class="grievances-content">
+    <!-- Filters Section -->
+    <div class="filters-container">
+      <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input 
+          type="text" 
+          [formControl]="searchControl" 
+          placeholder="Search by title, location or comments"
+        >
+      </div>
+      
+      <div class="filter-group">
+        <div class="filter-select">
+          <label>Status:</label>
+          <select [formControl]="statusFilter">
+            <option value="all">All Statuses</option>
+            <option value="validated">Validated Only</option>
+            <option value="rejected">Rejected Only</option>
+          </select>
+        </div>
+        
+        <div class="filter-select">
+          <label>Type:</label>
+          <select [formControl]="typeFilter">
+            <option value="all">All Types</option>
+            <option *ngFor="let type of grievanceTypes.slice(1)" [value]="type">{{ type }}</option>
+          </select>
+        </div>
+        
+        <div class="filter-select">
+          <label>Sort By:</label>
+          <select [formControl]="sortOption">
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Empty State -->
+    <div *ngIf="filteredGrievances.length === 0" class="empty-state">
+      <i class="fas fa-history"></i>
+      <h3>No Processed Grievances</h3>
+      <p *ngIf="processedGrievances.length === 0">You haven't processed any grievances yet.</p>
+      <p *ngIf="processedGrievances.length > 0">No grievances match your current filters.</p>
+      <button *ngIf="processedGrievances.length > 0" class="secondary-btn" (click)="searchControl.setValue(''); statusFilter.setValue('all'); typeFilter.setValue('all')">
+        Clear Filters
+      </button>
+    </div>
+    
+    <!-- Grievances Table -->
+    <div *ngIf="filteredGrievances.length > 0" class="grievances-table-container">
+      <table class="grievances-table">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Location</th>
+            <th>Type</th>
+            <th>Citizen</th>
+            <th>Processed Date</th>
+            <th>Status</th>
+            <th>Comments</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let grievance of filteredGrievances">
+            <td class="title-cell">{{ grievance.title }}</td>
+            <td>{{ grievance.location }}</td>
+            <td>{{ grievance.type }}</td>
+            <td>{{ grievance.citizenName || formatAddress(grievance.citizenAddress) }}</td>
+            <td>{{ formatDate(grievance.processedAt) }}</td>
+            <td>
+              <span class="status-badge" [ngClass]="getStatusClass(grievance.status)">
+                {{ grievance.status }}
+              </span>
+            </td>
+            <td class="comments-cell">
+              <div class="truncated-text">
+                {{ grievance.validatorComments }}
+              </div>
+            </td>
+            <td>
+              <button class="view-btn" (click)="viewGrievanceDetails(grievance.id)">
+                <i class="fas fa-eye"></i> View
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

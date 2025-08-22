@@ -1,0 +1,178 @@
+<div class="new-grievance-container">
+  <header class="page-header">
+    <div class="title-section">
+      <h1>File New Grievance</h1>
+      <p class="subtitle">Submit a new grievance for review and resolution</p>
+    </div>
+    <button class="btn-secondary" (click)="cancel()">Cancel</button>
+  </header>
+
+  <!-- Success message -->
+  <div *ngIf="success" class="success-container">
+    <div class="success-icon">✓</div>
+    <h2>Grievance Submitted Successfully</h2>
+    <p>Your grievance has been submitted and is now pending validation. You will be redirected to your grievances list.</p>
+  </div>
+
+  <!-- Error message -->
+  <div *ngIf="error" class="error-container">
+    <div class="error-icon">!</div>
+    <p>{{ error }}</p>
+    <button class="btn-link" (click)="error = null">Dismiss</button>
+  </div>
+
+  <!-- Grievance form -->
+  <form *ngIf="!success" [formGroup]="grievanceForm" (ngSubmit)="submitGrievance()" class="grievance-form">
+    <div class="form-section">
+      <h2>Grievance Details</h2>
+      
+      <div class="form-group">
+        <label for="title">Title *</label>
+        <input 
+          type="text" 
+          id="title" 
+          formControlName="title" 
+          placeholder="Brief title describing your grievance"
+          [class.invalid]="grievanceForm.get('title')?.invalid && grievanceForm.get('title')?.touched"
+        >
+        <div *ngIf="grievanceForm.get('title')?.invalid && grievanceForm.get('title')?.touched" class="error-message">
+          <span *ngIf="grievanceForm.get('title')?.errors?.['required']">Title is required.</span>
+          <span *ngIf="grievanceForm.get('title')?.errors?.['minlength']">Title must be at least 5 characters.</span>
+          <span *ngIf="grievanceForm.get('title')?.errors?.['maxlength']">Title cannot exceed 100 characters.</span>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="description">Description *</label>
+        <textarea 
+          id="description" 
+          formControlName="description" 
+          rows="5" 
+          placeholder="Detailed description of your grievance"
+          [class.invalid]="grievanceForm.get('description')?.invalid && grievanceForm.get('description')?.touched"
+        ></textarea>
+        <div *ngIf="grievanceForm.get('description')?.invalid && grievanceForm.get('description')?.touched" class="error-message">
+          <span *ngIf="grievanceForm.get('description')?.errors?.['required']">Description is required.</span>
+          <span *ngIf="grievanceForm.get('description')?.errors?.['minlength']">Description must be at least 20 characters.</span>
+          <span *ngIf="grievanceForm.get('description')?.errors?.['maxlength']">Description cannot exceed 1000 characters.</span>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="location">Location *</label>
+        <input 
+          type="text" 
+          id="location" 
+          formControlName="location" 
+          placeholder="Location related to this grievance"
+          [class.invalid]="grievanceForm.get('location')?.invalid && grievanceForm.get('location')?.touched"
+        >
+        <div *ngIf="grievanceForm.get('location')?.invalid && grievanceForm.get('location')?.touched" class="error-message">
+          <span *ngIf="grievanceForm.get('location')?.errors?.['required']">Location is required.</span>
+          <span *ngIf="grievanceForm.get('location')?.errors?.['minlength']">Location must be at least 5 characters.</span>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="grievanceType">Grievance Type *</label>
+        <select 
+          id="grievanceType" 
+          formControlName="grievanceType"
+          [class.invalid]="grievanceForm.get('grievanceType')?.invalid && grievanceForm.get('grievanceType')?.touched"
+        >
+          <option value="">Select a grievance type</option>
+          <option value="infrastructure">Infrastructure</option>
+          <option value="sanitation">Sanitation</option>
+          <option value="water">Water Supply</option>
+          <option value="electricity">Electricity</option>
+          <option value="road">Road Maintenance</option>
+          <option value="pollution">Pollution</option>
+          <option value="public_safety">Public Safety</option>
+          <option value="other">Other</option>
+        </select>
+        <div *ngIf="grievanceForm.get('grievanceType')?.invalid && grievanceForm.get('grievanceType')?.touched" class="error-message">
+          <span *ngIf="grievanceForm.get('grievanceType')?.errors?.['required']">Please select a grievance type.</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="form-section">
+      <h2>Evidence & Documentation</h2>
+      <p class="section-info">Upload images related to your grievance (optional, max 3 files, 5MB each).</p>
+      
+      <div class="file-upload-container">
+        <div class="file-input-wrapper">
+          <input type="file" id="fileUpload" (change)="onFileSelected($event)" accept="image/*" multiple [disabled]="selectedFiles.length >= maxFiles">
+          <label for="fileUpload" class="file-upload-button" [class.disabled]="selectedFiles.length >= maxFiles">
+            <span class="upload-icon">+</span>
+            <span>{{ selectedFiles.length >= maxFiles ? 'Max files reached' : 'Choose files' }}</span>
+          </label>
+          <div class="file-info">{{ selectedFiles.length }} / {{ maxFiles }} files selected</div>
+        </div>
+        
+        <div class="selected-files" *ngIf="selectedFiles.length > 0">
+          <div *ngFor="let file of selectedFiles; let i = index" class="file-preview">
+            <div class="file-name">{{ file.name }}</div>
+            <div class="file-size">{{ (file.size / 1024 / 1024).toFixed(2) }} MB</div>
+            <button type="button" class="remove-file" (click)="removeFile(i)">×</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="form-section">
+      <h2>Contact Information</h2>
+      <p class="section-info">Optional additional contact methods (we'll also use your blockchain address).</p>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="contactPhone">Phone (optional)</label>
+          <input 
+            type="tel" 
+            id="contactPhone" 
+            formControlName="contactPhone" 
+            placeholder="Your contact phone"
+            [class.invalid]="grievanceForm.get('contactPhone')?.invalid && grievanceForm.get('contactPhone')?.touched"
+          >
+          <div *ngIf="grievanceForm.get('contactPhone')?.invalid && grievanceForm.get('contactPhone')?.touched" class="error-message">
+            <span>Please enter a valid phone number.</span>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="contactEmail">Email (optional)</label>
+          <input 
+            type="email" 
+            id="contactEmail" 
+            formControlName="contactEmail" 
+            placeholder="Your contact email"
+            [class.invalid]="grievanceForm.get('contactEmail')?.invalid && grievanceForm.get('contactEmail')?.touched"
+          >
+          <div *ngIf="grievanceForm.get('contactEmail')?.invalid && grievanceForm.get('contactEmail')?.touched" class="error-message">
+            <span>Please enter a valid email address.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="terms-section">
+      <div class="checkbox-group" [class.invalid]="grievanceForm.get('termsAccepted')?.invalid && grievanceForm.get('termsAccepted')?.touched">
+        <input type="checkbox" id="termsAccepted" formControlName="termsAccepted">
+        <label for="termsAccepted">
+          I confirm that all information provided is true and accurate to the best of my knowledge. I understand that submitting false information may result in penalties. *
+        </label>
+      </div>
+      <div *ngIf="grievanceForm.get('termsAccepted')?.invalid && grievanceForm.get('termsAccepted')?.touched" class="error-message">
+        <span>You must accept the terms to submit a grievance.</span>
+      </div>
+    </div>
+    
+    <div class="form-actions">
+      <button type="button" class="btn-secondary" (click)="cancel()">Cancel</button>
+      <button type="submit" class="btn-primary" [disabled]="isSubmitting">
+        <span class="spinner" *ngIf="isSubmitting"></span>
+        {{ isSubmitting ? 'Submitting...' : 'Submit Grievance' }}
+      </button>
+    </div>
+  </form>
+</div>

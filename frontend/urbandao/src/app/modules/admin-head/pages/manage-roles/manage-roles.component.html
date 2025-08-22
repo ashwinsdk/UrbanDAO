@@ -1,0 +1,262 @@
+<div class="manage-roles">
+  <!-- Back Navigation -->
+  <div class="back-nav">
+    <button class="back-btn" [routerLink]="['/admin-head']">
+      <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </button>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading role data...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="!loading && error" class="error-container">
+    <div class="error-icon">
+      <i class="fas fa-exclamation-triangle"></i>
+    </div>
+    <h2>Error</h2>
+    <p>{{ error }}</p>
+    <button class="primary-btn" (click)="loadAreaAndRoleData()">Try Again</button>
+  </div>
+
+  <!-- Role Management View -->
+  <ng-container *ngIf="!loading && !error">
+    <div class="roles-view">
+      <header class="roles-header">
+        <h1>Role Management</h1>
+      </header>
+
+      <!-- Success Message -->
+      <div *ngIf="success" class="success-message">
+        <i class="fas fa-check-circle"></i>
+        <p>{{ success }}</p>
+        <button class="close-btn" (click)="success = null">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <!-- Tab Navigation -->
+      <div class="tab-navigation">
+        <button 
+          class="tab-btn" 
+          [class.active]="activeTab === 'requests'"
+          (click)="setActiveTab('requests')"
+        >
+          Pending Requests 
+          <span class="badge" *ngIf="countPendingRequests() > 0">{{ countPendingRequests() }}</span>
+        </button>
+        <button 
+          class="tab-btn" 
+          [class.active]="activeTab === 'assign'"
+          (click)="setActiveTab('assign')"
+        >
+          Assign Role
+        </button>
+        <button 
+          class="tab-btn" 
+          [class.active]="activeTab === 'current'"
+          (click)="setActiveTab('current')"
+        >
+          Current Assignments
+        </button>
+      </div>
+
+      <!-- Tab Content -->
+      <div class="tab-content">
+        <!-- Pending Requests Tab -->
+        <div *ngIf="activeTab === 'requests'" class="tab-pane">
+          <div class="panel-header">
+            <h2>Role Requests</h2>
+          </div>
+
+          <!-- Empty State -->
+          <div *ngIf="roleRequests.length === 0" class="empty-state">
+            <i class="fas fa-clipboard-check"></i>
+            <p>No pending role requests</p>
+            <span>All role requests have been processed</span>
+          </div>
+
+          <!-- Request List -->
+          <div *ngIf="roleRequests.length > 0" class="requests-list">
+            <div *ngFor="let request of roleRequests" class="request-card">
+              <div class="request-header">
+                <div class="request-id">#{{ request.id }}</div>
+                <div class="request-status">{{ request.status }}</div>
+              </div>
+              <div class="request-details">
+                <div class="request-row">
+                  <span class="label">Role:</span>
+                  <span class="value role-badge">{{ getRoleLabel(request.role) }}</span>
+                </div>
+                <div class="request-row">
+                  <span class="label">Address:</span>
+                  <span class="value address">{{ request.requestor }}</span>
+                </div>
+                <div *ngIf="request.name" class="request-row">
+                  <span class="label">Name:</span>
+                  <span class="value">{{ request.name }}</span>
+                </div>
+                <div *ngIf="request.email" class="request-row">
+                  <span class="label">Email:</span>
+                  <span class="value">{{ request.email }}</span>
+                </div>
+                <div class="request-row">
+                  <span class="label">Requested:</span>
+                  <span class="value">{{ formatTimestamp(request.timestamp) }}</span>
+                </div>
+              </div>
+              <div class="request-actions">
+                <button 
+                  class="reject-btn" 
+                  (click)="rejectRoleRequest(request)" 
+                  [disabled]="loadingAction"
+                >
+                  <i class="fas fa-times"></i> Reject
+                </button>
+                <button 
+                  class="approve-btn" 
+                  (click)="approveRoleRequest(request)" 
+                  [disabled]="loadingAction"
+                >
+                  <i class="fas fa-check"></i> Approve
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Assign Role Tab -->
+        <div *ngIf="activeTab === 'assign'" class="tab-pane">
+          <div class="panel-header">
+            <h2>Assign New Role</h2>
+          </div>
+          <div class="role-form-container">
+            <form [formGroup]="assignRoleForm" (ngSubmit)="submitAssignRoleForm()">
+              <div class="form-group">
+                <label for="address">Ethereum Address:</label>
+                <input 
+                  type="text" 
+                  id="address" 
+                  formControlName="address"
+                  placeholder="0x..."
+                  [class.invalid]="assignRoleForm.get('address')?.invalid && assignRoleForm.get('address')?.touched"
+                >
+                <div *ngIf="assignRoleForm.get('address')?.invalid && assignRoleForm.get('address')?.touched" class="error-message">
+                  <span *ngIf="assignRoleForm.get('address')?.errors?.['required']">Address is required</span>
+                  <span *ngIf="assignRoleForm.get('address')?.errors?.['pattern']">Address must be a valid Ethereum address (0x...)</span>
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label for="role">Role:</label>
+                <select 
+                  id="role" 
+                  formControlName="role"
+                  [class.invalid]="assignRoleForm.get('role')?.invalid && assignRoleForm.get('role')?.touched"
+                >
+                  <option value="" disabled selected>Select a role to assign</option>
+                  <option *ngFor="let role of availableRoles" [value]="role.value">
+                    {{ role.label }}
+                  </option>
+                </select>
+                <div *ngIf="assignRoleForm.get('role')?.invalid && assignRoleForm.get('role')?.touched" class="error-message">
+                  <span *ngIf="assignRoleForm.get('role')?.errors?.['required']">Role is required</span>
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label for="name">Name (Optional):</label>
+                <input 
+                  type="text" 
+                  id="name" 
+                  formControlName="name"
+                  placeholder="Enter person's name"
+                  [class.invalid]="assignRoleForm.get('name')?.invalid && assignRoleForm.get('name')?.touched"
+                >
+                <div *ngIf="assignRoleForm.get('name')?.invalid && assignRoleForm.get('name')?.touched" class="error-message">
+                  <span *ngIf="assignRoleForm.get('name')?.errors?.['minlength']">Name must be at least 2 characters</span>
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label for="email">Email (Optional):</label>
+                <input 
+                  type="email" 
+                  id="email" 
+                  formControlName="email"
+                  placeholder="Enter person's email"
+                  [class.invalid]="assignRoleForm.get('email')?.invalid && assignRoleForm.get('email')?.touched"
+                >
+                <div *ngIf="assignRoleForm.get('email')?.invalid && assignRoleForm.get('email')?.touched" class="error-message">
+                  <span *ngIf="assignRoleForm.get('email')?.errors?.['email']">Please enter a valid email address</span>
+                </div>
+              </div>
+              
+              <div class="form-actions">
+                <button 
+                  type="submit" 
+                  class="primary-btn" 
+                  [disabled]="assignRoleForm.invalid || loadingAction"
+                >
+                  <span *ngIf="!loadingAction">Assign Role</span>
+                  <span *ngIf="loadingAction" class="spinner-inline"></span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Current Assignments Tab -->
+        <div *ngIf="activeTab === 'current'" class="tab-pane">
+          <div class="panel-header">
+            <h2>Current Role Assignments</h2>
+          </div>
+
+          <!-- Empty State -->
+          <div *ngIf="roleAssignments.length === 0" class="empty-state">
+            <i class="fas fa-users"></i>
+            <p>No roles assigned yet</p>
+            <button class="primary-btn" (click)="setActiveTab('assign')">Assign Your First Role</button>
+          </div>
+
+          <!-- Assignments Table -->
+          <div *ngIf="roleAssignments.length > 0" class="assignments-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Address</th>
+                  <th>Role</th>
+                  <th>Name</th>
+                  <th>Assigned On</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let assignment of roleAssignments">
+                  <td class="address-cell">{{ formatAddress(assignment.address) }}</td>
+                  <td>
+                    <span class="role-badge">{{ getRoleLabel(assignment.role) }}</span>
+                  </td>
+                  <td>{{ assignment.name || 'Not provided' }}</td>
+                  <td>{{ formatTimestamp(assignment.timestamp) }}</td>
+                  <td class="actions-cell">
+                    <button 
+                      class="revoke-btn" 
+                      (click)="revokeRole(assignment)" 
+                      [disabled]="loadingAction"
+                    >
+                      <i class="fas fa-trash-alt"></i> Revoke
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+</div>

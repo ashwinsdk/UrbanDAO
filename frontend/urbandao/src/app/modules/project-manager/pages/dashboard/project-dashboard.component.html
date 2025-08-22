@@ -1,0 +1,184 @@
+<div class="project-dashboard">
+  <!-- Header Section -->
+  <header class="page-header">
+    <div class="header-content">
+      <h1>Project Manager Dashboard</h1>
+      <p>Manage and track your assigned projects</p>
+    </div>
+    <div class="header-actions">
+      <button class="refresh-btn" (click)="refreshDashboard()" [disabled]="loading">
+        <i class="fas fa-sync-alt"></i> Refresh
+      </button>
+      <button class="primary-btn" routerLink="/project-manager/projects">
+        <i class="fas fa-list"></i> All Projects
+      </button>
+    </div>
+  </header>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading project data...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="!loading && error" class="error-container">
+    <div class="error-icon">
+      <i class="fas fa-exclamation-triangle"></i>
+    </div>
+    <h2>Error</h2>
+    <p>{{ error }}</p>
+    <button class="primary-btn" (click)="refreshDashboard()">Try Again</button>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!loading && !error && projects.length === 0" class="empty-state">
+    <i class="fas fa-project-diagram"></i>
+    <h2>No Projects Found</h2>
+    <p>You don't have any projects assigned to you yet.</p>
+    <p class="note">Projects are assigned by the AdminHead. Please contact them to be assigned as a manager for a project.</p>
+  </div>
+
+  <!-- Dashboard Content -->
+  <div *ngIf="!loading && !error && projects.length > 0" class="dashboard-content">
+    <!-- Project Summary Stats -->
+    <div class="stats-container">
+      <div class="stats-card">
+        <div class="stat-value">{{ projectSummary.total }}</div>
+        <div class="stat-label">Total Projects</div>
+      </div>
+      
+      <div class="stats-card">
+        <div class="stat-value">{{ projectSummary.inProgress }}</div>
+        <div class="stat-label">In Progress</div>
+      </div>
+      
+      <div class="stats-card">
+        <div class="stat-value">{{ projectSummary.completed }}</div>
+        <div class="stat-label">Completed</div>
+      </div>
+      
+      <div class="stats-card">
+        <div class="stat-value">{{ projectSummary.funded }}</div>
+        <div class="stat-label">Funded</div>
+      </div>
+      
+      <div class="stats-card">
+        <div class="stat-value">{{ projectSummary.proposed }}</div>
+        <div class="stat-label">Proposed</div>
+      </div>
+    </div>
+
+    <!-- Funding Summary -->
+    <div class="funding-summary">
+      <div class="summary-card">
+        <div class="card-header">
+          <h2>Funding Overview</h2>
+        </div>
+        <div class="card-content">
+          <div class="funding-grid">
+            <div class="funding-item">
+              <div class="label">Total Funding Goal</div>
+              <div class="value">{{ projectSummary.totalFunding }} ETH</div>
+            </div>
+            
+            <div class="funding-item">
+              <div class="label">Total Escrowed</div>
+              <div class="value">{{ projectSummary.totalEscrowed }} ETH</div>
+            </div>
+            
+            <div class="funding-item">
+              <div class="label">Total Released</div>
+              <div class="value">{{ projectSummary.totalReleased }} ETH</div>
+            </div>
+            
+            <div class="funding-item">
+              <div class="label">Remaining Escrow</div>
+              <div class="value">{{ (parseFloat(projectSummary.totalEscrowed) - parseFloat(projectSummary.totalReleased)).toFixed(4) }} ETH</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Projects -->
+    <div class="recent-projects">
+      <div class="card-header">
+        <h2>Recent Projects</h2>
+        <button class="text-btn" routerLink="/project-manager/projects">View All</button>
+      </div>
+      
+      <div class="projects-list">
+        <div *ngFor="let project of recentProjects" class="project-card" (click)="navigateToProjectDetails(project.id)">
+          <div class="project-header">
+            <h3>{{ project.title }}</h3>
+            <span class="status-badge" [ngClass]="getStatusClass(project.status)">
+              {{ project.status }}
+            </span>
+          </div>
+          
+          <div class="project-details">
+            <div class="detail-row">
+              <div class="detail-label">Area ID:</div>
+              <div class="detail-value">{{ project.areaId }}</div>
+            </div>
+            
+            <div class="detail-row">
+              <div class="detail-label">Funding:</div>
+              <div class="detail-value">{{ project.escrowed }} / {{ project.fundingGoal }} ETH</div>
+            </div>
+            
+            <div class="detail-row">
+              <div class="detail-label">Milestone:</div>
+              <div class="detail-value">{{ project.currentMilestone - 1 }} / {{ project.milestoneCount }}</div>
+            </div>
+            
+            <div class="detail-row">
+              <div class="detail-label">Created:</div>
+              <div class="detail-value">{{ formatDate(project.createdAt) }}</div>
+            </div>
+          </div>
+          
+          <div class="project-footer">
+            <div class="upvotes">
+              <i class="fas fa-thumbs-up"></i> {{ project.citizenUpvotes }} upvotes
+            </div>
+            <div class="view-btn">
+              <i class="fas fa-chevron-right"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+      <div class="card-header">
+        <h2>Quick Actions</h2>
+      </div>
+      
+      <div class="actions-grid">
+        <div class="action-card" routerLink="/project-manager/projects">
+          <div class="action-icon">
+            <i class="fas fa-list"></i>
+          </div>
+          <div class="action-text">View All Projects</div>
+        </div>
+        
+        <div class="action-card" [routerLink]="['/project-manager/project', recentProjects[0]?.id]" [class.disabled]="!recentProjects.length">
+          <div class="action-icon">
+            <i class="fas fa-file-alt"></i>
+          </div>
+          <div class="action-text">Latest Project Details</div>
+        </div>
+        
+        <div class="action-card" [routerLink]="['/project-manager/project', recentProjects[0]?.id, 'milestone']" [class.disabled]="!recentProjects.length || recentProjects[0]?.status !== 'IN_PROGRESS' && recentProjects[0]?.status !== 'FUNDED'">
+          <div class="action-icon">
+            <i class="fas fa-flag"></i>
+          </div>
+          <div class="action-text">Submit Milestone</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

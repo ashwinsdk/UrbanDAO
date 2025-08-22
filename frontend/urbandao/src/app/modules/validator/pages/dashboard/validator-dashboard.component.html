@@ -1,0 +1,129 @@
+<div class="validator-dashboard">
+  <!-- Header Section -->
+  <header class="dashboard-header">
+    <div class="header-content">
+      <h1>Validator Dashboard</h1>
+      <p *ngIf="userName">Welcome, <span class="gradient-text">{{ userName }}</span></p>
+    </div>
+    <button class="refresh-btn" (click)="refreshDashboard()" [disabled]="loading">
+      <i class="fas fa-sync-alt"></i> Refresh
+    </button>
+  </header>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading validator data...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="!loading && error" class="error-container">
+    <div class="error-icon">
+      <i class="fas fa-exclamation-triangle"></i>
+    </div>
+    <h2>Error</h2>
+    <p>{{ error }}</p>
+    <button class="primary-btn" (click)="refreshDashboard()">Try Again</button>
+  </div>
+
+  <!-- Dashboard Content -->
+  <div *ngIf="!loading && !error" class="dashboard-content">
+    <!-- Stats Cards -->
+    <div class="stats-container">
+      <div class="stats-card" (click)="navigateToPendingGrievances()">
+        <div class="stats-icon pending">
+          <i class="fas fa-clock"></i>
+        </div>
+        <div class="stats-info">
+          <h3>{{ grievanceStats.pending }}</h3>
+          <p>Pending Grievances</p>
+        </div>
+      </div>
+
+      <div class="stats-card" (click)="navigateToProcessedGrievances()">
+        <div class="stats-icon validated">
+          <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="stats-info">
+          <h3>{{ grievanceStats.validated }}</h3>
+          <p>Validated Grievances</p>
+        </div>
+      </div>
+
+      <div class="stats-card" (click)="navigateToProcessedGrievances()">
+        <div class="stats-icon rejected">
+          <i class="fas fa-times-circle"></i>
+        </div>
+        <div class="stats-info">
+          <h3>{{ grievanceStats.rejected }}</h3>
+          <p>Rejected Grievances</p>
+        </div>
+      </div>
+
+      <div class="stats-card" (click)="navigateToProcessedGrievances()">
+        <div class="stats-icon total">
+          <i class="fas fa-list-alt"></i>
+        </div>
+        <div class="stats-info">
+          <h3>{{ grievanceStats.totalProcessed }}</h3>
+          <p>Total Processed</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Pending Grievances -->
+    <div class="section recent-grievances">
+      <div class="section-header">
+        <h2>Recent Pending Grievances</h2>
+        <button class="view-all-btn" (click)="navigateToPendingGrievances()">
+          View All <i class="fas fa-arrow-right"></i>
+        </button>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="recentGrievances.length === 0" class="empty-state">
+        <i class="fas fa-file-alt"></i>
+        <p>No pending grievances found</p>
+        <span>You'll see new grievances here when citizens submit them</span>
+      </div>
+
+      <!-- Grievance List -->
+      <div *ngIf="recentGrievances.length > 0" class="grievance-list">
+        <div *ngFor="let grievance of recentGrievances" class="grievance-card" (click)="navigateToGrievanceReview(grievance.id)">
+          <div class="grievance-header">
+            <h3 class="grievance-title">{{ grievance.title }}</h3>
+            <span class="grievance-date">{{ formatDate(grievance.createdAt) }}</span>
+          </div>
+          <div class="grievance-meta">
+            <span class="grievance-location">
+              <i class="fas fa-map-marker-alt"></i> {{ grievance.location }}
+            </span>
+            <span class="grievance-type">
+              <i class="fas fa-tag"></i> {{ grievance.type }}
+            </span>
+          </div>
+          <div class="grievance-action">
+            <button class="review-btn">
+              Review <i class="fas fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="section quick-actions">
+      <h2>Quick Actions</h2>
+      <div class="action-buttons">
+        <button class="action-btn" (click)="navigateToPendingGrievances()">
+          <i class="fas fa-clipboard-list"></i>
+          <span>View All Pending</span>
+        </button>
+        <button class="action-btn" (click)="navigateToProcessedGrievances()">
+          <i class="fas fa-history"></i>
+          <span>Processing History</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

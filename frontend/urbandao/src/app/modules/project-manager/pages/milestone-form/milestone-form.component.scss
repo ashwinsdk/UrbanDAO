@@ -1,0 +1,282 @@
+@import '../../../../../styles/variables';
+@import '../../../../../styles/mixins';
+
+.milestone-form-page {
+  padding: 1.5rem;
+  font-family: $main-font;
+  max-width: 900px;
+  margin: 0 auto;
+
+  .page-header {
+    margin-bottom: 2rem;
+    
+    .header-content {
+      h1 {
+        @include gradient-text;
+        font-family: $mono-font;
+        font-size: 1.75rem;
+        margin: 0.5rem 0 0;
+      }
+      
+      .back-btn {
+        @include button-text;
+        padding-left: 0;
+        margin-bottom: 0.5rem;
+        
+        i {
+          margin-right: 0.5rem;
+        }
+      }
+    }
+  }
+  
+  .loading-container {
+    @include loading-state;
+    height: 40vh;
+  }
+  
+  .error-container {
+    @include error-state;
+    height: 40vh;
+    
+    .secondary-btn {
+      @include button-secondary;
+    }
+  }
+  
+  .form-content {
+    .form-card {
+      @include card;
+      
+      .card-header {
+        padding: 1.25rem;
+        border-bottom: 1px solid $border-color;
+        
+        h2 {
+          font-family: $mono-font;
+          margin: 0;
+          font-size: 1.25rem;
+        }
+      }
+      
+      .card-content {
+        padding: 1.5rem;
+      }
+    }
+    
+    .project-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid $border-color;
+      
+      .summary-item {
+        .label {
+          color: $text-secondary;
+          font-size: 0.9rem;
+          margin-bottom: 0.5rem;
+        }
+        
+        .value {
+          font-family: $mono-font;
+          font-weight: 600;
+          font-size: 1.2rem;
+          
+          &.status {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            
+            &.proposed {
+              background-color: rgba($info, 0.2);
+              color: $info;
+            }
+            
+            &.funded {
+              background-color: rgba($warning, 0.2);
+              color: $warning;
+            }
+            
+            &.in-progress {
+              background-color: rgba($primary, 0.2);
+              color: $primary;
+            }
+            
+            &.completed {
+              background-color: rgba($success, 0.2);
+              color: $success;
+            }
+            
+            &.cancelled {
+              background-color: rgba($error, 0.2);
+              color: $error;
+            }
+          }
+        }
+      }
+    }
+    
+    .milestone-form {
+      max-width: 800px;
+      
+      .success-message {
+        background-color: rgba($success, 0.1);
+        border-left: 4px solid $success;
+        padding: 1rem;
+        border-radius: $border-radius;
+        margin-bottom: 2rem;
+        display: flex;
+        align-items: center;
+        
+        i {
+          color: $success;
+          font-size: 1.5rem;
+          margin-right: 1rem;
+        }
+        
+        p {
+          margin: 0;
+          color: $text-primary;
+        }
+      }
+      
+      .form-error {
+        background-color: rgba($error, 0.1);
+        border-left: 4px solid $error;
+        padding: 1rem;
+        border-radius: $border-radius;
+        margin-bottom: 2rem;
+        display: flex;
+        align-items: center;
+        
+        i {
+          color: $error;
+          font-size: 1.5rem;
+          margin-right: 1rem;
+        }
+        
+        p {
+          margin: 0;
+          color: $text-primary;
+        }
+      }
+      
+      .form-group {
+        margin-bottom: 1.5rem;
+        
+        label {
+          display: block;
+          margin-bottom: 0.5rem;
+          font-weight: 500;
+        }
+        
+        .form-control {
+          @include form-control;
+          width: 100%;
+          
+          &:disabled, &[readonly] {
+            background-color: rgba($text-secondary, 0.05);
+            cursor: not-allowed;
+          }
+        }
+        
+        .form-text {
+          display: block;
+          font-size: 0.85rem;
+          color: $text-tertiary;
+          margin-top: 0.5rem;
+        }
+        
+        .error-text {
+          color: $error;
+          font-size: 0.85rem;
+          margin-top: 0.5rem;
+        }
+      }
+      
+      .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        margin-top: 2rem;
+        
+        .secondary-btn {
+          @include button-secondary;
+        }
+        
+        .primary-btn {
+          @include button-primary;
+          min-width: 150px;
+          position: relative;
+          
+          &:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+          }
+          
+          .button-spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+          }
+        }
+      }
+    }
+    
+    .submission-info {
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 1px solid $border-color;
+      
+      h3 {
+        font-family: $mono-font;
+        margin-top: 0;
+        font-size: 1.1rem;
+        color: $text-primary;
+        margin-bottom: 1rem;
+      }
+      
+      p {
+        margin-top: 0;
+        color: $text-secondary;
+        margin-bottom: 1rem;
+      }
+      
+      ul {
+        margin: 0;
+        padding-left: 1.5rem;
+        
+        li {
+          margin-bottom: 0.5rem;
+          color: $text-secondary;
+        }
+      }
+    }
+  }
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba($primary, 0.3);
+    border-top: 4px solid $primary;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1rem;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+}

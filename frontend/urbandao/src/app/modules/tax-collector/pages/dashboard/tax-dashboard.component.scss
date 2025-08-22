@@ -1,0 +1,472 @@
+// Variables
+$dark-bg: #121212;
+$card-bg: #1e1e1e;
+$border-color: #333333;
+$text-primary: #ffffff;
+$text-secondary: #b0b0b0;
+$accent-gradient: linear-gradient(135deg, #5f2c82 0%, #49a09d 100%);
+
+// Card colors
+$total-assessments-color: #4fc3f7;
+$pending-payments-color: #ffb74d;
+$completed-payments-color: #81c784;
+$collection-rate-color: #ba68c8;
+$total-collected-color: #4db6ac;
+
+// Mixins
+@mixin card {
+  background-color: $card-bg;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tax-dashboard {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  font-family: 'Roboto Mono', monospace;
+  color: $text-primary;
+  
+  // Header styles
+  .page-header {
+    @include flex-between;
+    margin-bottom: 2rem;
+    
+    .header-content {
+      h1 {
+        font-size: 2rem;
+        margin: 0;
+        font-weight: 700;
+        background: $accent-gradient;
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      
+      p {
+        margin: 0.5rem 0 0;
+        color: $text-secondary;
+        
+        .user-name {
+          color: $text-primary;
+          font-weight: 600;
+        }
+      }
+    }
+    
+    .refresh-btn {
+      background-color: transparent;
+      color: $text-secondary;
+      border: 1px solid $border-color;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      
+      &:hover:not([disabled]) {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: $text-primary;
+      }
+      
+      &[disabled] {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      
+      i {
+        margin-right: 0.5rem;
+      }
+    }
+  }
+  
+  // Loading state
+  .loading-container {
+    @include flex-center;
+    flex-direction: column;
+    padding: 3rem 0;
+    
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255, 255, 255, 0.1);
+      border-top-color: #5f2c82;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    p {
+      margin-top: 1rem;
+      color: $text-secondary;
+    }
+  }
+  
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  
+  // Error state
+  .error-container {
+    @include card;
+    text-align: center;
+    padding: 2.5rem 1.5rem;
+    max-width: 500px;
+    margin: 0 auto;
+    
+    .error-icon {
+      font-size: 2.5rem;
+      color: #f44336;
+      margin-bottom: 1rem;
+    }
+    
+    h2 {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    p {
+      color: $text-secondary;
+      margin-bottom: 1.5rem;
+    }
+    
+    .primary-btn {
+      background: $accent-gradient;
+      border: none;
+      color: white;
+      padding: 0.8rem 2rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      
+      &:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+      }
+    }
+  }
+  
+  // Dashboard content
+  .dashboard-content {
+    // Stats cards
+    .stats-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2.5rem;
+      
+      .stats-card {
+        @include card;
+        display: flex;
+        align-items: center;
+        padding: 1.2rem;
+        position: relative;
+        overflow: hidden;
+        
+        &::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 5px;
+          height: 100%;
+        }
+        
+        &.total-assessments::before {
+          background-color: $total-assessments-color;
+        }
+        
+        &.pending-payments::before {
+          background-color: $pending-payments-color;
+        }
+        
+        &.completed-payments::before {
+          background-color: $completed-payments-color;
+        }
+        
+        &.collection-rate::before {
+          background-color: $collection-rate-color;
+        }
+        
+        &.total-collected::before {
+          background-color: $total-collected-color;
+        }
+        
+        .icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          @include flex-center;
+          margin-right: 1rem;
+          background-color: rgba(255, 255, 255, 0.05);
+          font-size: 1.2rem;
+          
+          i {
+            color: $text-primary;
+          }
+        }
+        
+        &.total-assessments .icon i {
+          color: $total-assessments-color;
+        }
+        
+        &.pending-payments .icon i {
+          color: $pending-payments-color;
+        }
+        
+        &.completed-payments .icon i {
+          color: $completed-payments-color;
+        }
+        
+        &.collection-rate .icon i {
+          color: $collection-rate-color;
+        }
+        
+        &.total-collected .icon i {
+          color: $total-collected-color;
+        }
+        
+        .details {
+          flex: 1;
+          
+          h3 {
+            font-size: 0.9rem;
+            margin: 0;
+            color: $text-secondary;
+            font-weight: 500;
+          }
+          
+          .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0.4rem 0 0;
+          }
+        }
+      }
+    }
+    
+    // Quick Actions
+    .actions-container {
+      @include card;
+      margin-bottom: 2.5rem;
+      
+      h2 {
+        font-size: 1.3rem;
+        margin-top: 0;
+        margin-bottom: 1.5rem;
+        font-weight: 600;
+      }
+      
+      .action-buttons {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        
+        .action-btn {
+          flex: 1;
+          min-width: 250px;
+          padding: 1.2rem;
+          border: 1px solid $border-color;
+          background-color: rgba(255, 255, 255, 0.05);
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          color: $text-primary;
+          font-family: 'Roboto Mono', monospace;
+          
+          i {
+            font-size: 1.2rem;
+            margin-right: 0.8rem;
+            
+            &.fa-plus-circle {
+              color: #81c784;
+            }
+            
+            &.fa-list-alt {
+              color: #4fc3f7;
+            }
+          }
+          
+          span {
+            font-weight: 500;
+            font-size: 1rem;
+          }
+          
+          &:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+          }
+        }
+      }
+    }
+    
+    // Sections
+    .section {
+      @include card;
+      margin-bottom: 2.5rem;
+      
+      .section-header {
+        @include flex-between;
+        margin-bottom: 1.5rem;
+        
+        h2 {
+          font-size: 1.3rem;
+          margin: 0;
+          font-weight: 600;
+        }
+        
+        .view-all {
+          color: #5f2c82;
+          text-decoration: none;
+          font-size: 0.9rem;
+          font-weight: 500;
+          transition: all 0.2s ease;
+          
+          &:hover {
+            color: #49a09d;
+            text-decoration: underline;
+          }
+        }
+      }
+      
+      // Empty state
+      .empty-state {
+        @include flex-center;
+        flex-direction: column;
+        padding: 3rem 1.5rem;
+        text-align: center;
+        
+        i {
+          font-size: 3rem;
+          color: $text-secondary;
+          margin-bottom: 1rem;
+        }
+        
+        h3 {
+          font-size: 1.5rem;
+          margin: 0 0 1rem;
+        }
+        
+        p {
+          color: $text-secondary;
+          margin: 0;
+        }
+      }
+      
+      // Table styles
+      .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        
+        th, td {
+          padding: 1rem;
+          text-align: left;
+          border-bottom: 1px solid $border-color;
+        }
+        
+        th {
+          color: $text-secondary;
+          font-weight: 600;
+          font-size: 0.9rem;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        
+        tbody tr {
+          transition: background-color 0.2s ease;
+          
+          &:hover {
+            background-color: rgba(255, 255, 255, 0.03);
+          }
+        }
+        
+        .citizen-cell {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 150px;
+        }
+        
+        .amount-cell {
+          font-weight: 600;
+        }
+        
+        .action-link {
+          background-color: transparent;
+          border: none;
+          color: #5f2c82;
+          cursor: pointer;
+          font-size: 0.9rem;
+          padding: 0;
+          font-family: 'Roboto Mono', monospace;
+          transition: all 0.2s ease;
+          
+          &:hover {
+            color: #49a09d;
+            text-decoration: underline;
+          }
+          
+          i {
+            margin-right: 0.3rem;
+          }
+        }
+      }
+    }
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .tax-dashboard {
+    padding: 1.5rem 1rem;
+    
+    .page-header {
+      flex-direction: column;
+      align-items: flex-start;
+      
+      .refresh-btn {
+        margin-top: 1rem;
+      }
+    }
+    
+    .dashboard-content {
+      .stats-container {
+        grid-template-columns: 1fr;
+      }
+      
+      .actions-container {
+        .action-buttons {
+          flex-direction: column;
+          
+          .action-btn {
+            width: 100%;
+          }
+        }
+      }
+      
+      .section {
+        .data-table {
+          th, td {
+            padding: 0.8rem 0.5rem;
+            font-size: 0.85rem;
+          }
+        }
+      }
+    }
+  }
+}

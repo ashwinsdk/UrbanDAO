@@ -1,0 +1,279 @@
+.status-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+}
+
+.status-card {
+  background: #1a1a1a;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 580px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.status-header {
+  padding: 2rem;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  
+  img {
+    margin-bottom: 1.5rem;
+  }
+  
+  h1 {
+    margin-bottom: 0;
+    font-size: 1.75rem;
+  }
+}
+
+.status-content {
+  padding: 2.5rem 2rem;
+  min-height: 240px;
+}
+
+// Wallet connect required state
+.wallet-connect-required {
+  text-align: center;
+  
+  .warning-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #e8b339, #c17b12);
+    color: white;
+    font-size: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    font-weight: bold;
+  }
+  
+  h3 {
+    margin-bottom: 1rem;
+  }
+  
+  p {
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 1.5rem;
+  }
+}
+
+// Loading state
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(162, 89, 217, 0.3);
+    border-radius: 50%;
+    border-top-color: #a259d9;
+    animation: spin 1s ease-in-out infinite;
+    margin-bottom: 1rem;
+  }
+  
+  p {
+    color: rgba(255, 255, 255, 0.7);
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+// Status info
+.status-info {
+  .wallet-info {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    
+    .wallet-label {
+      font-size: 0.9rem;
+      color: rgba(255, 255, 255, 0.6);
+    }
+    
+    .wallet-address {
+      font-family: 'Roboto Mono', monospace;
+      font-size: 0.9rem;
+    }
+  }
+  
+  .status-card {
+    padding: 1.5rem;
+    border-radius: 8px;
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+    box-shadow: none;
+    
+    &.success {
+      background: rgba(75, 181, 67, 0.1);
+      border: 1px solid rgba(75, 181, 67, 0.3);
+      
+      .status-icon {
+        background: linear-gradient(135deg, #4bb543, #2d8a29);
+      }
+    }
+    
+    &.pending {
+      background: rgba(255, 187, 51, 0.1);
+      border: 1px solid rgba(255, 187, 51, 0.3);
+      
+      .status-icon {
+        background: linear-gradient(135deg, #ffbb33, #cc9429);
+      }
+    }
+    
+    &.warning {
+      background: rgba(255, 144, 0, 0.1);
+      border: 1px solid rgba(255, 144, 0, 0.3);
+      
+      .status-icon {
+        background: linear-gradient(135deg, #ff9000, #cc7300);
+      }
+    }
+    
+    &.error {
+      background: rgba(255, 87, 87, 0.1);
+      border: 1px solid rgba(255, 87, 87, 0.3);
+      
+      .status-icon {
+        background: linear-gradient(135deg, #ff5757, #cc2a2a);
+      }
+    }
+    
+    .status-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      color: white;
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    
+    .status-details {
+      flex: 1;
+      
+      h3 {
+        margin-top: 0;
+        margin-bottom: 0.75rem;
+        font-size: 1.25rem;
+      }
+      
+      p {
+        margin: 0 0 0.5rem;
+        color: rgba(255, 255, 255, 0.7);
+        
+        &.hint {
+          color: rgba(255, 255, 255, 0.5);
+          font-size: 0.9rem;
+          margin-top: 0.75rem;
+        }
+      }
+      
+      .role-info {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        
+        .role-label {
+          color: rgba(255, 255, 255, 0.6);
+          font-size: 0.9rem;
+          margin-right: 0.5rem;
+        }
+        
+        .role-value {
+          font-weight: 600;
+          background: rgba(255, 255, 255, 0.1);
+          padding: 0.35rem 0.75rem;
+          border-radius: 4px;
+        }
+      }
+    }
+  }
+  
+  .status-actions {
+    display: flex;
+    justify-content: center;
+  }
+}
+
+// Error state
+.error-state {
+  text-align: center;
+  
+  .error-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ff5757, #cc2a2a);
+    color: white;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+  }
+  
+  h3 {
+    margin-bottom: 1rem;
+  }
+  
+  p {
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 1.5rem;
+  }
+}
+
+// Buttons
+.btn-primary, .btn-secondary {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: 'Roboto Mono', monospace;
+  border: none;
+  transition: all 0.3s ease;
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #a259d9, #5e239d);
+  color: white;
+  
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(94, 35, 157, 0.4);
+  }
+}
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.7);
+  
+  &:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.05);
+  }
+}
