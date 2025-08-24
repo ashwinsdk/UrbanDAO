@@ -6,6 +6,7 @@
 
 .main-content {
   flex: 1;
+  padding-top: 64px; /* Add top padding equal to header height */
   padding-bottom: 2rem;
   
   // Apply a max-width and center the content
