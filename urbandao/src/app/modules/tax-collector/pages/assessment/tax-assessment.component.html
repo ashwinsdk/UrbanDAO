@@ -73,7 +73,7 @@
                   <li *ngFor="let citizen of filteredCitizens" (click)="selectCitizen(citizen)" class="citizen-item">
                     <div class="citizen-info">
                       <div class="name">{{ citizen.name || 'Unknown' }}</div>
-                      <div class="address">{{ formatAddress(citizen.address) }}</div>
+                      <!-- Removed wallet address display -->
                     </div>
                     <div class="property-info" *ngIf="citizen.propertyId">
                       <div class="property-id">ID: {{ citizen.propertyId }}</div>

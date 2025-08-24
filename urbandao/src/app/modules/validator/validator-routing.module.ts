@@ -5,11 +5,16 @@ import { ValidatorDashboardComponent } from './pages/dashboard/validator-dashboa
 import { GrievanceReviewComponent } from './pages/grievance-review/grievance-review.component';
 import { PendingGrievancesComponent } from './pages/pending-grievances/pending-grievances.component';
 import { ProcessedGrievancesComponent } from './pages/processed-grievances/processed-grievances.component';
+import { CitizenVerificationComponent } from './pages/citizen-verification/citizen-verification.component';
 
 const routes: Routes = [
   {
     path: '',
     component: ValidatorDashboardComponent
+  },
+  {
+    path: 'citizen-verification',
+    component: CitizenVerificationComponent
   },
   {
     path: 'grievances/pending',

@@ -141,7 +141,7 @@
               <div class="grievance-meta">
                 <div class="meta-item">
                   <i class="fas fa-user"></i>
-                  <span>{{ formatAddress(grievance.citizenAddress) }}</span>
+                  <span>{{ grievance.citizenName || 'Citizen' }}</span>
                 </div>
                 <div class="meta-item">
                   <i class="fas fa-calendar-alt"></i>
@@ -177,7 +177,7 @@
                 <div class="role-name">{{ role.roleName }}</div>
                 <div class="request-date">{{ formatDate(role.requestDate) }}</div>
               </div>
-              <div class="role-address">{{ formatAddress(role.address) }}</div>
+              <div class="role-name">{{ role.name || 'Applicant' }}</div>
               <div class="role-actions">
                 <button class="approve-btn">
                   <i class="fas fa-check"></i> Approve

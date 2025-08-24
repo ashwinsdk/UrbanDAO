@@ -1,0 +1,461 @@
+@import '../../../../../styles/variables';
+@import '../../../../../styles/mixins';
+
+.citizen-verification-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  padding: 1.5rem;
+  
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    
+    .header-content {
+      h1 {
+        font-size: 2rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: $primary-color;
+      }
+      
+      .subtitle {
+        color: $text-secondary;
+        font-size: 1rem;
+      }
+    }
+    
+    .refresh-btn {
+      @include button-base;
+      background-color: transparentize($primary-color, 0.8);
+      color: $primary-color;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      
+      &:hover {
+        background-color: transparentize($primary-color, 0.7);
+      }
+      
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      
+      i {
+        margin-right: 0.5rem;
+      }
+    }
+  }
+  
+  .loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 300px;
+    
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba($primary-color, 0.2);
+      border-top: 4px solid $primary-color;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 1rem;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    p {
+      color: $text-secondary;
+      font-size: 1rem;
+    }
+  }
+  
+  .error-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    text-align: center;
+    background-color: $card-bg;
+    border-radius: 8px;
+    box-shadow: $card-shadow;
+    
+    .error-icon {
+      color: $error-color;
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    h2 {
+      color: $error-color;
+      margin-bottom: 0.5rem;
+    }
+    
+    p {
+      color: $text-secondary;
+      margin-bottom: 1.5rem;
+      max-width: 500px;
+    }
+    
+    .primary-btn {
+      @include button-primary;
+    }
+  }
+  
+  .main-content {
+    flex: 1;
+    
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 1rem;
+      background-color: $card-bg;
+      border-radius: 8px;
+      box-shadow: $card-shadow;
+      text-align: center;
+      
+      i {
+        font-size: 3rem;
+        color: lighten($text-secondary, 20%);
+        margin-bottom: 1.5rem;
+      }
+      
+      h2 {
+        font-size: 1.5rem;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        color: $text-primary;
+      }
+      
+      p {
+        color: $text-secondary;
+      }
+    }
+    
+    .verification-layout {
+      display: grid;
+      grid-template-columns: 1fr 1.5fr;
+      gap: 1.5rem;
+      height: calc(100vh - 200px);
+      
+      @media (max-width: 991px) {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+      
+      .verification-list {
+        background-color: $card-bg;
+        border-radius: 8px;
+        box-shadow: $card-shadow;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        
+        h2 {
+          font-size: 1.2rem;
+          font-weight: 500;
+          padding: 1rem;
+          margin: 0;
+          border-bottom: 1px solid $border-color;
+        }
+        
+        .list-container {
+          flex: 1;
+          overflow-y: auto;
+          padding: 0.5rem;
+          
+          .citizen-item {
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            background-color: lighten($card-bg, 3%);
+            transition: all 0.2s ease;
+            
+            &:hover {
+              background-color: lighten($card-bg, 5%);
+            }
+            
+            &.active {
+              background-color: transparentize($primary-color, 0.9);
+              border-left: 3px solid $primary-color;
+            }
+            
+            .citizen-basic-info {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+              margin-bottom: 0.75rem;
+              
+              h3 {
+                font-size: 1rem;
+                font-weight: 500;
+                margin: 0;
+                color: $text-primary;
+              }
+              
+              .date {
+                font-size: 0.8rem;
+                color: $text-tertiary;
+              }
+            }
+            
+            .citizen-metadata {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              
+              .location {
+                font-size: 0.85rem;
+                color: $text-secondary;
+                
+                i {
+                  margin-right: 0.25rem;
+                  color: $accent-color;
+                }
+              }
+              
+              .status-badge {
+                font-size: 0.75rem;
+                padding: 0.25rem 0.5rem;
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                
+                &.pending {
+                  background-color: transparentize($warning-color, 0.8);
+                  color: $warning-color;
+                }
+                
+                i {
+                  margin-right: 0.25rem;
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      .verification-details {
+        background-color: $card-bg;
+        border-radius: 8px;
+        box-shadow: $card-shadow;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        
+        .details-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 1rem;
+          border-bottom: 1px solid $border-color;
+          
+          h2 {
+            font-size: 1.2rem;
+            font-weight: 500;
+            margin: 0;
+          }
+          
+          .close-btn {
+            background: none;
+            border: none;
+            color: $text-secondary;
+            font-size: 1.2rem;
+            cursor: pointer;
+            
+            &:hover {
+              color: $text-primary;
+            }
+          }
+        }
+        
+        .details-content {
+          flex: 1;
+          padding: 1.5rem;
+          overflow-y: auto;
+          
+          .citizen-profile {
+            margin-bottom: 2rem;
+            
+            .profile-header {
+              margin-bottom: 1.5rem;
+              
+              .profile-name {
+                font-size: 1.4rem;
+                font-weight: 500;
+                margin-bottom: 0.25rem;
+              }
+              
+              .profile-address {
+                font-family: monospace;
+                font-size: 0.9rem;
+                color: $text-secondary;
+                background-color: $bg-secondary;
+                padding: 0.25rem 0.5rem;
+                border-radius: 4px;
+                display: inline-block;
+              }
+            }
+            
+            .profile-details {
+              background-color: $bg-secondary;
+              padding: 1.25rem;
+              border-radius: 8px;
+              
+              .detail-item {
+                display: flex;
+                margin-bottom: 0.75rem;
+                
+                &:last-child {
+                  margin-bottom: 0;
+                }
+                
+                .label {
+                  width: 120px;
+                  font-weight: 500;
+                  color: $text-secondary;
+                }
+                
+                .value {
+                  flex: 1;
+                  color: $text-primary;
+                  
+                  &.document-link {
+                    a {
+                      color: $primary-color;
+                      text-decoration: none;
+                      
+                      &:hover {
+                        text-decoration: underline;
+                      }
+                      
+                      i {
+                        margin-right: 0.25rem;
+                        font-size: 0.8rem;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          
+          .verification-actions {
+            h3 {
+              font-size: 1.1rem;
+              font-weight: 500;
+              margin-bottom: 1rem;
+              color: $text-primary;
+            }
+            
+            .feedback-section {
+              margin-bottom: 1.5rem;
+              
+              label {
+                display: block;
+                margin-bottom: 0.5rem;
+                color: $text-secondary;
+              }
+              
+              textarea {
+                width: 100%;
+                padding: 0.75rem;
+                border-radius: 6px;
+                border: 1px solid $border-color;
+                background-color: $input-bg;
+                color: $text-primary;
+                font-family: inherit;
+                resize: vertical;
+                
+                &:focus {
+                  outline: none;
+                  border-color: $primary-color;
+                }
+              }
+            }
+            
+            .action-buttons {
+              display: flex;
+              justify-content: flex-end;
+              gap: 1rem;
+              
+              button {
+                @include button-base;
+                padding: 0.75rem 1.5rem;
+                border-radius: 6px;
+                font-weight: 500;
+                
+                &:disabled {
+                  opacity: 0.5;
+                  cursor: not-allowed;
+                }
+                
+                i {
+                  margin-right: 0.5rem;
+                }
+                
+                &.reject-btn {
+                  background-color: $error-color;
+                  color: white;
+                  
+                  &:hover:not(:disabled) {
+                    background-color: darken($error-color, 5%);
+                  }
+                }
+                
+                &.approve-btn {
+                  background-color: $success-color;
+                  color: white;
+                  
+                  &:hover:not(:disabled) {
+                    background-color: darken($success-color, 5%);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      .select-prompt {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        text-align: center;
+        padding: 2rem;
+        
+        i {
+          font-size: 2.5rem;
+          color: lighten($text-secondary, 20%);
+          margin-bottom: 1.5rem;
+        }
+        
+        h3 {
+          font-size: 1.2rem;
+          font-weight: 500;
+          margin-bottom: 0.5rem;
+          color: $text-primary;
+        }
+        
+        p {
+          color: $text-secondary;
+          max-width: 300px;
+        }
+      }
+    }
+  }
+}

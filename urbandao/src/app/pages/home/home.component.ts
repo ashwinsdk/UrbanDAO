@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { UserRole } from '../../core/models/role.model';
 
@@ -71,9 +71,11 @@ import { UserRole } from '../../core/models/role.model';
         <div class="dashboard">
           <header class="dashboard-header">
             <h1>{{ getDashboardTitle() }}</h1>
+            <!-- 
             <p *ngIf="userAddress" class="wallet-address">
               Connected: <span class="address">{{ truncateAddress(userAddress) }}</span>
             </p>
+            -->
           </header>
           
           <!-- Role-specific dashboard content -->
@@ -200,14 +202,59 @@ export class HomeComponent implements OnInit {
   userRole: UserRole | null = null;
   userAddress: string | null = null;
   
-  constructor(private authService: AuthService) {}
+  constructor(private authService: AuthService, private router: Router) {}
   
   ngOnInit(): void {
     this.authService.user$.subscribe(user => {
       this.isLoggedIn = !!user?.isLoggedIn;
       this.userRole = user?.role || null;
       this.userAddress = user?.address || null;
+
+      // If user is logged in with a valid role, redirect to their role-specific dashboard
+      if (this.isLoggedIn && this.userRole && this.userRole !== UserRole.NONE) {
+        this.redirectToRoleDashboard(this.userRole);
+      }
     });
+  }
+  
+  /**
+   * Redirects users to their role-specific dashboard
+   */
+  private redirectToRoleDashboard(role: UserRole): void {
+    // Only redirect if we're on the home page to prevent infinite redirects
+    if (window.location.pathname === '/') {
+      switch(role) {
+        case UserRole.CITIZEN_ROLE:
+          this.router.navigate(['/citizen']);
+          break;
+        case UserRole.VALIDATOR_ROLE:
+          this.router.navigate(['/validator']);
+          break;
+        case UserRole.TAX_COLLECTOR_ROLE:
+          this.router.navigate(['/tax-collector']);
+          break;
+        case UserRole.PROJECT_MANAGER_ROLE:
+          this.router.navigate(['/project-manager']);
+          break;
+        case UserRole.ADMIN_HEAD_ROLE:
+          this.router.navigate(['/admin-head']);
+          break;
+        case UserRole.ADMIN_GOVT_ROLE:
+          this.router.navigate(['/admin-govt']);
+          break;
+        case UserRole.OWNER_ROLE:
+          // Redirect Owner to admin-govt as there's no dedicated owner module
+          this.router.navigate(['/admin-govt']);
+          break;
+        case UserRole.TX_PAYER_ROLE:
+          // TX_PAYER doesn't have its own module, redirect to citizen dashboard
+          this.router.navigate(['/citizen']);
+          break;
+        default:
+          // No need to redirect for default case
+          break;
+      }
+    }
   }
   
   getDashboardTitle(): string {

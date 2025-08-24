@@ -89,6 +89,12 @@ $shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.2);
 $box-shadow: $shadow-md; // Default box shadow
 $box-shadow-hover: $shadow-lg; // Hover state shadow
 
+// Legacy/alias variables for module styles
+// Some components reference these names; map them to existing tokens
+$card-shadow: $box-shadow;
+$bg-secondary: $card-bg-secondary;
+$input-bg: $background-lighter;
+
 // Breakpoints
 $breakpoint-xs: 576px;
 $breakpoint-sm: 768px;

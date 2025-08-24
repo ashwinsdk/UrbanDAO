@@ -390,12 +390,14 @@ export class AuthService {
         this.router.navigate(['/admin-govt']);
         break;
       case UserRole.OWNER_ROLE:
-        console.log('Navigating to owner dashboard');
-        this.router.navigate(['/owner']);
+        // Redirect Owner to admin-govt as there's no dedicated owner module
+        console.log('Navigating owner to admin-govt dashboard (no dedicated owner module)');
+        this.router.navigate(['/admin-govt']);
         break;
       case UserRole.TX_PAYER_ROLE:
-        console.log('Navigating to tx payer dashboard');
-        this.router.navigate(['/tx-payer']);
+        // TX_PAYER doesn't have its own module, redirect to citizen dashboard
+        console.log('Navigating tx-payer to citizen dashboard (no dedicated tx-payer module)');
+        this.router.navigate(['/citizen']);
         break;
       case UserRole.NONE:
         console.log('No role assigned, redirecting to register page');

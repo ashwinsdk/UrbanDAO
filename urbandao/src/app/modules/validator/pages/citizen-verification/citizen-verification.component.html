@@ -1,0 +1,147 @@
+<div class="citizen-verification-container">
+  <!-- Header Section -->
+  <header class="page-header">
+    <div class="header-content">
+      <h1>Citizen Verification</h1>
+      <p class="subtitle">Review and verify pending citizen registration requests</p>
+    </div>
+    <button class="refresh-btn" (click)="refreshData()" [disabled]="loading">
+      <i class="fas fa-sync-alt"></i> Refresh
+    </button>
+  </header>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading verification requests...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="!loading && error" class="error-container">
+    <div class="error-icon">
+      <i class="fas fa-exclamation-triangle"></i>
+    </div>
+    <h2>Error</h2>
+    <p>{{ error }}</p>
+    <button class="primary-btn" (click)="refreshData()">Try Again</button>
+  </div>
+
+  <!-- Main Content -->
+  <div *ngIf="!loading && !error" class="main-content">
+    <!-- Empty State -->
+    <div *ngIf="pendingVerifications.length === 0" class="empty-state">
+      <i class="fas fa-user-check"></i>
+      <h2>No Pending Verifications</h2>
+      <p>There are currently no citizens waiting for verification</p>
+    </div>
+
+    <!-- List and Detail View -->
+    <div *ngIf="pendingVerifications.length > 0" class="verification-layout">
+      <!-- Left Side: List View -->
+      <div class="verification-list">
+        <h2>Pending Requests ({{ pendingVerifications.length }})</h2>
+        
+        <div class="list-container">
+          <div 
+            *ngFor="let citizen of pendingVerifications" 
+            class="citizen-item"
+            [class.active]="selectedCitizen && selectedCitizen.id === citizen.id"
+            (click)="selectCitizen(citizen)">
+            
+            <div class="citizen-basic-info">
+              <h3>{{ citizen.name || 'Unnamed Citizen' }}</h3>
+              <span class="date">Submitted: {{ formatDate(citizen.requestDate) }}</span>
+            </div>
+            
+            <div class="citizen-metadata">
+              <div class="location" *ngIf="citizen.location">
+                <i class="fas fa-map-marker-alt"></i> {{ citizen.location }}
+              </div>
+              
+              <div class="status-badge pending">
+                <i class="fas fa-clock"></i> Pending
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Side: Detail View -->
+      <div class="verification-details" *ngIf="selectedCitizen; else selectPrompt">
+        <div class="details-header">
+          <h2>Request Details</h2>
+          <button class="close-btn" (click)="closeDetails()">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        
+        <div class="details-content">
+          <div class="citizen-profile">
+            <div class="profile-header">
+              <div class="profile-name">{{ selectedCitizen.name || 'Unnamed Citizen' }}</div>
+              <div class="profile-address">{{ truncateAddress(selectedCitizen.address) }}</div>
+            </div>
+            
+            <div class="profile-details">
+              <div class="detail-item">
+                <span class="label">Submission Date:</span>
+                <span class="value">{{ formatDate(selectedCitizen.requestDate) }}</span>
+              </div>
+              
+              <div class="detail-item" *ngIf="selectedCitizen.location">
+                <span class="label">Location:</span>
+                <span class="value">{{ selectedCitizen.location }}</span>
+              </div>
+              
+              <div class="detail-item" *ngIf="selectedCitizen.propertyId">
+                <span class="label">Property ID:</span>
+                <span class="value">{{ selectedCitizen.propertyId }}</span>
+              </div>
+              
+              <div class="detail-item">
+                <span class="label">Verification Document:</span>
+                <span class="value document-link" *ngIf="selectedCitizen.documentHash">
+                  <a href="https://ipfs.io/ipfs/{{ selectedCitizen.documentHash }}" target="_blank">
+                    <i class="fas fa-external-link-alt"></i> View Document
+                  </a>
+                </span>
+                <span class="value" *ngIf="!selectedCitizen.documentHash">No document provided</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="verification-actions">
+            <h3>Action Required</h3>
+            
+            <div class="feedback-section" *ngIf="!loading">
+              <label for="feedback">Feedback (required for rejection):</label>
+              <textarea 
+                id="feedback" 
+                [(ngModel)]="feedback" 
+                placeholder="Enter feedback or reason for rejection here..."
+                rows="3"></textarea>
+            </div>
+            
+            <div class="action-buttons">
+              <button class="reject-btn" (click)="rejectCitizen()" [disabled]="!feedback || loading">
+                <i class="fas fa-times"></i> Reject
+              </button>
+              <button class="approve-btn" (click)="approveCitizen()" [disabled]="loading">
+                <i class="fas fa-check"></i> Approve
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Placeholder when no citizen is selected -->
+      <ng-template #selectPrompt>
+        <div class="select-prompt">
+          <i class="fas fa-hand-pointer"></i>
+          <h3>Select a citizen from the list</h3>
+          <p>Click on a citizen request to review their details and take action</p>
+        </div>
+      </ng-template>
+    </div>
+  </div>
+</div>

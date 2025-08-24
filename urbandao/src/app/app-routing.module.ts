@@ -71,4 +71,11 @@ const routes: Routes = [
   imports: [RouterModule.forRoot(routes)],
   exports: [RouterModule]
 })
-export class AppRoutingModule { }
+export class AppRoutingModule { 
+  /**
+   * Static method to get routes for standalone bootstrapping
+   */
+  static getRoutes(): Routes {
+    return routes;
+  }
+}

@@ -91,9 +91,9 @@
                   <span class="label">Role:</span>
                   <span class="value role-badge">{{ getRoleLabel(request.role) }}</span>
                 </div>
-                <div class="request-row">
-                  <span class="label">Address:</span>
-                  <span class="value address">{{ request.requestor }}</span>
+                <div class="request-row" *ngIf="request.name">
+                  <span class="label">Requestor:</span>
+                  <span class="value">{{ request.name }}</span>
                 </div>
                 <div *ngIf="request.name" class="request-row">
                   <span class="label">Name:</span>
@@ -227,7 +227,7 @@
             <table>
               <thead>
                 <tr>
-                  <th>Address</th>
+                  <th>Assigned To</th>
                   <th>Role</th>
                   <th>Name</th>
                   <th>Assigned On</th>
@@ -236,7 +236,7 @@
               </thead>
               <tbody>
                 <tr *ngFor="let assignment of roleAssignments">
-                  <td class="address-cell">{{ formatAddress(assignment.address) }}</td>
+                  <td>{{ assignment.name || 'User' }}</td>
                   <td>
                     <span class="role-badge">{{ getRoleLabel(assignment.role) }}</span>
                   </td>

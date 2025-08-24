@@ -100,6 +100,10 @@ export class ValidatorDashboardComponent implements OnInit {
     this.router.navigate(['/validator/grievances/processed']);
   }
   
+  navigateToCitizenVerification(): void {
+    this.router.navigate(['/validator/citizen-verification']);
+  }
+  
   refreshDashboard(): void {
     this.loadDashboardData();
   }
