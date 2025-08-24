@@ -4,6 +4,7 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } 
 import { RouterModule } from '@angular/router';
 import { AuthService } from '../../../../core/services/auth.service';
 import { ContractService } from '../../../../core/services/contract.service';
+import { UserRole } from '../../../../core/models/role.model';
 
 interface Area {
   id: string;
@@ -170,11 +171,11 @@ export class AreaManagementComponent implements OnInit {
       const adminAddress = this.assignAdminForm.get('adminAddress')?.value;
       
       // Check if the address has the required role
-      const hasRole = await this.contractService.hasRole('ADMIN_HEAD_ROLE', adminAddress);
+      const hasRole = await this.contractService.hasRole(UserRole.ADMIN_HEAD_ROLE, adminAddress);
       
       if (!hasRole) {
         // Assign the ADMIN_HEAD_ROLE first
-        const assignRoleTx = await this.contractService.grantRole('ADMIN_HEAD_ROLE', adminAddress);
+        const assignRoleTx = await this.contractService.grantRole(UserRole.ADMIN_HEAD_ROLE, adminAddress);
         await assignRoleTx.wait();
       }
       

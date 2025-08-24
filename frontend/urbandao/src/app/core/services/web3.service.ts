@@ -25,28 +25,43 @@ export class Web3Service {
   public loading$ = this.loadingSubject.asObservable();
 
   constructor() {
-    this.checkIfWalletIsConnected();
+    // Setup network change listeners first
     this.setupNetworkChangeListeners();
+    // Then check if wallet is connected
+    this.checkIfWalletIsConnected();
   }
 
   private setupNetworkChangeListeners(): void {
     if (window.ethereum) {
-      window.ethereum.on('accountsChanged', (accounts: string[]) => {
-        if (accounts.length === 0) {
-          // User disconnected their wallet
-          this.disconnectWallet();
-        } else {
-          // User switched accounts
-          this.accountSubject.next(accounts[0]);
-        }
-      });
-
-      window.ethereum.on('chainChanged', (chainIdHex: string) => {
-        const chainId = parseInt(chainIdHex, 16);
-        this.networkSubject.next(chainId);
-        this.chainIdSubject.next(chainId);
-      });
+      // Remove any existing listeners to prevent duplicates
+      if (window.ethereum.removeListener) {
+        window.ethereum.removeListener('accountsChanged', this.handleAccountsChanged);
+        window.ethereum.removeListener('chainChanged', this.handleChainChanged);
+      }
+      
+      // Add listeners
+      window.ethereum.on('accountsChanged', this.handleAccountsChanged);
+      window.ethereum.on('chainChanged', this.handleChainChanged);
     }
+  }
+  
+  // Handler for accountsChanged to avoid closure issues and prevent recursion
+  private handleAccountsChanged = (accounts: string[]): void => {
+    if (accounts.length === 0) {
+      // User disconnected their wallet
+      // Call resetState directly instead of disconnectWallet to prevent recursion
+      this.resetState();
+    } else {
+      // User switched accounts
+      this.accountSubject.next(accounts[0]);
+    }
+  }
+  
+  // Handler for chainChanged
+  private handleChainChanged = (chainIdHex: string): void => {
+    const chainId = parseInt(chainIdHex, 16);
+    this.networkSubject.next(chainId);
+    this.chainIdSubject.next(chainId);
   }
 
   public async checkIfWalletIsConnected(): Promise<void> {
@@ -54,27 +69,47 @@ export class Web3Service {
       this.loadingSubject.next(true);
 
       if (window.ethereum) {
-        this.provider = new ethers.BrowserProvider(window.ethereum);
+        const provider = new ethers.BrowserProvider(window.ethereum);
         
-        const accounts = await this.provider.listAccounts();
-        
-        if (accounts.length > 0) {
-          this.signer = await this.provider.getSigner();
-          const account = await this.signer.getAddress();
-          const network = await this.provider.getNetwork();
-          const chainId = network.chainId;
+        try {
+          const accounts = await provider.listAccounts();
           
-          this.accountSubject.next(account);
-          this.networkSubject.next(Number(chainId));
-          this.chainIdSubject.next(Number(chainId));
-          this.connectedSubject.next(true);
-        } else {
-          this.resetState();
+          if (accounts.length > 0) {
+            try {
+              // Attempt to get signer with proper error handling (use local ref to avoid races)
+              const signer = await provider.getSigner();
+              if (!signer) {
+                throw new Error('getSigner returned null');
+              }
+              
+              const account = await signer.getAddress();
+              const network = await provider.getNetwork();
+              const chainId = Number(network.chainId);
+              
+              // Commit to instance fields only after successful resolution
+              this.provider = provider;
+              this.signer = signer;
+              
+              this.accountSubject.next(account);
+              this.networkSubject.next(chainId);
+              this.chainIdSubject.next(chainId);
+              this.connectedSubject.next(true);
+              return;
+            } catch (signerError) {
+              console.error('Error getting signer:', signerError);
+              // Fall through to resetState
+            }
+          }
+        } catch (providerError) {
+          console.error('Error with provider:', providerError);
+          // Fall through to resetState
         }
       } else {
         console.log('No Ethereum wallet detected');
-        this.resetState();
       }
+      
+      // Reset state if we reach this point (no ethereum, no accounts, or signer error)
+      this.resetState();
     } catch (error) {
       console.error('Error checking wallet connection:', error);
       this.resetState();
@@ -86,37 +121,110 @@ export class Web3Service {
   public async connectWallet(): Promise<string> {
     try {
       this.loadingSubject.next(true);
+      console.log('Starting wallet connection process');
 
       if (!window.ethereum) {
-        throw new Error('No Ethereum wallet detected');
+        console.error('No Ethereum wallet detected');
+        throw new Error('No Ethereum wallet detected. Please install MetaMask or another Ethereum wallet.');
       }
 
-      this.provider = new ethers.BrowserProvider(window.ethereum);
+      // Create a new provider instance (local ref to avoid races)
+      const provider = new ethers.BrowserProvider(window.ethereum);
       
-      // Request accounts access
-      await window.ethereum.request({ method: 'eth_requestAccounts' });
+      // Request accounts access with better error handling
+      try {
+        console.log('Requesting account access');
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+      } catch (requestError: any) {
+        // Handle user rejection specifically
+        if (requestError.code === 4001) {
+          console.error('User rejected wallet connection request');
+          throw new Error('You rejected the wallet connection request. Please try again and approve the connection.');
+        }
+        console.error('Wallet connection error:', requestError);
+        throw new Error(`Wallet connection error: ${requestError.message || 'Unknown error'}`);
+      }
       
-      // Get the connected signer
-      this.signer = await this.provider.getSigner();
+      // Check if accounts exist
+      console.log('Checking for connected accounts');
+      const accounts = await provider.listAccounts();
+      if (accounts.length === 0) {
+        console.error('No accounts found after requesting access');
+        throw new Error('No accounts found after requesting access. Please make sure your wallet is unlocked.');
+      }
+      
+      // Get the connected signer with retry logic
+      let signer = null;
+      let signerRetries = 0;
+      const maxSignerRetries = 3;
+      
+      while (!signer && signerRetries < maxSignerRetries) {
+        try {
+          console.log(`Attempting to get signer (attempt ${signerRetries + 1}/${maxSignerRetries})`);
+          signer = await provider.getSigner();
+          if (!signer) throw new Error('getSigner returned null');
+        } catch (signerError) {
+          signerRetries++;
+          console.error(`Error getting signer (attempt ${signerRetries}/${maxSignerRetries}):`, signerError);
+          
+          if (signerRetries >= maxSignerRetries) {
+            throw new Error('Failed to get signer after multiple attempts. Please refresh the page and try again.');
+          }
+          
+          // Wait before retrying
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+      
+      this.signer = signer;
+      
+      if (!this.signer) {
+        console.error('Signer is null after attempting to connect');
+        throw new Error('Failed to connect to your wallet. Please refresh the page and try again.');
+      }
+      
       const account = await this.signer.getAddress();
+      console.log(`Connected to wallet with address: ${account}`);
       
       // Get network info
-      const network = await this.provider.getNetwork();
-      const chainId = network.chainId;
+      let network = await provider.getNetwork();
+      let chainId = Number(network.chainId);
+      console.log(`Connected to network: ${network.name} (chainId: ${chainId})`);
       
       // Switch to the required network if needed
       if (Number(chainId) !== environment.network.chainId) {
-        await this.switchToRequiredNetwork();
+        console.log(`Switching from chainId ${chainId} to required chainId ${environment.network.chainId}`);
+        try {
+          await this.switchToRequiredNetwork();
+          // Refresh network and chainId after switch
+          network = await provider.getNetwork();
+          chainId = Number(network.chainId);
+          console.log(`Network switched successfully to chainId: ${chainId}`);
+        } catch (switchError: any) {
+          console.error('Error switching network:', switchError);
+          throw new Error(`Failed to switch to the required network (${environment.network.name}): ${switchError.message || 'Unknown error'}`);
+        }
       }
       
+      // Verify network after switching
+      if (Number(chainId) !== environment.network.chainId) {
+        console.error(`Network verification failed. Current: ${chainId}, Required: ${environment.network.chainId}`);
+        throw new Error(`You must be connected to the ${environment.network.name} network to use this application.`);
+      }
+      
+      // Commit provider only after successful setup
+      this.provider = provider;
+      
       this.accountSubject.next(account);
-      this.networkSubject.next(Number(chainId));
-      this.chainIdSubject.next(Number(chainId));
+      this.networkSubject.next(chainId);
+      this.chainIdSubject.next(chainId);
       this.connectedSubject.next(true);
       
+      console.log('Wallet connection process completed successfully');
       return account;
     } catch (error) {
       console.error('Error connecting wallet:', error);
+      // Reset state but don't call disconnectWallet to avoid recursion
       this.resetState();
       throw error;
     } finally {
@@ -125,16 +233,49 @@ export class Web3Service {
   }
 
   public async disconnectWallet(): Promise<void> {
+    // Flag to prevent recursion with the accountsChanged event
+    const wasConnected = this.connectedSubject.value;
+    
+    // Reset the state - make sure this happens first before any wallet operations
+    // to prevent event handler recursion
     this.resetState();
+    
+    // Only attempt to disconnect from provider if we were previously connected
+    // This prevents multiple disconnection attempts
+    if (wasConnected && window.ethereum) {
+      try {
+        // Some wallets support this explicit disconnect
+        if (typeof window.ethereum.disconnect === 'function') {
+          await window.ethereum.disconnect();
+        }
+      } catch (error) {
+        console.warn('Error during explicit wallet disconnect:', error);
+        // Continue anyway as we've already reset the state
+      }
+    }
   }
 
   private resetState(): void {
+    // Clear provider and signer references first
     this.provider = null;
     this.signer = null;
-    this.accountSubject.next(null);
-    this.networkSubject.next(null);
-    this.chainIdSubject.next(null);
-    this.connectedSubject.next(false);
+    
+    // Only update subjects if they need updating (to prevent unnecessary triggers)
+    if (this.accountSubject.value !== null) {
+      this.accountSubject.next(null);
+    }
+    
+    if (this.networkSubject.value !== null) {
+      this.networkSubject.next(null);
+    }
+    
+    if (this.chainIdSubject.value !== null) {
+      this.chainIdSubject.next(null);
+    }
+    
+    if (this.connectedSubject.value !== false) {
+      this.connectedSubject.next(false);
+    }
   }
 
   private async switchToRequiredNetwork(): Promise<void> {
@@ -176,6 +317,7 @@ export class Web3Service {
   }
 
   public getSigner(): ethers.JsonRpcSigner | null {
+    // Make sure we return null explicitly if signer is not available
     return this.signer;
   }
 

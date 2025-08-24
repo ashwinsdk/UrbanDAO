@@ -36,25 +36,24 @@ import { RouterModule } from '@angular/router';
       <section class="about-section">
         <h2>How It Works</h2>
         <p>
-          UrbanDAO operates on the Ethereum blockchain using a system of smart contracts that manage different aspects 
-          of urban governance:
+          UrbanDAO operates on the Ethereum blockchain using a system of smart contracts that manage different aspects of urban governance:
         </p>
         <div class="feature-grid">
           <div class="feature">
             <h3>Grievance Management</h3>
-            <p>Citizens can file grievances that are transparently tracked from submission to resolution.</p>
+            <p>Citizens can file grievances that are transparently tracked from submission to resolution. Each grievance goes through validation and redressal processes.</p>
           </div>
           <div class="feature">
             <h3>Tax System</h3>
-            <p>Transparent tax assessment, collection, and utilization with blockchain-verified receipts.</p>
+            <p>Transparent tax assessment, calculation, and verification with blockchain-notarized receipts. Automatic tax calculation based on property details.</p>
           </div>
           <div class="feature">
             <h3>Project Management</h3>
-            <p>Community-driven project proposals, funding, and execution with milestone-based releases.</p>
+            <p>Community-driven project proposals, funding, and execution with milestone-based releases. Citizens can upvote project proposals.</p>
           </div>
           <div class="feature">
             <h3>Governance</h3>
-            <p>Token-based voting system for making key decisions about resource allocation and policies.</p>
+            <p>Token-based voting system for making key decisions about resource allocation and policies. Quadratic voting ensures fair representation.</p>
           </div>
         </div>
       </section>
@@ -125,18 +124,33 @@ import { RouterModule } from '@angular/router';
     }
     
     .feature {
-      background-color: #f8f9fa;
-      padding: 1.5rem;
-      border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      background: linear-gradient(145deg, #1e1e1e, #2a2a2a);
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(162, 89, 217, 0.2);
+      transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    }
+    
+    .feature:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 28px rgba(162, 89, 217, 0.25);
+      border-color: rgba(162, 89, 217, 0.4);
     }
     
     .feature h3 {
       color: #a259d9;
+      font-size: 1.4rem;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid rgba(162, 89, 217, 0.3);
+      padding-bottom: 0.75rem;
     }
     
     .feature p {
       margin-bottom: 0;
+      color: rgba(255, 255, 255, 0.8);
+      line-height: 1.6;
+      font-size: 0.95rem;
     }
   `]
 })

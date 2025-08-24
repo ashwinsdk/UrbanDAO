@@ -4,11 +4,12 @@ import { ContractService } from '../../../../core/services/contract.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { UserRole } from '../../../../core/models/role.model';
 
 interface RoleRequest {
   id: string;
   requestor: string;
-  role: string;
+  role: UserRole;
   timestamp: number;
   status: string;
   name?: string;
@@ -17,7 +18,7 @@ interface RoleRequest {
 
 interface RoleAssignment {
   address: string;
-  role: string;
+  role: UserRole;
   timestamp: number;
   name?: string;
 }
@@ -52,9 +53,9 @@ export class ManageRolesComponent implements OnInit {
   
   // Available roles for Admin Head to assign
   availableRoles = [
-    { value: 'VALIDATOR_ROLE', label: 'Validator' },
-    { value: 'TAX_COLLECTOR_ROLE', label: 'Tax Collector' },
-    { value: 'PROJECT_MANAGER_ROLE', label: 'Project Manager' }
+    { value: UserRole.VALIDATOR_ROLE, label: 'Validator' },
+    { value: UserRole.TAX_COLLECTOR_ROLE, label: 'Tax Collector' },
+    { value: UserRole.PROJECT_MANAGER_ROLE, label: 'Project Manager' }
   ];
 
   constructor(
@@ -268,7 +269,7 @@ export class ManageRolesComponent implements OnInit {
       }
       
       // Check if the address is already registered as a citizen
-      const isCitizen = await this.contractService.hasRole('CITIZEN_ROLE', formData.address);
+      const isCitizen = await this.contractService.hasRole(UserRole.CITIZEN_ROLE, formData.address);
       
       if (!isCitizen) {
         this.error = 'This address is not registered as a citizen. Only citizens can be assigned roles.';
@@ -324,7 +325,7 @@ export class ManageRolesComponent implements OnInit {
       this.error = null;
       
       // Call contract to revoke role
-      const result = await this.contractService.revokeRole(assignment.address, assignment.role);
+      const result = await this.contractService.revokeRole(assignment.role, assignment.address);
       
       if (result) {
         this.success = `Role revoked successfully.`;
@@ -357,7 +358,7 @@ export class ManageRolesComponent implements OnInit {
     return date.toLocaleString();
   }
   
-  getRoleLabel(roleConstant: string): string {
+  getRoleLabel(roleConstant: UserRole): string {
     const role = this.availableRoles.find(r => r.value === roleConstant);
     return role ? role.label : roleConstant;
   }

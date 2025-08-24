@@ -4,6 +4,7 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angula
 import { CommonModule } from '@angular/common';
 import { ContractService } from '../../../../core/services/contract.service';
 import { AuthService } from '../../../../core/services/auth.service';
+import { UserRole } from '../../../../core/models/role.model';
 
 @Component({
   selector: 'app-edit-grievance',
@@ -241,7 +242,7 @@ export class EditGrievanceComponent implements OnInit {
     if (!this.grievanceId) return;
     
     // Verify the project manager address has the correct role
-    const hasRole = await this.contractService.hasRole('PROJECT_MANAGER_ROLE', projectManagerAddress);
+    const hasRole = await this.contractService.hasRole(UserRole.PROJECT_MANAGER_ROLE, projectManagerAddress);
     
     if (!hasRole) {
       throw new Error('The specified address does not have the Project Manager role.');

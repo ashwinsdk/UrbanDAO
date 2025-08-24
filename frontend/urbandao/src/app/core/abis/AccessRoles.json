@@ -1,0 +1,163 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "AccessRoles",
+  "sourceName": "contracts/AccessRoles.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "role",
+          "type": "bytes32"
+        }
+      ],
+      "name": "InvalidRole",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "who",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "existing",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "requested",
+          "type": "bytes32"
+        }
+      ],
+      "name": "RoleCollision",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "assigner",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "role",
+          "type": "bytes32"
+        }
+      ],
+      "name": "UnauthorizedRoleAssignment",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ADMIN_GOVT_ROLE",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "ADMIN_HEAD_ROLE",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "CITIZEN_ROLE",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "OWNER_ROLE",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "PROJECT_MANAGER_ROLE",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "TAX_COLLECTOR_ROLE",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "TX_PAYER_ROLE",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "VALIDATOR_ROLE",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x61021761003a600b82828239805160001a60731461002d57634e487b7160e01b600052600060045260246000fd5b30600052607381538281f3fe73000000000000000000000000000000000000000030146080604052600436106100925760003560e01c8063e26c79f411610065578063e26c79f414610145578063e58378bb1461016c578063f672d4c014610193578063fcadfd19146101ba57600080fd5b806327351d4a1461009757806329c76a73146100d05780632b9e1d70146100f7578063c49baebe1461011e575b600080fd5b6100be7f56e46fdde77b111e5bb65b63a6dac3eb9e218dc429289c985fdd859cca14412b81565b60405190815260200160405180910390f35b6100be7fa88d484f5aeb539ab60f9bd084e23511bc356a4f715a255e909643bb69ddcb4181565b6100be7f8f1426173eb922d2001706a308dabfa96e3c06475230fb5111184f70a4b5776d81565b6100be7f21702c8af46127c7fa207f89d0b0a8441bb32959a0ac7df790e9ab1a25c9892681565b6100be7fb302d06c4efadeded1e387e0955d9d440d227b6b55549296dd39bd21dc8eddf981565b6100be7fb19546dff01e856fb3f010c267a7b1c60363cf8a4664e21cc89c26224620214e81565b6100be7f7cb8da4815c5c7bfec597d7479bf1f02def0b6d0f50cd2ad5eb80c69ac5c1a1b81565b6100be7f0c79c71313e07ef49c5e10d46bbd278f8ec590008f378c219bb3e54b15bb0e848156fea264697066735822122013dbded3c334b0c85b69d53edf2777a979638312701b788d162b7534404ba0c864736f6c63430008180033",
+  "deployedBytecode": "0x73000000000000000000000000000000000000000030146080604052600436106100925760003560e01c8063e26c79f411610065578063e26c79f414610145578063e58378bb1461016c578063f672d4c014610193578063fcadfd19146101ba57600080fd5b806327351d4a1461009757806329c76a73146100d05780632b9e1d70146100f7578063c49baebe1461011e575b600080fd5b6100be7f56e46fdde77b111e5bb65b63a6dac3eb9e218dc429289c985fdd859cca14412b81565b60405190815260200160405180910390f35b6100be7fa88d484f5aeb539ab60f9bd084e23511bc356a4f715a255e909643bb69ddcb4181565b6100be7f8f1426173eb922d2001706a308dabfa96e3c06475230fb5111184f70a4b5776d81565b6100be7f21702c8af46127c7fa207f89d0b0a8441bb32959a0ac7df790e9ab1a25c9892681565b6100be7fb302d06c4efadeded1e387e0955d9d440d227b6b55549296dd39bd21dc8eddf981565b6100be7fb19546dff01e856fb3f010c267a7b1c60363cf8a4664e21cc89c26224620214e81565b6100be7f7cb8da4815c5c7bfec597d7479bf1f02def0b6d0f50cd2ad5eb80c69ac5c1a1b81565b6100be7f0c79c71313e07ef49c5e10d46bbd278f8ec590008f378c219bb3e54b15bb0e848156fea264697066735822122013dbded3c334b0c85b69d53edf2777a979638312701b788d162b7534404ba0c864736f6c63430008180033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

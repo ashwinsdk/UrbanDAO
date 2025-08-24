@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { UserRole } from '../models/role.model';
 import { ethers } from 'ethers';
 import { Web3Service } from './web3.service';
 import { environment } from '../../../environments/environment';
@@ -26,69 +27,188 @@ export class ContractService {
   private loadingSubject = new BehaviorSubject<boolean>(false);
   public loading$ = this.loadingSubject.asObservable();
 
+  // Prevent concurrent initializations from racing
+  private initPromise: Promise<void> | null = null;
+
   constructor(private web3Service: Web3Service) {
+    // Subscribe to connection status changes
     this.web3Service.connected$.subscribe(connected => {
       if (connected) {
-        this.initContracts();
+        // Avoid unhandled promise rejections
+        void this.initContracts().catch(err => console.error('Contract init error:', err));
       } else {
         this.resetContracts();
       }
     });
+    
+    // Check immediately if already connected - helps with page refresh scenarios
+    if (this.web3Service.isConnected()) {
+      void this.initContracts().catch(err => console.error('Initial contract init error:', err));
+    }
+    
+    // Re-init contracts on chain changes when connected and on the correct network
+    this.web3Service.chainId$.subscribe(chainId => {
+      if (this.web3Service.isConnected() && chainId === environment.network.chainId) {
+        void this.initContracts().catch(err => console.error('Contract re-init error after network change:', err));
+      }
+    });
   }
 
-  private async initContracts(): Promise<void> {
-    try {
-      this.loadingSubject.next(true);
-      
-      const provider = this.web3Service.getProvider();
-      const signer = this.web3Service.getSigner();
-      
-      if (!provider || !signer) {
-        throw new Error('Provider or signer not available');
-      }
+  public async initContracts(): Promise<void> {
+    // Dedupe concurrent calls
+    if (this.initPromise) return this.initPromise;
 
-      // Initialize contracts with ABI and address
-      this.urbanCoreContract = new ethers.Contract(
-        environment.contracts.UrbanCore,
-        urbanCoreABI,
-        signer
-      );
-      
-      this.urbanTokenContract = new ethers.Contract(
-        environment.contracts.UrbanToken,
-        urbanTokenABI,
-        signer
-      );
-      
-      this.grievanceHubContract = new ethers.Contract(
-        environment.contracts.GrievanceHub,
-        grievanceHubABI,
-        signer
-      );
-      
-      this.projectRegistryContract = new ethers.Contract(
-        environment.contracts.ProjectRegistry,
-        projectRegistryABI,
-        signer
-      );
-      
-      this.taxModuleContract = new ethers.Contract(
-        environment.contracts.TaxModule,
-        taxModuleABI,
-        signer
-      );
-      
-      this.metaForwarderContract = new ethers.Contract(
-        environment.contracts.MetaForwarder,
-        metaForwarderABI,
-        signer
-      );
-    } catch (error) {
-      console.error('Error initializing contracts:', error);
-      this.resetContracts();
-    } finally {
-      this.loadingSubject.next(false);
-    }
+    this.initPromise = (async () => {
+      try {
+        this.loadingSubject.next(true);
+        console.log('Initializing contracts...');
+
+        // Get provider and signer with retry logic
+        let provider = this.web3Service.getProvider();
+        let signer = this.web3Service.getSigner();
+        let retryCount = 0;
+        const maxRetries = 3;
+
+        while ((!provider || !signer) && retryCount < maxRetries) {
+          console.log(`Provider or signer not available, retrying (${retryCount + 1}/${maxRetries})...`);
+          // Small delay before retry
+          await new Promise(res => setTimeout(res, 500));
+          provider = this.web3Service.getProvider();
+          signer = this.web3Service.getSigner();
+          retryCount++;
+        }
+
+        if (!provider || !signer) {
+          throw new Error('Provider or signer not available after retries');
+        }
+
+        // Guard against wrong chain
+        if (!this.web3Service.isCorrectNetwork()) {
+          // If chainId is temporarily null, try to read from provider directly before failing
+          let currentChainId = this.web3Service.getCurrentChainId();
+          if (currentChainId == null && provider) {
+            try {
+              const net = await provider.getNetwork();
+              currentChainId = Number(net.chainId);
+            } catch {
+              // Small delay and retry once from Web3Service state
+              await new Promise(res => setTimeout(res, 250));
+              currentChainId = this.web3Service.getCurrentChainId();
+            }
+          }
+          if (currentChainId !== environment.network.chainId) {
+            throw new Error(`Wrong network. Expected chainId ${environment.network.chainId}, got ${currentChainId}`);
+          }
+        }
+
+        // Verify contract addresses are available
+        if (!environment.contracts || !environment.contracts.UrbanCore) {
+          throw new Error('Contract addresses not configured in environment');
+        }
+
+        // Initialize UrbanCore first, as it's the most critical contract
+        try {
+          console.log('Initializing UrbanCore contract...');
+          this.urbanCoreContract = new ethers.Contract(
+            environment.contracts.UrbanCore,
+            (urbanCoreABI as any).abi ?? urbanCoreABI,
+            signer
+          );
+
+          // Verify contract is working by making a simple call that definitely exists
+          await this.urbanCoreContract['getAddressRole']('0x0000000000000000000000000000000000000000').catch(error => {
+            console.error('Error verifying UrbanCore contract:', error);
+            throw new Error('UrbanCore contract verification failed');
+          });
+
+          console.log('UrbanCore contract initialized successfully');
+        } catch (coreError) {
+          console.error('Failed to initialize UrbanCore contract:', coreError);
+          // Re-throw to stop initialization of other contracts
+          throw coreError;
+        }
+
+        // Now initialize the rest of the contracts (if addresses configured)
+        try {
+          if (environment.contracts.UrbanToken) {
+            this.urbanTokenContract = new ethers.Contract(
+              environment.contracts.UrbanToken,
+              (urbanTokenABI as any).abi ?? urbanTokenABI,
+              signer
+            );
+            console.log('UrbanToken contract initialized');
+          }
+
+          if (environment.contracts.GrievanceHub) {
+            this.grievanceHubContract = new ethers.Contract(
+              environment.contracts.GrievanceHub,
+              (grievanceHubABI as any).abi ?? grievanceHubABI,
+              signer
+            );
+            console.log('GrievanceHub contract initialized');
+          }
+
+          if (environment.contracts.ProjectRegistry) {
+            this.projectRegistryContract = new ethers.Contract(
+              environment.contracts.ProjectRegistry,
+              (projectRegistryABI as any).abi ?? projectRegistryABI,
+              signer
+            );
+            console.log('ProjectRegistry contract initialized');
+          }
+
+          if (environment.contracts.TaxModule) {
+            this.taxModuleContract = new ethers.Contract(
+              environment.contracts.TaxModule,
+              (taxModuleABI as any).abi ?? taxModuleABI,
+              signer
+            );
+            console.log('TaxModule contract initialized');
+          }
+
+          if (environment.contracts.MetaForwarder) {
+            this.metaForwarderContract = new ethers.Contract(
+              environment.contracts.MetaForwarder,
+              (metaForwarderABI as any).abi ?? metaForwarderABI,
+              signer
+            );
+            console.log('MetaForwarder contract initialized');
+          }
+
+          // Optional: verify MetaForwarder is trusted by UrbanCore
+          if (environment.contracts.MetaForwarder && this.urbanCoreContract) {
+            try {
+              const trusted = await this.urbanCoreContract['isTrustedForwarder'](environment.contracts.MetaForwarder);
+              if (!trusted) {
+                console.warn('MetaForwarder is not trusted by UrbanCore. Meta-transactions may not work as expected.', {
+                  forwarder: environment.contracts.MetaForwarder
+                });
+              } else {
+                console.log('MetaForwarder is trusted by UrbanCore');
+              }
+            } catch (verifyErr) {
+              console.warn('Could not verify trusted forwarder on UrbanCore:', verifyErr);
+            }
+          }
+
+          console.log('All contracts initialized (where addresses configured)');
+        } catch (otherError) {
+          console.error('Error initializing secondary contracts:', otherError);
+          // Don't re-throw here, as we want to continue if at least UrbanCore is available
+        }
+      } catch (error) {
+        console.error('Error initializing contracts:', error);
+        this.resetContracts();
+        throw error; // Re-throw so callers know initialization failed
+      } finally {
+        this.loadingSubject.next(false);
+      }
+    })()
+    .finally(() => {
+      this.initPromise = null;
+    });
+
+    return this.initPromise;
   }
 
   private resetContracts(): void {
@@ -100,50 +220,119 @@ export class ContractService {
     this.metaForwarderContract = null;
   }
 
+  /**
+   * Get hardcoded bytes32 role constant for a given role name
+   * @param roleName The role name as defined in UserRole enum
+   * @returns The bytes32 role constant or null if not found
+   */
+  public getRoleConstant(roleName: UserRole): string | null {
+    // Map from enum values to hardcoded bytes32 constants (from role-verification.json)
+    const roleConstants: {[key in UserRole]?: string} = {
+      [UserRole.OWNER_ROLE]: '0xb19546dff01e856fb3f010c267a7b1c60363cf8a4664e21cc89c26224620214e', // Verified from contract
+      [UserRole.ADMIN_GOVT_ROLE]: '0x0c79c71313e07ef49c5e10d46bbd278f8ec590008f378c219bb3e54b15bb0e84', // Corrected from verification
+      [UserRole.ADMIN_HEAD_ROLE]: '0xb302d06c4efadeded1e387e0955d9d440d227b6b55549296dd39bd21dc8eddf9', // Corrected from verification
+      [UserRole.PROJECT_MANAGER_ROLE]: '0xa88d484f5aeb539ab60f9bd084e23511bc356a4f715a255e909643bb69ddcb41', // Corrected from verification
+      [UserRole.TAX_COLLECTOR_ROLE]: '0x7cb8da4815c5c7bfec597d7479bf1f02def0b6d0f50cd2ad5eb80c69ac5c1a1b', // Corrected from verification
+      [UserRole.VALIDATOR_ROLE]: '0x21702c8af46127c7fa207f89d0b0a8441bb32959a0ac7df790e9ab1a25c98926', // Corrected from verification
+      [UserRole.CITIZEN_ROLE]: '0x8f1426173eb922d2001706a308dabfa96e3c06475230fb5111184f70a4b5776d', // Corrected from verification
+      [UserRole.TX_PAYER_ROLE]: '0x56e46fdde77b111e5bb65b63a6dac3eb9e218dc429289c985fdd859cca14412b' // Corrected from verification
+    };
+    
+    return roleConstants[roleName] || null;
+  }
+
   // Urban Core contract functions
-  public async hasRole(role: string, address: string): Promise<boolean> {
+  public async hasRole(role: UserRole, address: string): Promise<boolean> {
     try {
       if (!this.urbanCoreContract) await this.initContracts();
       if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
       
-      const roleBytes = ethers.keccak256(ethers.toUtf8Bytes(role));
-      return await this.urbanCoreContract['hasRole'](roleBytes, address);
+      const roleConstant = this.getRoleConstant(role);
+      if (!roleConstant) {
+        console.error(`No constant found for role ${role}`);
+        return false;
+      }
+      
+      return await this.urbanCoreContract['hasRole'](roleConstant, address);
     } catch (error) {
       console.error('Error checking role:', error);
       return false;
     }
   }
 
-  public async getUserRole(address: string): Promise<string | null> {
+  /**
+   * Get the role of an address by calling getAddressRole on the UrbanCore contract
+   * @param address The address to check the role for
+   * @returns The UserRole enum value for the address or null if no role is found
+   */
+  public async getUserRole(address: string): Promise<UserRole | null> {
     try {
-      if (!this.urbanCoreContract) await this.initContracts();
-      if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
+      console.log(`Getting role for address: ${address}`);
       
-      // Check each role starting from highest privilege
-      const roles = [
-        'OWNER_ROLE',
-        'ADMIN_GOVT_ROLE',
-        'ADMIN_HEAD_ROLE',
-        'PROJECT_MANAGER_ROLE',
-        'TAX_COLLECTOR_ROLE',
-        'VALIDATOR_ROLE',
-        'CITIZEN_ROLE',
-        'TX_PAYER_ROLE'
-      ];
-      
-      for (const role of roles) {
-        const roleBytes = ethers.keccak256(ethers.toUtf8Bytes(role));
-        const hasRole = await this.urbanCoreContract['hasRole'](roleBytes, address);
-        if (hasRole) return role;
+      // Ensure contracts are initialized
+      if (!this.urbanCoreContract) {
+        console.log('UrbanCore contract not initialized, initializing contracts...');
+        await this.initContracts();
       }
       
-      return null;
+      if (!this.urbanCoreContract) {
+        console.error('Failed to initialize UrbanCore contract');
+        return UserRole.NONE;
+      }
+      
+      // First try getAddressRole method
+      try {
+        console.log('Calling getAddressRole on UrbanCore contract');
+        const roleBytes = await this.urbanCoreContract['getAddressRole'](address);
+        console.log('Raw role bytes from getAddressRole:', roleBytes);
+        
+        const userRole = this.convertRoleToEnum(roleBytes);
+        console.log(`Role converted to enum: ${userRole} (${UserRole[userRole]})`);
+        
+        if (userRole !== UserRole.NONE) {
+          return userRole;
+        }
+      } catch (error) {
+        console.error('Error calling getAddressRole:', error);
+        // Continue to fallback checks
+      }
+      
+      // Fallback to checking each role individually
+      console.log('Falling back to individual role checks');
+      
+      // Check roles in priority order
+      const rolesToCheck = [
+        { role: UserRole.OWNER_ROLE, name: 'OWNER_ROLE' },
+        { role: UserRole.ADMIN_GOVT_ROLE, name: 'ADMIN_GOVT_ROLE' },
+        { role: UserRole.ADMIN_HEAD_ROLE, name: 'ADMIN_HEAD_ROLE' },
+        { role: UserRole.PROJECT_MANAGER_ROLE, name: 'PROJECT_MANAGER_ROLE' },
+        { role: UserRole.TAX_COLLECTOR_ROLE, name: 'TAX_COLLECTOR_ROLE' },
+        { role: UserRole.VALIDATOR_ROLE, name: 'VALIDATOR_ROLE' },
+        { role: UserRole.CITIZEN_ROLE, name: 'CITIZEN_ROLE' },
+        { role: UserRole.TX_PAYER_ROLE, name: 'TX_PAYER_ROLE' }
+      ];
+      
+      for (const { role, name } of rolesToCheck) {
+        try {
+          console.log(`Checking if address has role: ${name}`);
+          const hasRole = await this.hasRole(role, address);
+          if (hasRole) {
+            console.log(`Address has role: ${name}`);
+            return role;
+          }
+        } catch (error) {
+          console.error(`Error checking ${name}:`, error);
+        }
+      }
+      
+      console.log('No role found for address, returning NONE');
+      return UserRole.NONE;
     } catch (error) {
-      console.error('Error getting user role:', error);
-      return null;
+      console.error('Error in getUserRole:', error);
+      return UserRole.NONE;
     }
   }
-
+  
   // Admin Head module methods
   // Get the area ID for an admin
   public async getAdminAreaId(adminAddress: string | null): Promise<string | null> {
@@ -162,7 +351,7 @@ export class ContractService {
   // Get pending role requests for an area
   public async getPendingRoleRequests(areaId: string): Promise<any[]> {
     try {
-      const allRequests = await this.getRoleRequests('CITIZEN');
+      const allRequests = await this.getRoleRequests(UserRole.CITIZEN_ROLE);
       // Filter to only show pending requests for this area
       return allRequests.filter(request => request.areaId === areaId && request.status === 'pending');
     } catch (error) {
@@ -172,7 +361,7 @@ export class ContractService {
   }
   
   // Get role holders by area
-  public async getRoleHoldersByArea(areaId: string, role: string): Promise<any[]> {
+  public async getRoleHoldersByArea(areaId: string, role: UserRole): Promise<any[]> {
     try {
       const allHolders = await this.getRoleHolders(role);
       // In a real implementation, would filter by area
@@ -205,13 +394,20 @@ export class ContractService {
   }
   
   // Method to assign a role to a user
-  public async assignRole(address: string, role: string, areaId: string, metadataHash?: string): Promise<boolean> {
+  public async assignRole(address: string, role: UserRole, areaId: string, metadataHash?: string): Promise<boolean> {
     try {
       if (!this.urbanCoreContract) await this.initContracts();
       if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
       
-      // Mock implementation
+      const roleConstant = this.getRoleConstant(role);
+      if (!roleConstant) {
+        console.error(`No constant found for role ${role}`);
+        return false;
+      }
+      
       console.log(`Assigning role ${role} to ${address} in area ${areaId}`);
+      const tx = await this.urbanCoreContract['assignRole'](roleConstant, address);
+      await tx.wait();
       return true;
     } catch (error) {
       console.error('Error assigning role:', error);
@@ -535,7 +731,12 @@ export class ContractService {
   private async shouldUseMetaTransaction(): Promise<boolean> {
     // Check if TX_PAYER is available
     try {
-      const txPayerAddress = environment.rolesMapping.TX_PAYER_ROLE;
+      // Get TX_PAYER role holders from contract
+      const txPayers = await this.getRoleHolders(UserRole.TX_PAYER_ROLE);
+      if (!txPayers || txPayers.length === 0) return false;
+      
+      // Use the first TX_PAYER found
+      const txPayerAddress = txPayers[0];
       if (!txPayerAddress) return false;
       
       // Check if tx payer has enough balance
@@ -622,8 +823,19 @@ export class ContractService {
     }
   }
 
-  // Getter methods for contracts
-  public getUrbanCoreContract(): ethers.Contract | null {
+  // Getter methods for contracts with initialization checks
+  public async getUrbanCoreContract(): Promise<ethers.Contract> {
+    // If contract is not initialized, attempt to initialize
+    if (!this.urbanCoreContract) {
+      console.log('UrbanCore contract not initialized, attempting initialization...');
+      await this.initContracts();
+      
+      // Check again after initialization attempt
+      if (!this.urbanCoreContract) {
+        throw new Error('Urban Core contract initialization failed');
+      }
+    }
+    
     return this.urbanCoreContract;
   }
 
@@ -701,12 +913,17 @@ export class ContractService {
   }
 
   // Role management functions
-  public async getRoleHolders(role: string): Promise<string[]> {
+  public async getRoleHolders(role: UserRole): Promise<string[]> {
     try {
       if (!this.urbanCoreContract) await this.initContracts();
       if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
       
-      const roleBytes = ethers.keccak256(ethers.toUtf8Bytes(role));
+      const roleBytes = this.getRoleConstant(role);
+      if (!roleBytes) {
+        console.error(`No constant found for role ${role}`);
+        return [];
+      }
+      
       const count = await this.urbanCoreContract['getRoleMemberCount'](roleBytes);
       
       const addresses: string[] = [];
@@ -722,12 +939,17 @@ export class ContractService {
     }
   }
 
-  public async getRoleRequests(role: string): Promise<any[]> {
+  public async getRoleRequests(role: UserRole): Promise<any[]> {
     try {
       if (!this.urbanCoreContract) await this.initContracts();
       if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
       
-      const roleBytes = ethers.keccak256(ethers.toUtf8Bytes(role));
+      const roleBytes = this.getRoleConstant(role);
+      if (!roleBytes) {
+        console.error(`No constant found for role ${role}`);
+        return [];
+      }
+      
       const requestCount = await this.urbanCoreContract['getRoleRequestCount'](roleBytes);
       
       const requests = [];
@@ -738,10 +960,11 @@ export class ContractService {
         requests.push({
           id: requestId.toString(),
           requester: request.requester,
-          role: request.role,
+          role: this.convertRoleToEnum(request.role), // Convert bytes32 role to enum
           status: this.resolveRoleRequestStatus(request.status),
           timestamp: request.timestamp.toString(),
-          metadataUri: request.metadataUri
+          metadataUri: request.metadataUri,
+          areaId: request.areaId?.toString() || null // Extract areaId if available
         });
       }
       
@@ -759,6 +982,38 @@ export class ContractService {
       2: 'rejected'
     };
     return statusMap[status] || 'unknown';
+  }
+  
+  /**
+   * Convert a bytes32 role constant from the contract to the UserRole enum
+   * @param roleBytes The bytes32 role constant from the contract
+   * @returns The corresponding UserRole enum value or UserRole.NONE if no match
+   */
+  public convertRoleToEnum(roleBytes: string): UserRole {
+    // If null, undefined or zero bytes, return NONE
+    if (!roleBytes || roleBytes === '0x0000000000000000000000000000000000000000000000000000000000000000') {
+      return UserRole.NONE;
+    }
+    
+    // Map of role hash bytes to enum values (from role-verification.json)
+    const roleMap: {[key: string]: UserRole} = {
+      '0xb19546dff01e856fb3f010c267a7b1c60363cf8a4664e21cc89c26224620214e': UserRole.OWNER_ROLE,              // Verified from contract
+      '0x0c79c71313e07ef49c5e10d46bbd278f8ec590008f378c219bb3e54b15bb0e84': UserRole.ADMIN_GOVT_ROLE,         // Corrected from verification
+      '0xb302d06c4efadeded1e387e0955d9d440d227b6b55549296dd39bd21dc8eddf9': UserRole.ADMIN_HEAD_ROLE,         // Corrected from verification
+      '0xa88d484f5aeb539ab60f9bd084e23511bc356a4f715a255e909643bb69ddcb41': UserRole.PROJECT_MANAGER_ROLE,    // Corrected from verification
+      '0x7cb8da4815c5c7bfec597d7479bf1f02def0b6d0f50cd2ad5eb80c69ac5c1a1b': UserRole.TAX_COLLECTOR_ROLE,      // Corrected from verification
+      '0x21702c8af46127c7fa207f89d0b0a8441bb32959a0ac7df790e9ab1a25c98926': UserRole.VALIDATOR_ROLE,          // Corrected from verification
+      '0x8f1426173eb922d2001706a308dabfa96e3c06475230fb5111184f70a4b5776d': UserRole.CITIZEN_ROLE,            // Corrected from verification
+      '0x56e46fdde77b111e5bb65b63a6dac3eb9e218dc429289c985fdd859cca14412b': UserRole.TX_PAYER_ROLE            // Corrected from verification
+    };
+    
+    // Log the role for debugging
+    console.log('Converting role bytes to enum:', roleBytes);
+    const resolvedRole = roleMap[roleBytes] || UserRole.NONE;
+    console.log('Resolved to role:', UserRole[resolvedRole]);
+    
+    // Return the mapped enum value or NONE if not found
+    return resolvedRole;
   }
 
   public async approveRoleRequest(requestId: string): Promise<any> {
@@ -787,13 +1042,18 @@ export class ContractService {
     }
   }
 
-  public async grantRole(role: string, address: string): Promise<any> {
+  public async grantRole(role: UserRole, address: string): Promise<any> {
     try {
       if (!this.urbanCoreContract) await this.initContracts();
       if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
       
-      const roleBytes = ethers.keccak256(ethers.toUtf8Bytes(role));
-      const tx = await this.urbanCoreContract['grantRole'](roleBytes, address);
+      const roleConstant = this.getRoleConstant(role);
+      if (!roleConstant) {
+        console.error(`No constant found for role ${role}`);
+        throw new Error(`Invalid role: ${role}`);
+      }
+      
+      const tx = await this.urbanCoreContract['grantRole'](roleConstant, address);
       return tx;
     } catch (error) {
       console.error(`Error granting role ${role} to ${address}:`, error);
@@ -801,13 +1061,18 @@ export class ContractService {
     }
   }
 
-  public async grantRoleWithMetadata(role: string, address: string, metadataUri: string): Promise<any> {
+  public async grantRoleWithMetadata(role: UserRole, address: string, metadataUri: string): Promise<any> {
     try {
       if (!this.urbanCoreContract) await this.initContracts();
       if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
       
-      const roleBytes = ethers.keccak256(ethers.toUtf8Bytes(role));
-      const tx = await this.urbanCoreContract['grantRoleWithMetadata'](roleBytes, address, metadataUri);
+      const roleConstant = this.getRoleConstant(role);
+      if (!roleConstant) {
+        console.error(`No constant found for role ${role}`);
+        throw new Error(`Invalid role: ${role}`);
+      }
+      
+      const tx = await this.urbanCoreContract['grantRoleWithMetadata'](roleConstant, address, metadataUri);
       return tx;
     } catch (error) {
       console.error(`Error granting role ${role} with metadata to ${address}:`, error);
@@ -815,13 +1080,18 @@ export class ContractService {
     }
   }
 
-  public async revokeRole(role: string, address: string): Promise<any> {
+  public async revokeRole(role: UserRole, address: string): Promise<any> {
     try {
       if (!this.urbanCoreContract) await this.initContracts();
       if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
       
-      const roleBytes = ethers.keccak256(ethers.toUtf8Bytes(role));
-      const tx = await this.urbanCoreContract['revokeRole'](roleBytes, address);
+      const roleConstant = this.getRoleConstant(role);
+      if (!roleConstant) {
+        console.error(`No constant found for role ${role}`);
+        throw new Error(`Invalid role: ${role}`);
+      }
+      
+      const tx = await this.urbanCoreContract['revokeRole'](roleConstant, address);
       return tx;
     } catch (error) {
       console.error(`Error revoking role ${role} from ${address}:`, error);
@@ -928,7 +1198,7 @@ export class ContractService {
           citizenAddress: grievance.citizen,
           citizenName,
           urgent: grievance.urgent || false,
-          imageUrls: grievance.documents ? this.parseDocumentUrls(grievance.documents) : []
+          images: grievance.documents ? this.parseDocumentUrls(grievance.documents) : []
         };
         
         grievances.push(parsedGrievance);
@@ -1265,7 +1535,7 @@ export class ContractService {
       if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
       
       // Get all citizens from the Urban Core contract
-      const citizenAddresses = await this.getRoleHolders('CITIZEN_ROLE');
+      const citizenAddresses = await this.getRoleHolders(UserRole.CITIZEN_ROLE);
       const citizens = [];
       
       for (const address of citizenAddresses) {
@@ -1605,7 +1875,7 @@ export class ContractService {
       if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
       
       // Check if address has citizen role
-      const isCitizen = await this.hasRole('CITIZEN_ROLE', address);
+      const isCitizen = await this.hasRole(UserRole.CITIZEN_ROLE, address);
       if (!isCitizen) {
         console.warn(`Address ${address} is not a registered citizen`);
         return null;
@@ -1625,8 +1895,7 @@ export class ContractService {
         name: metadata?.name || 'Unknown',
         areaId: metadata?.areaId || '0',
         areaName: areaDetails?.name || 'Unknown Area',
-        registrationDate: metadata?.timestamp ? new Date(Number(metadata.timestamp) * 1000) : new Date(),
-        properties: metadata?.properties || []
+        registrationDate: metadata?.timestamp || Date.now() / 1000
       };
     } catch (error) {
       console.error(`Error getting citizen info for ${address}:`, error);

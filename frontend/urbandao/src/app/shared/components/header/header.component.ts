@@ -13,7 +13,7 @@ import { UserRole } from '../../../core/models/role.model';
       <div class="header-container">
         <div class="logo">
           <a routerLink="/">
-            <img src="/assets/urbanDOA-trans.png" alt="UrbanDAO Logo" height="40" />
+            <img src="assets/urbanDOA.png" alt="UrbanDAO Logo" height="40" />
           </a>
         </div>
         
@@ -22,7 +22,6 @@ import { UserRole } from '../../../core/models/role.model';
             <ng-container *ngIf="!isLoggedIn; else loggedInNav">
               <li><a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Home</a></li>
               <li><a routerLink="/about" routerLinkActive="active">About</a></li>
-              <li><a routerLink="/docs" routerLinkActive="active">Docs</a></li>
               <li><a class="button" routerLink="/login">Connect Wallet</a></li>
             </ng-container>
             

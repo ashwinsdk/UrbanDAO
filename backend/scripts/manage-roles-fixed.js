@@ -67,7 +67,8 @@ async function setupProvider() {
 
 // Connect to contracts with the specified signer
 async function connectWithSigner(privateKey, provider) {
-  const signer = new ethers.Wallet(privateKey, provider);
+  const normalizedPk = privateKey && privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`;
+  const signer = new ethers.Wallet(normalizedPk, provider);
   console.log(`Using wallet with address: ${signer.address}`);
   
   const urbanCoreAddress = process.env.URBAN_CORE_ADDRESS || DEPLOYED_ADDRESSES.contracts.UrbanCore;
@@ -85,14 +86,17 @@ async function connectWithSigner(privateKey, provider) {
 // Helper to get private key for a role
 function getPrivateKeyForRole(roleName) {
   // First try to get from environment variables
-  const envVar = `${roleName}_PRIVATE_KEY`;
-  if (process.env[envVar]) {
-    return process.env[envVar];
+  const envVarPrimary = `${roleName}_PRIVATE_KEY`;
+  const envVarAlt = `${roleName}`; // supports .env without _PRIVATE_KEY suffix
+  const envValue = process.env[envVarPrimary] || process.env[envVarAlt];
+  if (envValue) {
+    return envValue.startsWith('0x') ? envValue : `0x${envValue}`;
   }
   
   // Fall back to roles.json if available
   if (ROLES_CONFIG.roles[roleName] && ROLES_CONFIG.roles[roleName].private_key) {
-    return ROLES_CONFIG.roles[roleName].private_key;
+    const pk = ROLES_CONFIG.roles[roleName].private_key;
+    return typeof pk === 'string' && pk.startsWith('0x') ? pk : `0x${pk}`;
   }
   
   throw new Error(`No private key found for role ${roleName}`);
@@ -102,54 +106,55 @@ function getPrivateKeyForRole(roleName) {
 async function assignRole(role, targetAddress, signerPrivateKey, provider) {
   try {
     const { urbanCore, signer } = await connectWithSigner(signerPrivateKey, provider);
-    
-    // Check if role is already assigned
+
+    // Determine role hash
     const roleHash = ROLE_CONSTANTS[role];
+
+    // Check current state
     const hasRole = await urbanCore.hasRole(roleHash, targetAddress);
-    
+    const currentMappedRole = await urbanCore.getAddressRole(targetAddress);
+    const ZERO = '0x0000000000000000000000000000000000000000000000000000000000000000';
+
     if (hasRole) {
+      // If mapping is not set but the address already has the role, sync mapping via assignRole (except Citizen)
+      if (role !== 'CITIZEN_ROLE' && currentMappedRole === ZERO) {
+        console.log(`↻ Syncing addressRole mapping for ${targetAddress} to ${role}...`);
+        const tx = await urbanCore.assignRole(roleHash, targetAddress);
+        console.log(`Transaction hash: ${tx.hash}`);
+        const receipt = await tx.wait();
+        console.log(`✓ Mapping synced in block ${receipt.blockNumber}`);
+        return {
+          success: true,
+          status: 'mapping_synced',
+          txHash: tx.hash,
+          blockNumber: receipt.blockNumber,
+        };
+      }
+
       console.log(`✓ Address ${targetAddress} already has role ${role}`);
       return { success: true, status: 'already_assigned' };
     }
-    
-    // If not assigned, grant the role using low-level call
+
+    // Not assigned yet - assign role via UrbanCore.assignRole (handles collision + mapping updates)
     console.log(`Assigning ${role} to ${targetAddress}...`);
-    
-    // Encode function call manually to avoid name resolution issues
-    // Function signature: grantRole(bytes32 role, address account)
-    const grantRoleFunction = urbanCore.interface.getFunction('grantRole');
-    const data = urbanCore.interface.encodeFunctionData(
-      grantRoleFunction, 
-      [roleHash, targetAddress]
-    );
-    
-    // Send transaction
-    const tx = await signer.sendTransaction({
-      to: urbanCore.target,
-      data: data,
-      gasLimit: 300000
-    });
-    
+    const tx = await urbanCore.assignRole(roleHash, targetAddress);
     console.log(`Transaction hash: ${tx.hash}`);
-    
-    // Wait for confirmation
     const receipt = await tx.wait();
     console.log(`Transaction confirmed in block ${receipt.blockNumber}`);
     console.log(`✓ Successfully assigned ${role} to ${targetAddress}`);
-    
-    return { 
-      success: true, 
-      status: 'assigned', 
-      txHash: tx.hash, 
-      blockNumber: receipt.blockNumber 
+
+    return {
+      success: true,
+      status: 'assigned',
+      txHash: tx.hash,
+      blockNumber: receipt.blockNumber,
     };
-    
   } catch (error) {
     console.error(`Error assigning role ${role} to ${targetAddress}: ${error.message}`);
-    return { 
-      success: false, 
-      status: 'failed', 
-      error: error.message 
+    return {
+      success: false,
+      status: 'failed',
+      error: error.message,
     };
   }
 }

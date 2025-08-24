@@ -79,7 +79,8 @@ async function verifyRoles() {
     const results = {
       verified: [],
       missing: [],
-      unknown: []
+      unknown: [],
+      addressRoleMapping: []
     };
     
     // Check each role in the configuration
@@ -89,6 +90,13 @@ async function verifyRoles() {
       
       try {
         const hasRole = await urbanCore.hasRole(ROLE_CONSTANTS[roleName], address);
+        const mappingRole = await urbanCore.getAddressRole(address);
+        const expectedRole = ROLE_CONSTANTS[roleName];
+        const mappingMatches = (mappingRole || '').toLowerCase() === expectedRole.toLowerCase();
+        console.log(`Mapping getAddressRole(address) => ${mappingRole}`);
+        console.log(`Expected (${roleName}) => ${expectedRole}`);
+        console.log(`Mapping matches expected: ${mappingMatches}`);
+        results.addressRoleMapping.push({ address, roleName, mappingRole, expectedRole, mappingMatches });
         
         if (hasRole) {
           console.log(`✅ ${address} HAS the ${roleName} role`);
@@ -108,6 +116,13 @@ async function verifyRoles() {
     console.log(`✅ Verified roles: ${results.verified.length}`);
     console.log(`❌ Missing roles: ${results.missing.length}`);
     console.log(`⚠️ Unknown status: ${results.unknown.length}`);
+    const mismatches = results.addressRoleMapping.filter(r => !r.mappingMatches);
+    if (mismatches.length > 0) {
+      console.log(`\nAddress-role mapping mismatches: ${mismatches.length}`);
+      mismatches.forEach(m => {
+        console.log(`- ${m.address} mapping=${m.mappingRole} expected(${m.roleName})=${m.expectedRole}`);
+      });
+    }
     
     // Print details for missing roles
     if (results.missing.length > 0) {
@@ -132,7 +147,7 @@ async function verifyRoles() {
   } catch (error) {
     console.error(`Error in verifyRoles: ${error.message}`);
     console.error(error);
-    return { verified: [], missing: [], unknown: [] };
+    return { verified: [], missing: [], unknown: [], addressRoleMapping: [] };
   }
 }
 

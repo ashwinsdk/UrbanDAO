@@ -10,7 +10,7 @@ import { CommonModule } from '@angular/common';
       <div class="footer-container">
         <div class="footer-content">
           <div class="footer-logo">
-            <img src="/assets/urbanDOA-trans.png" alt="UrbanDAO Logo" height="30" />
+            <img src="/assets/urbanDOA.png" alt="UrbanDAO Logo" height="30" />
           </div>
           <div class="footer-links">
             <div class="links-group">

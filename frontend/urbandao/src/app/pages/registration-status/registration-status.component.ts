@@ -12,7 +12,7 @@ import { Web3Service } from '../../core/services/web3.service';
     <div class="status-container">
       <div class="status-card">
         <div class="status-header">
-          <img src="/assets/urbanDOA-trans.png" alt="UrbanDAO Logo" height="50" />
+          <img src="assets/urbanDOA.png" alt="UrbanDAO Logo" height="50" />
           <h1>Registration Status</h1>
         </div>
         

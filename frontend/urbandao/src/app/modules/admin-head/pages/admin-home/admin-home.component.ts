@@ -3,6 +3,7 @@ import { Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { ContractService } from '../../../../core/services/contract.service';
 import { AuthService } from '../../../../core/services/auth.service';
+import { UserRole } from '../../../../core/models/role.model';
 
 interface AreaSummary {
   id: string;
@@ -105,9 +106,9 @@ export class AdminHomeComponent implements OnInit {
       const citizens = await this.contractService.getCitizensByArea(this.areaId);
       
       // Count role holders in this area
-      const taxCollectors = await this.contractService.getRoleHoldersByArea(this.areaId, 'TAX_COLLECTOR_ROLE');
-      const validators = await this.contractService.getRoleHoldersByArea(this.areaId, 'VALIDATOR_ROLE');
-      const projectManagers = await this.contractService.getRoleHoldersByArea(this.areaId, 'PROJECT_MANAGER_ROLE');
+      const taxCollectors = await this.contractService.getRoleHoldersByArea(this.areaId, UserRole.TAX_COLLECTOR_ROLE);
+      const validators = await this.contractService.getRoleHoldersByArea(this.areaId, UserRole.VALIDATOR_ROLE);
+      const projectManagers = await this.contractService.getRoleHoldersByArea(this.areaId, UserRole.PROJECT_MANAGER_ROLE);
       
       // Get grievance count
       const grievances = await this.contractService.getGrievancesByArea(this.areaId);

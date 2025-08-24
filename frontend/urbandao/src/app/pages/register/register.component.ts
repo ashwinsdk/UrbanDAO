@@ -14,7 +14,7 @@ import { UserRole } from '../../core/models/role.model';
     <div class="register-container">
       <div class="register-card">
         <div class="register-header">
-          <img src="/assets/urbanDOA-trans.png" alt="UrbanDAO Logo" height="50" />
+          <img src="assets/urbanDOA.png" alt="UrbanDAO Logo" height="50" />
           <h1>Register for UrbanDAO</h1>
           <p>Complete your registration to participate in urban governance</p>
         </div>
@@ -94,26 +94,13 @@ import { UserRole } from '../../core/models/role.model';
               </div>
               
               <div class="form-group">
-                <label>Preferred Role</label>
-                <div class="role-options">
-                  <div 
-                    *ngFor="let role of availableRoles" 
-                    class="role-option" 
-                    [class.selected]="registrationForm.get('role')?.value === role.value"
-                    (click)="selectRole(role.value)"
-                  >
-                    <div class="role-info">
-                      <h4>{{ role.label }}</h4>
-                      <p>{{ role.description }}</p>
-                    </div>
-                    <div class="role-checkbox">
-                      <span class="checkmark" *ngIf="registrationForm.get('role')?.value === role.value">✓</span>
-                    </div>
-                  </div>
+                <label>Registration Role</label>
+                <div class="role-info-card">
+                  <h4>Citizen</h4>
+                  <p>You are registering as a Citizen. Citizens can file grievances, make tax payments, and vote on proposals.</p>
                 </div>
-                <div *ngIf="formSubmitted && f['role'].errors" class="error-message">
-                  <span *ngIf="f['role'].errors['required']">Please select a role</span>
-                </div>
+                <!-- Role is automatically set to CITIZEN_ROLE -->
+                <input type="hidden" formControlName="role">
               </div>
               
               <div class="form-actions">
@@ -147,18 +134,8 @@ export class RegisterComponent implements OnInit {
   formSubmitted = false;
   error: string | null = null;
   
-  availableRoles = [
-    { 
-      value: UserRole.CITIZEN_ROLE, 
-      label: 'Citizen', 
-      description: 'File grievances, make tax payments, and vote on proposals'
-    },
-    { 
-      value: UserRole.VALIDATOR_ROLE, 
-      label: 'Validator',
-      description: 'Verify citizen identities and validate grievances'
-    }
-  ];
+  // Only citizen registration is allowed
+  readonly CITIZEN_ROLE = UserRole.CITIZEN_ROLE;
 
   constructor(
     private formBuilder: FormBuilder,
@@ -168,13 +145,16 @@ export class RegisterComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    // Initialize form
+    // Initialize form with fields that match contract requirements
     this.registrationForm = this.formBuilder.group({
       fullName: ['', Validators.required],
       email: ['', [Validators.required, Validators.email]],
       phone: ['', Validators.required],
       address: ['', Validators.required],
-      role: [UserRole.CITIZEN_ROLE, Validators.required]
+      // Always set to Citizen role
+      role: [this.CITIZEN_ROLE, Validators.required],
+      // Default area ID is 1 - this matches contract expectations
+      areaId: [1, Validators.required]
     });
     
     // Check wallet connection
@@ -210,9 +190,7 @@ export class RegisterComponent implements OnInit {
     }
   }
   
-  selectRole(role: UserRole): void {
-    this.registrationForm.patchValue({ role });
-  }
+  // Role selection removed - only citizen registration allowed
   
   async onSubmit(): Promise<void> {
     this.formSubmitted = true;
@@ -230,12 +208,20 @@ export class RegisterComponent implements OnInit {
     this.isSubmitting = true;
     
     try {
+      // Format data exactly as required by the contract
       const registrationData = {
-        ...this.registrationForm.value,
+        name: this.registrationForm.value.fullName,
+        email: this.registrationForm.value.email,
+        areaId: this.registrationForm.value.areaId,
+        role: this.CITIZEN_ROLE,
+        // Include additional form fields as metadata (not directly used by contract)
+        phone: this.registrationForm.value.phone,
+        physicalAddress: this.registrationForm.value.address,
         walletAddress: this.walletAddress
       };
       
       await this.authService.register(registrationData);
+      // Redirect to registration status page after submission
       this.router.navigate(['/registration-status']);
     } catch (error: any) {
       console.error('Registration error:', error);
@@ -246,7 +232,7 @@ export class RegisterComponent implements OnInit {
   }
   
   cancel(): void {
-    this.router.navigate(['/']);
+    this.router.navigate(['/login']);
   }
   
   truncateAddress(address: string): string {

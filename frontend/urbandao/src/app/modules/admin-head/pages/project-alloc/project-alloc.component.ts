@@ -4,6 +4,7 @@ import { ContractService } from '../../../../core/services/contract.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { UserRole } from '../../../../core/models/role.model';
 
 interface ProjectSummary {
   id: string;
@@ -148,7 +149,7 @@ export class ProjectAllocComponent implements OnInit {
     
     try {
       // Get all project managers for this area
-      this.projectManagers = await this.contractService.getRoleHoldersByArea(this.areaId, 'PROJECT_MANAGER_ROLE');
+      this.projectManagers = await this.contractService.getRoleHoldersByArea(this.areaId, UserRole.PROJECT_MANAGER_ROLE);
     } catch (error: any) {
       console.error('Error loading project managers:', error);
     }
@@ -223,7 +224,7 @@ export class ProjectAllocComponent implements OnInit {
       const formData = this.projectForm.value;
       
       // Verify the project manager address has the correct role
-      const hasRole = await this.contractService.hasRole('PROJECT_MANAGER_ROLE', formData.managerAddress);
+      const hasRole = await this.contractService.hasRole(UserRole.PROJECT_MANAGER_ROLE, formData.managerAddress);
       
       if (!hasRole) {
         throw new Error('The specified address does not have the Project Manager role.');

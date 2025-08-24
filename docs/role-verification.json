@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-08-20T16:51:30.149Z",
+  "timestamp": "2025-08-24T10:18:17.344Z",
   "network": "sepolia",
   "contract": "0x0b67690EDDb4e2bc094b996183bAcD77F18B2D55",
   "results": {
@@ -39,6 +39,64 @@
         "address": "0x76798487eD5C8E0bC849C2DB53eD880E4a9fcCdE"
       }
     ],
-    "unknown": []
+    "unknown": [],
+    "addressRoleMapping": [
+      {
+        "address": "0xE1d7C37f7fa7e189e0191c02379fE97BcB1c5984",
+        "roleName": "OWNER_ROLE",
+        "mappingRole": "0xb19546dff01e856fb3f010c267a7b1c60363cf8a4664e21cc89c26224620214e",
+        "expectedRole": "0xb19546dff01e856fb3f010c267a7b1c60363cf8a4664e21cc89c26224620214e",
+        "mappingMatches": true
+      },
+      {
+        "address": "0xE1d7C37f7fa7e189e0191c02379fE97BcB1c5984",
+        "roleName": "ADMIN_GOVT_ROLE",
+        "mappingRole": "0xb19546dff01e856fb3f010c267a7b1c60363cf8a4664e21cc89c26224620214e",
+        "expectedRole": "0x0c79c71313e07ef49c5e10d46bbd278f8ec590008f378c219bb3e54b15bb0e84",
+        "mappingMatches": false
+      },
+      {
+        "address": "0x224C1f97FF0570E3447D2A18E46ba5244ef19a6c",
+        "roleName": "ADMIN_HEAD_ROLE",
+        "mappingRole": "0xb302d06c4efadeded1e387e0955d9d440d227b6b55549296dd39bd21dc8eddf9",
+        "expectedRole": "0xb302d06c4efadeded1e387e0955d9d440d227b6b55549296dd39bd21dc8eddf9",
+        "mappingMatches": true
+      },
+      {
+        "address": "0x15900204E45560D7efb2df13e859824746da0A82",
+        "roleName": "PROJECT_MANAGER_ROLE",
+        "mappingRole": "0xa88d484f5aeb539ab60f9bd084e23511bc356a4f715a255e909643bb69ddcb41",
+        "expectedRole": "0xa88d484f5aeb539ab60f9bd084e23511bc356a4f715a255e909643bb69ddcb41",
+        "mappingMatches": true
+      },
+      {
+        "address": "0x99da9Ab65660a4cbcd7B56b3055cB9794fCd7B9a",
+        "roleName": "TAX_COLLECTOR_ROLE",
+        "mappingRole": "0x7cb8da4815c5c7bfec597d7479bf1f02def0b6d0f50cd2ad5eb80c69ac5c1a1b",
+        "expectedRole": "0x7cb8da4815c5c7bfec597d7479bf1f02def0b6d0f50cd2ad5eb80c69ac5c1a1b",
+        "mappingMatches": true
+      },
+      {
+        "address": "0x29b0AeFf310BC99ce4009b6599Ac45471354CbA4",
+        "roleName": "VALIDATOR_ROLE",
+        "mappingRole": "0x21702c8af46127c7fa207f89d0b0a8441bb32959a0ac7df790e9ab1a25c98926",
+        "expectedRole": "0x21702c8af46127c7fa207f89d0b0a8441bb32959a0ac7df790e9ab1a25c98926",
+        "mappingMatches": true
+      },
+      {
+        "address": "0x76798487eD5C8E0bC849C2DB53eD880E4a9fcCdE",
+        "roleName": "CITIZEN_ROLE",
+        "mappingRole": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "expectedRole": "0x8f1426173eb922d2001706a308dabfa96e3c06475230fb5111184f70a4b5776d",
+        "mappingMatches": false
+      },
+      {
+        "address": "0xe0b1Ee4660E296BAe4054F67C5D46493ff455061",
+        "roleName": "TX_PAYER_ROLE",
+        "mappingRole": "0x56e46fdde77b111e5bb65b63a6dac3eb9e218dc429289c985fdd859cca14412b",
+        "expectedRole": "0x56e46fdde77b111e5bb65b63a6dac3eb9e218dc429289c985fdd859cca14412b",
+        "mappingMatches": true
+      }
+    ]
   }
 }

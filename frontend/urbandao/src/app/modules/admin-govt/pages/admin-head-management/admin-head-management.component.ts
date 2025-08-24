@@ -4,6 +4,7 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } 
 import { RouterModule } from '@angular/router';
 import { AuthService } from '../../../../core/services/auth.service';
 import { ContractService } from '../../../../core/services/contract.service';
+import { UserRole } from '../../../../core/models/role.model';
 
 interface AdminHead {
   address: string;
@@ -129,7 +130,7 @@ export class AdminHeadManagementComponent implements OnInit {
   async loadAdminHeads(): Promise<void> {
     try {
       // Get all addresses with the ADMIN_HEAD_ROLE
-      const adminHeadAddresses = await this.contractService.getRoleHolders('ADMIN_HEAD_ROLE');
+      const adminHeadAddresses = await this.contractService.getRoleHolders(UserRole.ADMIN_HEAD_ROLE);
       
       this.adminHeads = [];
       
@@ -170,7 +171,7 @@ export class AdminHeadManagementComponent implements OnInit {
   async loadRoleRequests(): Promise<void> {
     try {
       // Get all role requests for ADMIN_HEAD_ROLE
-      const requests = await this.contractService.getRoleRequests('ADMIN_HEAD_ROLE');
+      const requests = await this.contractService.getRoleRequests(UserRole.ADMIN_HEAD_ROLE);
       
       this.roleRequests = [];
       
@@ -280,7 +281,7 @@ export class AdminHeadManagementComponent implements OnInit {
       const metadataUri = this.assignRoleForm.get('metadataUri')?.value;
       
       // Check if address already has any role
-      const hasRole = await this.contractService.hasRole('ADMIN_HEAD_ROLE', address);
+      const hasRole = await this.contractService.hasRole(UserRole.ADMIN_HEAD_ROLE, address);
       
       // If not, grant the admin head role
       if (!hasRole) {
@@ -292,11 +293,11 @@ export class AdminHeadManagementComponent implements OnInit {
           const metadataUri = await this.contractService.uploadToIpfs(metadata);
           
           // Grant role with metadata
-          const grantTx = await this.contractService.grantRoleWithMetadata('ADMIN_HEAD_ROLE', address, metadataUri);
+          const grantTx = await this.contractService.grantRoleWithMetadata(UserRole.ADMIN_HEAD_ROLE, address, metadataUri);
           await grantTx.wait();
         } else {
           // Grant role without metadata
-          const grantTx = await this.contractService.grantRole('ADMIN_HEAD_ROLE', address);
+          const grantTx = await this.contractService.grantRole(UserRole.ADMIN_HEAD_ROLE, address);
           await grantTx.wait();
         }
       }
@@ -395,7 +396,7 @@ export class AdminHeadManagementComponent implements OnInit {
       }
       
       // Revoke the role
-      const tx = await this.contractService.revokeRole('ADMIN_HEAD_ROLE', adminHead.address);
+      const tx = await this.contractService.revokeRole(UserRole.ADMIN_HEAD_ROLE, adminHead.address);
       await tx.wait();
       
       this.successMessage = `Successfully revoked Admin Head role from ${this.formatAddress(adminHead.address)}`;
