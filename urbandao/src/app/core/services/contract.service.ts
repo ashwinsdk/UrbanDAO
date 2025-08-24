@@ -17,6 +17,7 @@ import metaForwarderABI from '../abis/MetaForwarder.json';
   providedIn: 'root'
 })
 export class ContractService {
+  // Contract objects
   private urbanCoreContract: ethers.Contract | null = null;
   private urbanTokenContract: ethers.Contract | null = null;
   private grievanceHubContract: ethers.Contract | null = null;
@@ -24,11 +25,14 @@ export class ContractService {
   private taxModuleContract: ethers.Contract | null = null;
   private metaForwarderContract: ethers.Contract | null = null;
   
+  // Contract initialization status
+  private contractsInitialized = false;
+  
   private loadingSubject = new BehaviorSubject<boolean>(false);
   public loading$ = this.loadingSubject.asObservable();
 
   // Prevent concurrent initializations from racing
-  private initPromise: Promise<void> | null = null;
+  private initPromise: Promise<boolean> | null = null;
 
   constructor(private web3Service: Web3Service) {
     // Subscribe to connection status changes
@@ -54,11 +58,103 @@ export class ContractService {
     });
   }
 
-  public async initContracts(): Promise<void> {
+  public async initContracts(): Promise<boolean> {
+    // Don't try to initialize contracts if they are already initialized
+    if (this.contractsInitialized) {
+      // Even if contracts are initialized, check for pending transactions
+      void this.checkPendingTransactions();
+      return true;
+    }
+    
+    // Initialize contracts first, then check for pending transactions
+    const initResult = await this._initContracts();
+    if (initResult) {
+      this.checkPendingTransactions();
+    }
+    return initResult;
+  }
+  
+  /**
+   * Check for pending meta transactions from previous sessions
+   * This helps recover transaction status after page refreshes
+   */
+  private async checkPendingTransactions(): Promise<void> {
+    try {
+      // Get stored transaction data
+      const pendingTxHash = localStorage.getItem('pendingMetaTxHash');
+      const pendingTxTimestamp = localStorage.getItem('pendingMetaTxTimestamp');
+      const lastTxHash = localStorage.getItem('lastMetaTxHash');
+      
+      console.log('Checking for pending transactions on startup');
+      
+      // Check if we have a pending transaction that might need verification
+      if (pendingTxHash && pendingTxTimestamp) {
+        console.log('Found pending transaction:', pendingTxHash);
+        
+        // Check if this pending transaction is recent (less than 10 minutes old)
+        const txTime = parseInt(pendingTxTimestamp);
+        const currentTime = Date.now();
+        const timeDiff = currentTime - txTime;
+        
+        if (timeDiff < 10 * 60 * 1000) { // 10 minutes in milliseconds
+          console.log('Recent pending transaction found, checking status...');
+          
+          try {
+            // Check the transaction status
+            const provider = this.web3Service.getProvider();
+            if (!provider) throw new Error('No provider available');
+            
+            const txReceipt = await provider.getTransactionReceipt(pendingTxHash);
+            
+            if (txReceipt) {
+              console.log('Transaction receipt found:', txReceipt);
+              
+              if (txReceipt.status === 1) {
+                console.log('Pending transaction was confirmed successfully!');
+                localStorage.setItem('lastMetaTxHash', pendingTxHash);
+                localStorage.setItem('lastMetaTxTimestamp', Date.now().toString());
+                localStorage.removeItem('pendingMetaTxHash');
+                localStorage.removeItem('pendingMetaTxTimestamp');
+                
+                // Could trigger an event or notification here to inform the user
+              } else {
+                console.error('Transaction failed on chain:', txReceipt);
+                // Clear pending state since we now know it failed
+                localStorage.removeItem('pendingMetaTxHash');
+                localStorage.removeItem('pendingMetaTxTimestamp');
+              }
+            } else {
+              console.log('Transaction still pending or not found on chain...');
+              // Keep the pending state, will check again on next load
+            }
+          } catch (error) {
+            console.error('Error checking pending transaction status:', error);
+            // Keep the pending status in localStorage, so we can try again later
+          }
+        } else {
+          console.log('Pending transaction is too old, clearing pending state');
+          localStorage.removeItem('pendingMetaTxHash');
+          localStorage.removeItem('pendingMetaTxTimestamp');
+        }
+      } else if (lastTxHash) {
+        console.log('Last successful transaction:', lastTxHash);
+      } else {
+        console.log('No pending transactions found');
+      }
+    } catch (error) {
+      console.error('Error in checkPendingTransactions:', error);
+      // Non-critical error, don't throw
+    }
+  }
+  
+  private async _initContracts(): Promise<boolean> {
     // Dedupe concurrent calls
-    if (this.initPromise) return this.initPromise;
+    if (this.initPromise) {
+      await this.initPromise;
+      return this.contractsInitialized;
+    }
 
-    this.initPromise = (async () => {
+    this.initPromise = (async (): Promise<boolean> => {
       try {
         this.loadingSubject.next(true);
         console.log('Initializing contracts...');
@@ -202,6 +298,9 @@ export class ContractService {
         throw error; // Re-throw so callers know initialization failed
       } finally {
         this.loadingSubject.next(false);
+        this.initPromise = null;
+        this.contractsInitialized = false;
+        return false;
       }
     })()
     .finally(() => {
@@ -750,12 +849,21 @@ export class ContractService {
     }
   }
 
-  private async sendMetaTransaction(
+  public async sendMetaTransaction(
     targetContract: string,
     functionName: string,
     params: any[]
   ): Promise<string | null> {
     try {
+      console.log(`Starting meta transaction for ${functionName}...`);
+      
+      // Check if we should use meta transaction pattern
+      const shouldUseMeta = await this.shouldUseMetaTransaction();
+      if (!shouldUseMeta) {
+        console.error('No suitable TX_PAYER accounts available or they have insufficient balance');
+        throw new Error('No TX_PAYER accounts available for gasless transaction');
+      }
+      
       if (!this.metaForwarderContract) await this.initContracts();
       if (!this.metaForwarderContract) throw new Error('Meta Forwarder contract not initialized');
       
@@ -763,37 +871,64 @@ export class ContractService {
       if (!signer) throw new Error('Signer not available');
       
       const userAddress = await signer.getAddress();
+      console.log('User address:', userAddress);
       
-      // Encode function data
-      const iface = new ethers.Interface([
-        `function ${functionName}(${params.map(() => 'string').join(',')})`
-      ]);
+      // Get contract ABI to properly encode function call
+      const urbanCoreContract = await this.getUrbanCoreContract();
+      if (!urbanCoreContract) throw new Error('UrbanCore contract not available');
       
-      const data = iface.encodeFunctionData(functionName, params);
+      // For registerCitizen specifically, we know it takes a bytes32 parameter
+      console.log(`Encoding function data for ${functionName} with params:`, params);
+      let data;
+      
+      if (functionName === 'registerCitizen') {
+        // Specific handling for registerCitizen
+        data = urbanCoreContract.interface.encodeFunctionData('registerCitizen', params);
+      } else {
+        // Generic handling for other functions
+        const iface = new ethers.Interface([
+          `function ${functionName}(bytes32)`
+        ]);
+        data = iface.encodeFunctionData(functionName, params);
+      }
+      
+      console.log('Encoded function data:', data);
       
       // Get nonce for meta transaction
       const nonce = await this.metaForwarderContract['getNonce'](userAddress);
+      console.log('Got nonce:', nonce.toString());
       
-      // Create meta transaction data
-      const metaTxData = {
+      // Ensure we're using the correct target contract for the specific function
+      let finalTargetContract = targetContract;
+      
+      // For registerCitizen, always make sure we're targeting the UrbanCore contract
+      if (functionName === 'registerCitizen') {
+        finalTargetContract = environment.contracts.UrbanCore;
+        console.log('Setting target contract to UrbanCore for registration:', finalTargetContract);
+      }
+      
+      // Create forward request object expected by the MetaForwarder.execute method
+      const forwardRequest = {
         from: userAddress,
-        to: targetContract,
+        to: finalTargetContract,
         value: 0,
-        gas: 500000,
+        gas: 1000000, // Increased gas limit for complex operations
         nonce,
         data
       };
       
-      // Sign meta transaction
+      console.log('Created forward request:', forwardRequest);
+      
+      // Sign meta transaction using EIP-712
       const domain = {
         name: 'MetaForwarder',
-        version: '1',
+        version: '1.0.0', // Match version in contract constructor
         chainId: this.web3Service.getCurrentChainId() || environment.network.chainId,
         verifyingContract: environment.contracts.MetaForwarder
       };
       
       const types = {
-        MetaTransaction: [
+        ForwardRequest: [ // Must match the contract's struct name
           { name: 'from', type: 'address' },
           { name: 'to', type: 'address' },
           { name: 'value', type: 'uint256' },
@@ -803,20 +938,301 @@ export class ContractService {
         ]
       };
       
-      const signature = await signer.signTypedData(domain, types, metaTxData);
+      console.log('Signing meta transaction with EIP-712');
+      const signature = await signer.signTypedData(domain, types, forwardRequest);
+      console.log('Obtained signature:', signature);
       
-      // Send meta transaction
-      const tx = await this.metaForwarderContract['executeMetaTransaction'](
-        metaTxData.from,
-        metaTxData.to,
-        metaTxData.value,
-        metaTxData.gas,
-        metaTxData.data,
-        signature
-      );
+      // ===== IMPORTANT CHANGE: Do not call execute directly from user's wallet =====
+      // Instead, we'll call our backend API which will use a TX_PAYER account to execute
+      console.log('Sending meta transaction request to relayer service');
       
-      const receipt = await tx.wait();
-      return receipt.hash;
+      // Format the request for the relayer
+      // Convert BigInt values to string to make them serializable
+      const serializedForwardRequest = {
+        from: forwardRequest.from,
+        to: forwardRequest.to,
+        value: forwardRequest.value.toString(),
+        gas: forwardRequest.gas.toString(),
+        nonce: forwardRequest.nonce.toString(),
+        data: forwardRequest.data,
+      };
+      
+      const relayRequest = {
+        request: serializedForwardRequest,
+        signature: signature
+      };
+      
+      // In a production environment, this would call a backend API
+      // For now, we'll simulate the success response since we don't have the actual backend
+      console.log('Relayer request payload:', JSON.stringify(relayRequest));
+      
+      // Instead of just simulating, we will execute the transaction through the TX_PAYER_ROLE account
+      // In a production environment, this would happen on a backend server
+      // For development purposes, we'll execute it directly if the current account has TX_PAYER_ROLE
+      
+      try {
+        // Get the current user's address from the connected wallet
+        const account = this.web3Service.getAccount();
+        
+        if (!account) {
+          console.error('No connected account found');
+          throw new Error('No connected account found');
+        }
+        
+        console.log('Current account from web3Service:', account);
+        
+        // Get the current user's role
+        const currentUserRole = await this.getUserRole(account);
+        const txPayerAccounts = await this.getRoleHolders(UserRole.TX_PAYER_ROLE);
+        
+        console.log('Current user role:', currentUserRole);
+        console.log('TX_PAYER accounts:', txPayerAccounts);
+        console.log('Current account:', account);
+        
+        // Check if the current account has TX_PAYER_ROLE or if we should attempt to execute ourselves
+        if (currentUserRole === UserRole.TX_PAYER_ROLE && txPayerAccounts.includes(account)) {
+          console.log('Current account has TX_PAYER_ROLE, executing transaction directly');
+          
+          // Get signer for the current user (who has TX_PAYER_ROLE)
+          const txPayerSigner = this.web3Service.getSigner();
+          
+          // Check if we successfully got a signer
+          if (!txPayerSigner) {
+            console.error('Failed to get signer for TX_PAYER account');
+            throw new Error('Failed to get signer for TX_PAYER account');
+          }
+
+          // Connect the signer to the contract
+          const metaForwarderWithSigner = this.metaForwarderContract.connect(txPayerSigner);
+          
+          const txPayerAddress = await txPayerSigner.getAddress();
+          console.log('Executing meta-transaction with TX_PAYER account:', txPayerAddress);
+          console.log('Transaction data:', {
+            request: serializedForwardRequest,
+            signature: signature
+          });
+          
+          // Define the ForwardRequest struct for the execute method
+          const forwardRequestForContract = [
+            forwardRequest.from,
+            forwardRequest.to,
+            forwardRequest.value,
+            forwardRequest.gas,
+            forwardRequest.nonce,
+            forwardRequest.data
+          ];
+          
+          // Get the current gas price with a buffer for faster confirmation
+          const currentGasPrice = await this.web3Service.getProvider()?.getFeeData();
+          
+          console.log('Current network fee data:', currentGasPrice);
+          
+          // Use maxFeePerGas and maxPriorityFeePerGas if EIP-1559 is supported
+          // Otherwise fall back to gasPrice
+          const txOptions: any = { gasLimit: 2000000 }; // Increased gas limit for safety
+          
+          if (currentGasPrice?.maxFeePerGas && currentGasPrice?.maxPriorityFeePerGas) {
+            // EIP-1559 transaction
+            const maxFeePerGas = currentGasPrice.maxFeePerGas * BigInt(12) / BigInt(10); // 20% higher
+            const maxPriorityFeePerGas = currentGasPrice.maxPriorityFeePerGas * BigInt(15) / BigInt(10); // 50% higher
+            
+            txOptions.maxFeePerGas = maxFeePerGas;
+            txOptions.maxPriorityFeePerGas = maxPriorityFeePerGas;
+            
+            console.log('Using EIP-1559 fee structure:', {
+              maxFeePerGas: maxFeePerGas.toString(),
+              maxPriorityFeePerGas: maxPriorityFeePerGas.toString()
+            });
+          } else if (currentGasPrice?.gasPrice) {
+            // Legacy transaction
+            txOptions.gasPrice = currentGasPrice.gasPrice * BigInt(12) / BigInt(10); // 20% higher
+            console.log('Using legacy fee structure:', { gasPrice: txOptions.gasPrice.toString() });
+          }
+          
+          console.log('Transaction options:', txOptions);
+          
+          // Execute the transaction with proper typing and optimized gas settings
+          console.log('Executing meta-transaction with the following parameters:');
+          console.log('- Forward request:', forwardRequestForContract);
+          console.log('- Signature:', signature);
+          console.log('- TX options:', txOptions);
+          
+          const tx = await (metaForwarderWithSigner as any).execute(
+            forwardRequestForContract, 
+            signature, 
+            txOptions
+          );
+          
+          console.log('Transaction submitted to blockchain, hash:', tx.hash);
+          console.log('Waiting for transaction confirmation...');
+          
+          // Wait for transaction to be mined with proper error handling
+          try {
+            console.log('Waiting for transaction to be mined, hash:', tx.hash);
+            console.log('View on explorer:', `${environment.network.blockExplorer}/tx/${tx.hash}`);
+            
+            // Wait for more confirmations to ensure transaction is properly recorded
+            const receipt = await tx.wait(2); // Wait for 2 confirmations for better reliability
+            
+            if (!receipt || receipt.status !== 1) {
+              console.error('Transaction failed or returned invalid receipt:', receipt);
+              throw new Error('Transaction failed to be confirmed on the blockchain');
+            }
+            
+            console.log('Transaction confirmed with receipt:', receipt);
+            console.log('Transaction success confirmed with status:', receipt.status);
+            console.log('Block number:', receipt.blockNumber);
+            console.log('Gas used:', receipt.gasUsed.toString());
+            
+            // Store transaction hash in local storage for recovery in case of page refresh
+            try {
+              localStorage.setItem('lastMetaTxHash', tx.hash);
+              localStorage.setItem('lastMetaTxTimestamp', Date.now().toString());
+            } catch (storageError) {
+              console.warn('Could not save transaction info to localStorage:', storageError);
+            }
+            
+            // Return transaction hash as confirmation
+            return 'meta-tx-executed-' + tx.hash;
+          } catch (confirmError: any) {
+            console.error('Error waiting for transaction confirmation:', confirmError);
+            
+            // Store the pending transaction info even if we couldn't confirm it
+            // This allows recovery on page refresh
+            try {
+              localStorage.setItem('pendingMetaTxHash', tx.hash);
+              localStorage.setItem('pendingMetaTxTimestamp', Date.now().toString());
+            } catch (storageError) {
+              console.warn('Could not save pending transaction info to localStorage:', storageError);
+            }
+            
+            // Even though confirmation failed, return the transaction hash
+            // The transaction might still be confirmed later
+            console.log('Transaction was submitted but confirmation failed or timed out');
+            console.log('Transaction might still be confirmed later');
+            console.log('Transaction hash for manual verification:', tx.hash);
+            
+            // Return a special indicator for pending transactions
+            return 'meta-tx-pending-' + tx.hash;
+          }
+        } else {
+          // We don't have TX_PAYER_ROLE, so we need to use a known TX_PAYER account
+          console.log('Current account does not have TX_PAYER_ROLE, using known TX_PAYER account');
+          
+          // Get the known TX_PAYER address from role-verification.json
+          const txPayerAddress = '0xe0b1ee4660e296bae4054f67c5d46493ff455061';
+          console.log('Using TX_PAYER account:', txPayerAddress);
+          
+          // Use a private key for the TX_PAYER account (for local development only)
+          // In production, this would be handled by a secure backend service
+          const txPayerPrivateKey = environment.txPayerPrivateKey;
+          
+          // Check if we have the private key available (development mode only)
+          if (!txPayerPrivateKey) {
+            console.error('TX_PAYER private key not available in environment');
+            throw new Error('TX_PAYER configuration missing. Cannot execute meta-transaction.');
+          }
+          
+          try {
+            // Create a wallet instance for the TX_PAYER account
+            const txPayerWallet = new ethers.Wallet(txPayerPrivateKey, this.web3Service.getProvider());
+            console.log('TX_PAYER wallet created, address:', await txPayerWallet.getAddress());
+            
+            // Connect the wallet to the MetaForwarder contract
+            const metaForwarderWithTxPayer = this.metaForwarderContract.connect(txPayerWallet);
+            
+            console.log('Transaction data:', {
+              request: serializedForwardRequest,
+              signature: signature
+            });
+            
+            // Define the ForwardRequest struct for the execute method
+            const forwardRequestForContract = [
+              forwardRequest.from,
+              forwardRequest.to,
+              forwardRequest.value,
+              forwardRequest.gas,
+              forwardRequest.nonce,
+              forwardRequest.data
+            ];
+            
+            // Get the current gas price with a buffer for faster confirmation
+            const currentGasPrice = await this.web3Service.getProvider()?.getFeeData();
+            console.log('Current network fee data:', currentGasPrice);
+            
+            // Use maxFeePerGas and maxPriorityFeePerGas if EIP-1559 is supported
+            // Otherwise fall back to gasPrice
+            const txOptions: any = { gasLimit: 2000000 }; // Increased gas limit for safety
+            
+            if (currentGasPrice?.maxFeePerGas && currentGasPrice?.maxPriorityFeePerGas) {
+              // EIP-1559 transaction
+              const maxFeePerGas = currentGasPrice.maxFeePerGas * BigInt(12) / BigInt(10); // 20% higher
+              const maxPriorityFeePerGas = currentGasPrice.maxPriorityFeePerGas * BigInt(15) / BigInt(10); // 50% higher
+              
+              txOptions.maxFeePerGas = maxFeePerGas;
+              txOptions.maxPriorityFeePerGas = maxPriorityFeePerGas;
+              
+              console.log('Using EIP-1559 fee structure:', {
+                maxFeePerGas: maxFeePerGas.toString(),
+                maxPriorityFeePerGas: maxPriorityFeePerGas.toString()
+              });
+            } else if (currentGasPrice?.gasPrice) {
+              // Legacy transaction
+              txOptions.gasPrice = currentGasPrice.gasPrice * BigInt(12) / BigInt(10); // 20% higher
+              console.log('Using legacy fee structure:', { gasPrice: txOptions.gasPrice.toString() });
+            }
+            
+            console.log('Executing meta-transaction with TX_PAYER account with parameters:');
+            console.log('- Forward request:', forwardRequestForContract);
+            console.log('- Signature:', signature);
+            console.log('- TX options:', txOptions);
+            
+            // Execute the transaction using the TX_PAYER account
+            const tx = await (metaForwarderWithTxPayer as any).execute(
+              forwardRequestForContract,
+              signature,
+              txOptions
+            );
+            
+            console.log('Transaction submitted to blockchain by TX_PAYER, hash:', tx.hash);
+            console.log('Waiting for transaction confirmation...');
+            
+            // Wait for transaction to be mined with proper error handling
+            console.log('View on explorer:', `${environment.network.blockExplorer}/tx/${tx.hash}`);
+            
+            // Wait for more confirmations to ensure transaction is properly recorded
+            const receipt = await tx.wait(2); // Wait for 2 confirmations for better reliability
+            
+            if (!receipt || receipt.status !== 1) {
+              console.error('Transaction failed or returned invalid receipt:', receipt);
+              throw new Error('Transaction failed to be confirmed on the blockchain');
+            }
+            
+            console.log('Transaction confirmed with receipt:', receipt);
+            console.log('Transaction success confirmed with status:', receipt.status);
+            console.log('Block number:', receipt.blockNumber);
+            console.log('Gas used:', receipt.gasUsed.toString());
+            
+            // Store transaction hash in local storage for recovery in case of page refresh
+            try {
+              localStorage.setItem('lastMetaTxHash', tx.hash);
+              localStorage.setItem('lastMetaTxTimestamp', Date.now().toString());
+            } catch (storageError) {
+              console.warn('Could not save transaction info to localStorage:', storageError);
+            }
+            
+            // Return transaction hash as confirmation
+            return 'meta-tx-executed-' + tx.hash;
+          } catch (txPayerError: any) {
+            console.error('Error executing meta-transaction with TX_PAYER account:', txPayerError);
+            throw new Error('Failed to execute meta-transaction with TX_PAYER account: ' + 
+              (txPayerError.message || 'Unknown error'));
+          }
+        }
+      } catch (txError: any) {
+        console.error('Error executing meta-transaction:', txError);
+        throw new Error('Failed to execute meta-transaction: ' + (txError.message || 'Unknown error'));
+      }
     } catch (error) {
       console.error('Error sending meta transaction:', error);
       return null;
@@ -847,16 +1263,24 @@ export class ContractService {
     return this.grievanceHubContract;
   }
 
-  public getProjectRegistryContract(): ethers.Contract | null {
-    return this.projectRegistryContract;
+  public async getProjectRegistryContract(): Promise<ethers.Contract | null> {
+    // Initialize contracts if not already done
+    if (!this.projectRegistryContract) {
+      await this.initContracts();
+    }
+    return this.projectRegistryContract || null;
   }
 
   public getTaxModuleContract(): ethers.Contract | null {
     return this.taxModuleContract;
   }
 
-  public getMetaForwarderContract(): ethers.Contract | null {
-    return this.metaForwarderContract;
+  public async getMetaForwarderContract(): Promise<ethers.Contract | null> {
+    // Initialize contracts if not already done
+    if (!this.metaForwarderContract) {
+      await this.initContracts();
+    }
+    return this.metaForwarderContract || null;
   }
 
   // Area management functions
@@ -923,13 +1347,27 @@ export class ContractService {
         console.error(`No constant found for role ${role}`);
         return [];
       }
+
+      // For TX_PAYER_ROLE specifically, we'll hardcode known TX_PAYER addresses since the contract
+      // doesn't expose getRoleMemberCount/getRoleMember functions
+      if (role === UserRole.TX_PAYER_ROLE) {
+        console.log('Using known TX_PAYER address from logs:', '0xe0b1ee4660e296bae4054f67c5d46493ff455061');
+        return ['0xe0b1ee4660e296bae4054f67c5d46493ff455061']; // The known TX_PAYER from logs
+      }
       
-      const count = await this.urbanCoreContract['getRoleMemberCount'](roleBytes);
+      // Fallback method: check if the role is held using hasRole
+      // Since we don't have a getRoleMemberCount/getRoleMember, we'll try another approach
+      // This only works for specific addresses we want to check
+      const knownAddresses = [
+        '0xe0b1ee4660e296bae4054f67c5d46493ff455061' // TX_PAYER
+      ];
       
       const addresses: string[] = [];
-      for (let i = 0; i < count; i++) {
-        const address = await this.urbanCoreContract['getRoleMember'](roleBytes, i);
-        addresses.push(address);
+      for (const address of knownAddresses) {
+        const hasRole = await this.urbanCoreContract['hasRole'](roleBytes, address);
+        if (hasRole) {
+          addresses.push(address);
+        }
       }
       
       return addresses;

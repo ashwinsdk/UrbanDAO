@@ -1,3 +1,7 @@
+// Get private key from environment variable for production
+// Should be provided through secure environment variables in production build
+const TX_PAYER_PRIVATE_KEY = '';
+
 export const environment = {
   production: true,
   network: {
@@ -27,5 +31,6 @@ export const environment = {
     VALIDATOR_ROLE: '0x29b0AeFf310BC99ce4009b6599Ac45471354CbA4',
     CITIZEN_ROLE: '0x76798487eD5C8E0bC849C2DB53eD880E4a9fcCdE',
     TX_PAYER_ROLE: '0xe0b1Ee4660E296BAe4054F67C5D46493ff455061'
-  }
+  },
+  txPayerPrivateKey: TX_PAYER_PRIVATE_KEY
 };

@@ -6,6 +6,7 @@ import { ContractService } from './contract.service';
 import { UserRole } from '../models/role.model';
 import { Router } from '@angular/router';
 import * as ethers from 'ethers';
+import { environment } from '../../../environments/environment';
 
 export interface User {
   address: string;
@@ -233,9 +234,19 @@ export class AuthService {
         )
       );
       
-      // Call registerCitizen with the hash
-      const tx = await urbanCore['registerCitizen'](dataHash);
-      await tx.wait();
+      console.log('Using gasless transaction for registration');
+      // Use gasless transaction via MetaForwarder
+      const txHash = await this.contractService.sendMetaTransaction(
+        environment.contracts.UrbanCore,
+        'registerCitizen',
+        [dataHash]
+      );
+      
+      if (!txHash) {
+        throw new Error('Failed to send gasless transaction');
+      }
+      
+      console.log('Registration transaction submitted:', txHash);
       
       // Update registration status
       this.registrationStatusSubject.next('pending');

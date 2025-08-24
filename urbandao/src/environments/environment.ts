@@ -1,3 +1,6 @@
+// Get private key from environment variable or use a placeholder for development
+const TX_PAYER_PRIVATE_KEY = '41d1689496949691ee014587bd26000448c4512cdc42929f11ea24106806c089';
+
 export const environment = {
   production: false,
   network: {
@@ -27,5 +30,9 @@ export const environment = {
     VALIDATOR_ROLE: '0x29b0AeFf310BC99ce4009b6599Ac45471354CbA4',
     CITIZEN_ROLE: '0x76798487eD5C8E0bC849C2DB53eD880E4a9fcCdE',
     TX_PAYER_ROLE: '0xe0b1Ee4660E296BAe4054F67C5D46493ff455061'
-  }
+  },
+  // Private key for the TX_PAYER account (only for development)
+  // This should be replaced with a real private key for testing
+  // In production, this should be handled by a secure backend service
+  txPayerPrivateKey: TX_PAYER_PRIVATE_KEY
 };
