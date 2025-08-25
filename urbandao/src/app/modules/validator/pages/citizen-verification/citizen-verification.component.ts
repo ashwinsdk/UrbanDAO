@@ -112,13 +112,12 @@ export class CitizenVerificationComponent implements OnInit {
       if (useMeta) {
         result = await this.contractService.sendMetaTransaction(
           environment.contracts.UrbanCore,
-          'rejectRoleRequest',
+          'rejectCitizen', // Use the correct contract method
           [this.selectedCitizen.id, this.feedback]
         );
       } else {
-        // Ensure we're calling the contract method with correct parameters
-        // according to the ContractService implementation
-        result = await this.contractService.rejectRoleRequest(this.selectedCitizen.id);
+        // Pass the feedback parameter to the rejectRoleRequest method
+        result = await this.contractService.rejectRoleRequest(this.selectedCitizen.id, this.feedback);
       }
       
       if (result) {

@@ -295,12 +295,12 @@ export class ContractService {
       } catch (error) {
         console.error('Error initializing contracts:', error);
         this.resetContracts();
-        throw error; // Re-throw so callers know initialization failed
+        return false;
       } finally {
         this.loadingSubject.next(false);
         this.initPromise = null;
-        this.contractsInitialized = false;
-        return false;
+        this.contractsInitialized = true;
+        return true;
       }
     })()
     .finally(() => {
@@ -436,11 +436,26 @@ export class ContractService {
   // Get the area ID for an admin
   public async getAdminAreaId(adminAddress: string | null): Promise<string | null> {
     try {
+      if (!adminAddress) return null;
       if (!this.urbanCoreContract) await this.initContracts();
       if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
       
-      // Mock implementation - in a real scenario would query the contract
-      return "1"; // Return area ID 1 for testing as string
+      // Check if the address has ADMIN_HEAD_ROLE
+      const hasAdminRole = await this.urbanCoreContract['hasRole'](this.convertRoleToBytes32(UserRole.ADMIN_HEAD_ROLE), adminAddress);
+      if (!hasAdminRole) {
+        console.log('Address does not have ADMIN_HEAD_ROLE');
+        return null;
+      }
+      
+      // Get the area administered by this admin head
+      const areaId = await this.urbanCoreContract['getAdminHeadArea'](adminAddress);
+      
+      // If the area ID is 0, it means the admin head is not assigned to any area
+      if (areaId.toString() === '0') {
+        return null;
+      }
+      
+      return areaId.toString();
     } catch (error) {
       console.error('Error getting admin area ID:', error);
       return null;
@@ -450,9 +465,60 @@ export class ContractService {
   // Get pending role requests for an area
   public async getPendingRoleRequests(areaId: string): Promise<any[]> {
     try {
-      const allRequests = await this.getRoleRequests(UserRole.CITIZEN_ROLE);
-      // Filter to only show pending requests for this area
-      return allRequests.filter(request => request.areaId === areaId && request.status === 'pending');
+      if (!this.urbanCoreContract) await this.initContracts();
+      if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
+      
+      // Get all pending citizen requests
+      const pendingAddresses = await this.urbanCoreContract['getPendingRequests']();
+      const requests = [];
+      
+      // For each address, get the request details and determine if it's for the specified area
+      for (let i = 0; i < pendingAddresses.length; i++) {
+        const address = pendingAddresses[i];
+        const requestDetails = await this.urbanCoreContract['getCitizenRequest'](address);
+        
+        // Get the area ID from the request details
+        // In the real contract, this should be part of the citizen request
+        // For now, we'll extract it from the metadata
+        let requestAreaId = null;
+        
+        // Check if the metadata exists and try to get the area ID from it
+        if (requestDetails.docsHash) {
+          try {
+            // Try to get metadata from IPFS
+            const metadataUri = ethers.hexlify(requestDetails.docsHash);
+            const metadata = await this.getIPFSContent(metadataUri);
+            
+            // Parse the metadata and extract areaId
+            if (metadata && typeof metadata === 'object') {
+              const parsedMetadata = metadata as any;
+              if (parsedMetadata.areaId) {
+                requestAreaId = parsedMetadata.areaId.toString();
+              }
+            }
+          } catch (metadataError) {
+            console.warn(`Error getting metadata for request from ${address}:`, metadataError);
+          }
+        }
+        
+        // If the area matches or if we couldn't determine the area (null check)
+        if (!requestAreaId || requestAreaId === areaId) {
+          requests.push({
+            id: address, // Using the citizen address as the request ID
+            requester: address,
+            role: 'citizen', // This is a citizen request
+            status: requestDetails.processed ? 'processed' : 'pending',
+            timestamp: requestDetails.requestedAt.toString(),
+            metadataUri: requestDetails.docsHash ? ethers.hexlify(requestDetails.docsHash) : null,
+            validator: requestDetails.validator,
+            areaId: requestAreaId // Include the area ID we found
+          });
+        }
+      }
+      
+      // Filter to only return pending requests for this area
+      return requests.filter(request => request.status === 'pending' && 
+        (!request.areaId || request.areaId === areaId));
     } catch (error) {
       console.error('Error getting pending role requests:', error);
       return [];
@@ -462,17 +528,59 @@ export class ContractService {
   // Get role holders by area
   public async getRoleHoldersByArea(areaId: string, role: UserRole): Promise<any[]> {
     try {
+      if (!this.urbanCoreContract) await this.initContracts();
+      if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
+      
+      // Get all role holders first
       const allHolders = await this.getRoleHolders(role);
-      // In a real implementation, would filter by area
-      // For now return all holders
-      return allHolders;
+      const areaHolders: string[] = [];
+      
+      // Filter role holders by area
+      for (const address of allHolders) {
+        let holderAreaId: string | null = null;
+        
+        switch (role) {
+          case UserRole.ADMIN_HEAD_ROLE:
+            // For Admin Heads, check if they administer this area
+            holderAreaId = await this.getAdminAreaId(address);
+            break;
+            
+          case UserRole.CITIZEN_ROLE:
+            // For Citizens, get their area from metadata
+            const citizenData = await this.urbanCoreContract['getCitizen'](address);
+            if (citizenData && citizenData.areaId) {
+              holderAreaId = citizenData.areaId.toString();
+            }
+            break;
+            
+          case UserRole.VALIDATOR_ROLE:
+            // For Validators, check their assigned area
+            const validatorData = await this.urbanCoreContract['getValidator'](address);
+            if (validatorData && validatorData.areaId) {
+              holderAreaId = validatorData.areaId.toString();
+            }
+            break;
+            
+          default:
+            // For other roles, we might need specific contract methods
+            // For now, include all role holders if we can't determine their area
+            areaHolders.push(address);
+            continue;
+        }
+        
+        // Add to area holders if the area matches
+        if (holderAreaId && holderAreaId === areaId) {
+          areaHolders.push(address);
+        }
+      }
+      
+      return areaHolders;
     } catch (error) {
       console.error('Error getting role holders by area:', error);
       return [];
     }
   }
   
-  // Check if user has any other role
   public async hasAnyOtherRole(address: string): Promise<boolean> {
     try {
       if (!this.urbanCoreContract) await this.initContracts();
@@ -525,6 +633,24 @@ export class ContractService {
     return ethers.formatEther(weiValue);
   }
   
+  // Convert role enum to bytes32 format for contract calls
+  public convertRoleToBytes32(role: UserRole): string {
+    // Define role hash mapping
+    const roleHashes: { [key in UserRole]: string } = {
+      [UserRole.NONE]: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      [UserRole.CITIZEN_ROLE]: '0x3c11d16cbaffd01df69ce1c404f6340ee057498f5f00246190ea54220576a848',
+      [UserRole.VALIDATOR_ROLE]: '0x4837e32cdabbb5070afe5390d3f7f3765683e3389f5fd3f86f137b408eaabd3c',
+      [UserRole.TAX_COLLECTOR_ROLE]: '0x5e17fc5225d4a099df75359ce1f405503ca79498a8d05c5dc33c0846fa8d3e2c',
+      [UserRole.PROJECT_MANAGER_ROLE]: '0x19daf4d11d1e9557f3eeddcabc25cc0ca8552d2d5e28d48600f394e8b8417cf1',
+      [UserRole.ADMIN_HEAD_ROLE]: '0xc68b6f26e4ee5a3a1dd9c5424dd9457432749c8ab9008122d0ca2a361b3083d8',
+      [UserRole.ADMIN_GOVT_ROLE]: '0x71f3d55856e4058ed641473bb5c740ca4737b3f65260cc067d12cb7ffee9a2f1',
+      [UserRole.TX_PAYER_ROLE]: '0x7d4827b252aa913a0ad2fb2da2cae5dc10f4650ab5225fc9e094390a055a1771',
+      [UserRole.OWNER_ROLE]: '0x0000000000000000000000000000000000000000000000000000000000000000' // DEFAULT_ADMIN_ROLE
+    };
+    
+    return roleHashes[role] || roleHashes[UserRole.NONE];
+  }
+  
   public ethToWei(ethValue: string | number): string {
     return ethers.parseEther(ethValue.toString()).toString();
   }
@@ -550,8 +676,24 @@ export class ContractService {
       if (!this.grievanceHubContract) await this.initContracts();
       if (!this.grievanceHubContract) throw new Error('Grievance Hub contract not initialized');
       
-      // Mock implementation - return some IDs
-      return ['grievance-1', 'grievance-2', 'grievance-3', 'grievance-4', 'grievance-5'];
+      // Get all grievance IDs from the contract
+      const grievanceCount = await this.grievanceHubContract['getGrievanceCount']();
+      const allGrievanceIds: string[] = [];
+      
+      // Collect all grievances and filter by area
+      for (let i = 1; i <= grievanceCount; i++) {
+        try {
+          const grievance = await this.grievanceHubContract['getGrievance'](i);
+          // Check if grievance belongs to the specified area
+          if (grievance && grievance.areaId.toString() === areaId) {
+            allGrievanceIds.push(i.toString());
+          }
+        } catch (grievanceError) {
+          console.warn(`Error fetching grievance ${i}:`, grievanceError);
+        }
+      }
+      
+      return allGrievanceIds;
     } catch (error) {
       console.error('Error getting grievances by area:', error);
       return [];
@@ -561,10 +703,47 @@ export class ContractService {
   // Get grievances by status and area
   public async getGrievancesByStatusAndArea(status: string, areaId: string): Promise<string[]> {
     try {
-      const allGrievances = await this.getGrievancesByArea(areaId);
-      // In a real implementation, filter by status
-      // For now return all grievances for any status
-      return allGrievances;
+      if (!this.grievanceHubContract) await this.initContracts();
+      if (!this.grievanceHubContract) throw new Error('Grievance Hub contract not initialized');
+      
+      // Get all grievances for this area
+      const areaGrievances = await this.getGrievancesByArea(areaId);
+      const filteredGrievances: string[] = [];
+      
+      // Filter grievances by status
+      for (const grievanceId of areaGrievances) {
+        try {
+          const grievance = await this.grievanceHubContract['getGrievance'](grievanceId);
+          // Map the numeric status to string status
+          let grievanceStatus: string;
+          
+          switch (grievance.status) {
+            case 0:
+              grievanceStatus = 'pending';
+              break;
+            case 1:
+              grievanceStatus = 'approved';
+              break;
+            case 2:
+              grievanceStatus = 'rejected';
+              break;
+            case 3:
+              grievanceStatus = 'resolved';
+              break;
+            default:
+              grievanceStatus = 'unknown';
+          }
+          
+          // Compare with the requested status
+          if (grievanceStatus.toLowerCase() === status.toLowerCase()) {
+            filteredGrievances.push(grievanceId);
+          }
+        } catch (grievanceError) {
+          console.warn(`Error fetching grievance ${grievanceId}:`, grievanceError);
+        }
+      }
+      
+      return filteredGrievances;
     } catch (error) {
       console.error(`Error getting ${status} grievances for area ${areaId}:`, error);
       return [];
@@ -577,12 +756,38 @@ export class ContractService {
       if (!this.urbanCoreContract) await this.initContracts();
       if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
       
-      // Mock implementation
-      return [
-        { address: '0x1234...', name: 'Citizen 1', registrationDate: new Date() },
-        { address: '0x5678...', name: 'Citizen 2', registrationDate: new Date() },
-        { address: '0x9ABC...', name: 'Citizen 3', registrationDate: new Date() }
-      ];
+      // Get citizens from the contract using the area ID
+      const citizenAddresses = await this.urbanCoreContract['getAreaCitizens'](areaId);
+      
+      // Process each citizen address to get additional metadata
+      const citizens: any[] = [];
+      
+      for (const address of citizenAddresses) {
+        // Skip invalid addresses
+        if (!address || address === '0x0000000000000000000000000000000000000000') continue;
+        
+        try {
+          // Get citizen metadata if available
+          const metadata = await this.getAddressMetadata(address);
+          const registrationTime = await this.urbanCoreContract['getCitizenRegistrationTime'](address);
+          
+          citizens.push({
+            address,
+            name: metadata?.name || 'Unknown',
+            registrationDate: registrationTime ? new Date(Number(registrationTime) * 1000) : new Date(),
+            metadata
+          });
+        } catch (e) {
+          console.warn(`Error fetching metadata for address ${address}:`, e);
+          citizens.push({
+            address,
+            name: 'Unknown',
+            registrationDate: new Date()
+          });
+        }
+      }
+      
+      return citizens;
     } catch (error) {
       console.error('Error getting citizens by area:', error);
       return [];
@@ -596,53 +801,262 @@ export class ContractService {
 
   public async getTotalCitizenCount(): Promise<number> {
     try {
-      return 1250; // Mock implementation
+      if (!this.urbanCoreContract) await this.initContracts();
+      if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
+      
+      // Check if the contract has a getTotalCitizenCount method
+      if (this.urbanCoreContract['getTotalApprovedCitizens']) {
+        const count = await this.urbanCoreContract['getTotalApprovedCitizens']();
+        return Number(count);
+      } else {
+        // Fallback: get the count by getting all citizens
+        const allCitizens = await this.getRoleHolders(UserRole.CITIZEN_ROLE);
+        return allCitizens.length;
+      }
     } catch (error) {
       console.error('Error getting total citizen count:', error);
-      throw new Error('Failed to get total citizen count');
+      return 0;
     }
   }
 
   public async getTotalProjectsCount(): Promise<number> {
     try {
-      return 42; // Mock implementation
+      if (!this.projectRegistryContract) await this.initContracts();
+      if (!this.projectRegistryContract) throw new Error('Project Registry contract not initialized');
+      
+      // Get total project count from the contract
+      const count = await this.projectRegistryContract['getTotalProjects']();
+      return Number(count);
     } catch (error) {
       console.error('Error getting total projects count:', error);
-      throw new Error('Failed to get total projects count');
+      return 0;
     }
   }
 
   public async getTotalGrievancesCount(): Promise<number> {
     try {
-      return 326; // Mock implementation
+      if (!this.grievanceHubContract) await this.initContracts();
+      if (!this.grievanceHubContract) throw new Error('Grievance Hub contract not initialized');
+      
+      // Get total grievances count from the contract
+      const count = await this.grievanceHubContract['getTotalGrievances']();
+      return Number(count);
     } catch (error) {
       console.error('Error getting total grievances count:', error);
-      throw new Error('Failed to get total grievances count');
+      return 0;
     }
   }
 
   public async getTotalTaxCollected(): Promise<string> {
     try {
-      return '15000000000000000000'; // Mock implementation (15 ETH in wei)
+      if (!this.taxModuleContract) await this.initContracts();
+      if (!this.taxModuleContract) throw new Error('Tax Module contract not initialized');
+      
+      // Get total tax collected from the contract
+      const totalTax = await this.taxModuleContract['getTotalTaxCollected']();
+      return ethers.formatEther(totalTax); // Format to ETH units
     } catch (error) {
       console.error('Error getting total tax collected:', error);
-      throw new Error('Failed to get total tax collected');
+      return '0';
     }
   }
 
+  // Helper method to format addresses for display
+  public formatAddress(address: string): string {
+    if (!address || address === '0x0000000000000000000000000000000000000000') {
+      return '';
+    }
+    return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+  }
+  
   public async getRecentSystemEvents(): Promise<any[]> {
     try {
-      return [
-        { id: '1', type: 'NewArea', title: 'New Area Created', description: 'Area #12 was created', timestamp: Date.now() - 3600000 },
-        { id: '2', type: 'NewRole', title: 'Role Assigned', description: 'New tax collector assigned to Area #5', timestamp: Date.now() - 7200000 },
-        { id: '3', type: 'TaxCollection', title: 'Tax Milestone', description: '10 ETH total tax collected', timestamp: Date.now() - 86400000 }
-      ]; // Mock implementation
+      await this.initContracts();
+      if (!this.urbanCoreContract || !this.grievanceHubContract || !this.projectRegistryContract) {
+        throw new Error('Required contracts not initialized');
+      }
+      
+      const events: any[] = [];
+      // Access the underlying ethers.js provider from the contract
+      // Cast to any to bypass TypeScript constraints
+      const provider = (this.urbanCoreContract as any).provider;
+      
+      // Get latest block number
+      const latestBlock = await provider.getBlockNumber();
+      const fromBlock = Math.max(0, latestBlock - 5000); // Look back 5000 blocks
+
+      // Function to safely get block timestamp
+      const getBlockTimestamp = async (blockNumber: number): Promise<number> => {
+        try {
+          const block = await provider.getBlock(blockNumber);
+          return block ? Number(block.timestamp) : Math.floor(Date.now() / 1000);
+        } catch (e) {
+          console.warn(`Error getting block timestamp for block ${blockNumber}:`, e);
+          return Math.floor(Date.now() / 1000);
+        }
+      };
+      
+      // UrbanCore events
+      try {
+        // Area events
+        const areaFilter = this.urbanCoreContract.filters['AreaCreated']();
+        const areaLogs = await this.urbanCoreContract.queryFilter(areaFilter, fromBlock);
+        
+        for (const log of areaLogs) {
+          // Cast to any to access event args
+          const logAny = log as any;
+          const args = logAny.args || {};
+          const timestamp = await getBlockTimestamp(logAny.blockNumber);
+          events.push({
+            id: `area-${logAny.transactionHash}-${logAny.logIndex}`,
+            eventType: 'AreaCreated',
+            address: args.creator || '',
+            timestamp: timestamp,
+            data: {
+              areaId: args.areaId?.toString() || '',
+              name: args.name || ''
+            },
+            description: `Area "${args.name || ''}" (#${args.areaId?.toString() || ''}) created`
+          });
+        }
+        
+        // Role events
+        const roleFilter = this.urbanCoreContract.filters['RoleGranted']();
+        const roleLogs = await this.urbanCoreContract.queryFilter(roleFilter, fromBlock);
+        
+        for (const log of roleLogs) {
+          // Cast to any to access event args
+          const logAny = log as any;
+          const args = logAny.args || {};
+          const timestamp = await getBlockTimestamp(logAny.blockNumber);
+          let roleName = 'Unknown';
+          
+          // Format role from bytes32
+          if (args.role) {
+            const roleBytes = args.role.toString();
+            // Map known role hashes to readable names
+            const roleMap: {[key: string]: string} = {
+              '0x0000000000000000000000000000000000000000000000000000000000000000': 'DEFAULT_ADMIN_ROLE',
+              '0x3c11d16cbaffd01df69ce1c404f6340ee057498f5f00246190ea54220576a848': 'CITIZEN_ROLE',
+              '0x4837e32cdabbb5070afe5390d3f7f3765683e3389f5fd3f86f137b408eaabd3c': 'VALIDATOR_ROLE',
+              '0x5e17fc5225d4a099df75359ce1f405503ca79498a8d05c5dc33c0846fa8d3e2c': 'TAX_COLLECTOR_ROLE',
+              '0x19daf4d11d1e9557f3eeddcabc25cc0ca8552d2d5e28d48600f394e8b8417cf1': 'PROJECT_MANAGER_ROLE',
+              '0xc68b6f26e4ee5a3a1dd9c5424dd9457432749c8ab9008122d0ca2a361b3083d8': 'ADMIN_HEAD_ROLE',
+              '0x71f3d55856e4058ed641473bb5c740ca4737b3f65260cc067d12cb7ffee9a2f1': 'ADMIN_GOVT_ROLE',
+              '0x7d4827b252aa913a0ad2fb2da2cae5dc10f4650ab5225fc9e094390a055a1771': 'TX_PAYER_ROLE'
+            };
+            roleName = roleMap[roleBytes] || 'Custom Role';
+          }
+          
+          events.push({
+            id: `role-${logAny.transactionHash}-${logAny.logIndex}`,
+            eventType: 'RoleAssigned',
+            address: args.account || '',
+            timestamp: timestamp,
+            data: {
+              role: roleName,
+              account: args.account || ''
+            },
+            description: `${roleName} assigned to ${this.formatAddress(args.account || '')}`
+          });
+        }
+      } catch (e) {
+        console.warn('Error fetching UrbanCore events:', e);
+      }
+      
+      // Grievance events
+      try {
+        const grievanceFilter = this.grievanceHubContract.filters['GrievanceFiled']();
+        const grievanceLogs = await this.grievanceHubContract.queryFilter(grievanceFilter, fromBlock);
+        
+        for (const log of grievanceLogs) {
+          // Cast to any to access event args
+          const logAny = log as any;
+          const args = logAny.args || {};
+          const timestamp = await getBlockTimestamp(logAny.blockNumber);
+          events.push({
+            id: `grievance-${logAny.transactionHash}-${logAny.logIndex}`,
+            eventType: 'GrievanceFiled',
+            address: args.citizen || '',
+            timestamp: timestamp,
+            data: {
+              grievanceId: args.grievanceId?.toString() || '',
+              areaId: args.areaId?.toString() || ''
+            },
+            description: `New grievance (#${args.grievanceId?.toString() || ''}) filed in area #${args.areaId?.toString() || 'unknown'}`
+          });
+        }
+      } catch (e) {
+        console.warn('Error fetching GrievanceHub events:', e);
+      }
+      
+      // Project events
+      try {
+        const projectFilter = this.projectRegistryContract.filters['ProjectCreated']();
+        const projectLogs = await this.projectRegistryContract.queryFilter(projectFilter, fromBlock);
+        
+        for (const log of projectLogs) {
+          // Cast to any to access event args
+          const logAny = log as any;
+          const args = logAny.args || {};
+          const timestamp = await getBlockTimestamp(logAny.blockNumber);
+          events.push({
+            id: `project-${logAny.transactionHash}-${logAny.logIndex}`,
+            eventType: 'ProjectCreated',
+            address: args.creator || '',
+            timestamp: timestamp,
+            data: {
+              projectId: args.projectId?.toString() || '',
+              areaId: args.areaId?.toString() || ''
+            },
+            description: `New project (#${args.projectId?.toString() || ''}) created in area #${args.areaId?.toString() || 'unknown'}`
+          });
+        }
+      } catch (e) {
+        console.warn('Error fetching ProjectRegistry events:', e);
+      }
+      
+      // Sort events by timestamp (most recent first)
+      events.sort((a, b) => b.timestamp - a.timestamp);
+      
+      // Return the most recent events (limit to 20)
+      return events.slice(0, 20);
     } catch (error) {
       console.error('Error getting recent system events:', error);
-      throw new Error('Failed to get recent system events');
+      return [];
     }
   }
-
+  
+  public async getAllAreaIds(): Promise<string[]> {
+    try {
+      if (!this.urbanCoreContract) await this.initContracts();
+      if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
+      
+      // Access provider and define a reasonable lookback window
+      const provider = (this.urbanCoreContract as any).provider;
+      const latestBlock = await provider.getBlockNumber();
+      const fromBlock = Math.max(0, latestBlock - 5000);
+      
+      // Query AreaHeadAssigned events to infer existing area IDs
+      const filter = this.urbanCoreContract.filters['AreaHeadAssigned']();
+      const logs = await this.urbanCoreContract.queryFilter(filter, fromBlock);
+      
+      const uniqueIds = new Set<string>();
+      for (const log of logs) {
+        const logAny = log as any;
+        const args = logAny.args || {};
+        const areaId = args.areaId;
+        if (areaId !== undefined && areaId !== null) {
+          uniqueIds.add(areaId.toString());
+        }
+      }
+      
+      return Array.from(uniqueIds);
+    } catch (error) {
+      console.error('Error getting all area IDs:', error);
+      return [];
+    }
+  }
 
   public async getAreaCitizenCount(areaId: string): Promise<number> {
     try {
@@ -772,26 +1186,30 @@ export class ContractService {
       if (!this.projectRegistryContract) await this.initContracts();
       if (!this.projectRegistryContract) throw new Error('Project Registry contract not initialized');
       
-      const projectCount = await this.projectRegistryContract['getProjectCountInArea'](areaId);
+      // Get project count for this area
+      const projectCount = await this.projectRegistryContract['getProjectCountForArea'](areaId);
+      
       const projects = [];
       
-      for (let i = 0; i < projectCount; i++) {
-        const id = await this.projectRegistryContract['getProjectIdInAreaAtIndex'](areaId, i);
-        const project = await this.projectRegistryContract['getProject'](id);
-        projects.push({
-          id,
-          title: project.title,
-          description: project.description,
-          budget: ethers.formatEther(project.budget),
-          status: project.status,
-          manager: project.manager,
-          createdAt: new Date(Number(project.createdAt) * 1000)
-        });
+      for (let i = 0; i < Number(projectCount); i++) {
+        try {
+          // Get project ID by index in area
+          const projectId = await this.projectRegistryContract['getProjectIdForAreaAtIndex'](areaId, i);
+          
+          // Get project details using our getProject method
+          const project = await this.getProject(Number(projectId));
+          
+          if (project) {
+            projects.push(project);
+          }
+        } catch (err) {
+          console.warn(`Error getting project at index ${i} for area ${areaId}:`, err);
+        }
       }
       
       return projects;
     } catch (error) {
-      console.error('Error getting projects:', error);
+      console.error('Error getting projects in area:', error);
       return [];
     }
   }
@@ -805,17 +1223,28 @@ export class ContractService {
       const assessmentCount = await this.taxModuleContract['getTaxAssessmentCountForCitizen'](address);
       const assessments = [];
       
-      for (let i = 0; i < assessmentCount; i++) {
+      for (let i = 0; i < Number(assessmentCount); i++) {
         const id = await this.taxModuleContract['getCitizenTaxAssessmentIdAtIndex'](address, i);
         const assessment = await this.taxModuleContract['getTaxAssessment'](id);
+        
+        // Handle different contract structures safely
+        const dueDate = assessment.dueDate;
+        let dueDateObj;
+        
+        if (typeof dueDate === 'number') {
+          dueDateObj = new Date(dueDate * 1000);
+        } else if (dueDate && typeof dueDate.toNumber === 'function') {
+          dueDateObj = new Date(dueDate.toNumber() * 1000);
+        } else {
+          dueDateObj = new Date(Number(dueDate) * 1000);
+        }
+        
         assessments.push({
-          id,
+          id: id.toString(),
           amount: ethers.formatEther(assessment.amount),
-          year: assessment.year,
-          paid: assessment.paid,
-          dueDate: new Date(Number(assessment.dueDate) * 1000),
-          citizen: assessment.citizen,
-          receiptId: assessment.receiptId
+          dueDate: dueDateObj,
+          status: assessment.paid ? 'paid' : 'unpaid',
+          details: assessment.details || ''
         });
       }
       
@@ -1274,6 +1703,101 @@ export class ContractService {
   public getTaxModuleContract(): ethers.Contract | null {
     return this.taxModuleContract;
   }
+  
+  // Get all tax assessments for an area
+  public async getTaxAssessmentsByArea(areaId: string): Promise<any[]> {
+    try {
+      if (!this.taxModuleContract) await this.initContracts();
+      if (!this.urbanCoreContract) await this.initContracts();
+      if (!this.taxModuleContract || !this.urbanCoreContract) {
+        throw new Error('Required contracts not initialized');
+      }
+      
+      // First get all citizens in the area
+      const citizensInArea = await this.getCitizensByArea(areaId);
+      const assessments = [];
+      
+      // For each citizen, get their tax assessments
+      for (const citizen of citizensInArea) {
+        const citizenAssessments = await this.getTaxAssessmentsForCitizen(citizen.address);
+        
+        // Add citizen info to each assessment
+        for (const assessment of citizenAssessments) {
+          assessments.push({
+            ...assessment,
+            citizenAddress: citizen.address,
+            citizenName: citizen.name || this.formatAddress(citizen.address)
+          });
+        }
+      }
+      
+      // Sort by due date (most recent first)
+      return assessments.sort((a, b) => b.dueDate.getTime() - a.dueDate.getTime());
+    } catch (error) {
+      console.error('Error getting tax assessments by area:', error);
+      return [];
+    }
+  }
+  
+  // This createTaxAssessment implementation has been moved to the full implementation below
+  // to avoid duplicate function implementation errors
+  
+  // Get tax collection statistics
+  public async getTaxStats(): Promise<any> {
+    try {
+      if (!this.taxModuleContract) await this.initContracts();
+      if (!this.taxModuleContract) throw new Error('Tax Module contract not initialized');
+      
+      const totalCollected = await this.getTotalTaxCollected();
+      const totalAssessmentCount = await this.taxModuleContract['getTotalTaxAssessmentCount']();
+      const paidAssessmentCount = await this.taxModuleContract['getPaidTaxAssessmentCount']();
+      const pendingAssessmentCount = Number(totalAssessmentCount) - Number(paidAssessmentCount);
+      
+      // Calculate collection rate as percentage
+      const collectionRate = Number(totalAssessmentCount) > 0
+        ? (Number(paidAssessmentCount) * 100 / Number(totalAssessmentCount)).toFixed(2)
+        : '0';
+      
+      return {
+        totalCollected,
+        totalAssessmentCount: Number(totalAssessmentCount),
+        paidAssessmentCount: Number(paidAssessmentCount),
+        pendingAssessmentCount,
+        collectionRate: `${collectionRate}%`
+      };
+    } catch (error) {
+      console.error('Error getting tax stats:', error);
+      return {
+        totalCollected: '0',
+        totalAssessmentCount: 0,
+        paidAssessmentCount: 0,
+        pendingAssessmentCount: 0,
+        collectionRate: '0%'
+      };
+    }
+  }
+  
+  // Pay a tax assessment
+  public async payTaxAssessment(assessmentId: string): Promise<boolean> {
+    try {
+      if (!this.taxModuleContract) await this.initContracts();
+      if (!this.taxModuleContract) throw new Error('Tax Module contract not initialized');
+      
+      // Get the assessment details to determine the amount
+      const assessment = await this.taxModuleContract['getTaxAssessment'](assessmentId);
+      
+      // Execute the payment transaction
+      const tx = await this.taxModuleContract['payTaxAssessment'](assessmentId, {
+        value: assessment.amount
+      });
+      
+      await tx.wait();
+      return true;
+    } catch (error) {
+      console.error('Error paying tax assessment:', error);
+      return false;
+    }
+  }
 
   public async getMetaForwarderContract(): Promise<ethers.Contract | null> {
     // Initialize contracts if not already done
@@ -1282,28 +1806,6 @@ export class ContractService {
     }
     return this.metaForwarderContract || null;
   }
-
-  // Area management functions
-  public async getAllAreaIds(): Promise<string[]> {
-    try {
-      if (!this.urbanCoreContract) await this.initContracts();
-      if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
-      
-      const areaCount = await this.urbanCoreContract['getAreaCount']();
-      
-      const areaIds: string[] = [];
-      for (let i = 0; i < areaCount; i++) {
-        const areaId = await this.urbanCoreContract['getAreaIdAtIndex'](i);
-        areaIds.push(areaId.toString());
-      }
-      
-      return areaIds;
-    } catch (error) {
-      console.error('Error getting area IDs:', error);
-      return [];
-    }
-  }
-
   public async getAreaDetails(areaId: string): Promise<any> {
     try {
       if (!this.urbanCoreContract) await this.initContracts();
@@ -1382,27 +1884,30 @@ export class ContractService {
       if (!this.urbanCoreContract) await this.initContracts();
       if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
       
-      const roleBytes = this.getRoleConstant(role);
-      if (!roleBytes) {
-        console.error(`No constant found for role ${role}`);
+      // Currently only CITIZEN_ROLE requests are implemented in the contract
+      if (role !== UserRole.CITIZEN_ROLE) {
+        console.warn(`Role requests for ${role} are not implemented yet`);
         return [];
       }
       
-      const requestCount = await this.urbanCoreContract['getRoleRequestCount'](roleBytes);
+      // For CITIZEN_ROLE, we use getPendingRequests and getCitizenRequest
+      const pendingAddresses = await this.urbanCoreContract['getPendingRequests']();
+      console.log('Pending citizen request addresses:', pendingAddresses);
       
       const requests = [];
-      for (let i = 0; i < requestCount; i++) {
-        const requestId = await this.urbanCoreContract['getRoleRequestIdAtIndex'](roleBytes, i);
-        const request = await this.urbanCoreContract['getRoleRequest'](requestId);
+      for (let i = 0; i < pendingAddresses.length; i++) {
+        const address = pendingAddresses[i];
+        const requestDetails = await this.urbanCoreContract['getCitizenRequest'](address);
         
         requests.push({
-          id: requestId.toString(),
-          requester: request.requester,
-          role: this.convertRoleToEnum(request.role), // Convert bytes32 role to enum
-          status: this.resolveRoleRequestStatus(request.status),
-          timestamp: request.timestamp.toString(),
-          metadataUri: request.metadataUri,
-          areaId: request.areaId?.toString() || null // Extract areaId if available
+          id: address, // Using the citizen address as the request ID
+          requester: address,
+          role: 'citizen', // This is a citizen request
+          status: requestDetails.processed ? 'processed' : 'pending',
+          timestamp: requestDetails.requestedAt.toString(),
+          metadataUri: ethers.hexlify(requestDetails.docsHash), // Convert docs hash to hex string
+          validator: requestDetails.validator,
+          areaId: null // No area ID for citizen requests
         });
       }
       
@@ -1459,23 +1964,31 @@ export class ContractService {
       if (!this.urbanCoreContract) await this.initContracts();
       if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
       
-      const tx = await this.urbanCoreContract['approveRoleRequest'](requestId);
-      return tx;
+      // For citizen requests, requestId is the citizen's address
+      // The contract uses approveCitizen method instead of approveRoleRequest
+      const tx = await this.urbanCoreContract['approveCitizen'](requestId);
+      const receipt = await tx.wait();
+      console.log('Citizen approved:', receipt);
+      return receipt;
     } catch (error) {
-      console.error(`Error approving role request ${requestId}:`, error);
+      console.error(`Error approving citizen request ${requestId}:`, error);
       throw error;
     }
   }
 
-  public async rejectRoleRequest(requestId: string): Promise<any> {
+  public async rejectRoleRequest(requestId: string, reason: string = 'Request rejected by validator'): Promise<any> {
     try {
       if (!this.urbanCoreContract) await this.initContracts();
       if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
       
-      const tx = await this.urbanCoreContract['rejectRoleRequest'](requestId);
-      return tx;
+      // For citizen requests, requestId is the citizen's address
+      // The contract uses rejectCitizen method which requires a reason
+      const tx = await this.urbanCoreContract['rejectCitizen'](requestId, reason);
+      const receipt = await tx.wait();
+      console.log('Citizen rejected:', receipt);
+      return receipt;
     } catch (error) {
-      console.error(`Error rejecting role request ${requestId}:`, error);
+      console.error(`Error rejecting citizen request ${requestId}:`, error);
       throw error;
     }
   }
@@ -1970,33 +2483,7 @@ export class ContractService {
     }
   }
   
-  // Get recent tax payments for admin dashboard
-  public async getRecentTaxPayments(limit: number = 5): Promise<any[]> {
-    try {
-      if (!this.taxModuleContract) await this.initContracts();
-      if (!this.taxModuleContract) throw new Error('Tax Module contract not initialized');
-      
-      // In a real implementation, this would fetch recent payments from events or state
-      // For now, return mock data
-      const mockPayments = [];
-      
-      for (let i = 0; i < limit; i++) {
-        mockPayments.push({
-          id: `tx-${Date.now() - i * 86400000}`,
-          citizen: `0x${Math.random().toString(16).substring(2, 12)}...`,
-          amount: (Math.random() * 5 + 0.1).toFixed(4),
-          timestamp: new Date(Date.now() - i * 86400000),
-          assessmentId: `tax-${Math.floor(Math.random() * 1000)}`,
-          receiptId: `receipt-${Math.floor(Math.random() * 10000)}`
-        });
-      }
-      
-      return mockPayments;
-    } catch (error) {
-      console.error('Error getting recent tax payments:', error);
-      return [];
-    }
-  }
+  // This is intentionally left empty as we've moved the implementation to the primary location
 
   // Project Manager module methods
   public async getProject(projectId: number): Promise<any> {
@@ -2008,22 +2495,33 @@ export class ContractService {
       
       return {
         id: projectId,
-        areaId: project.areaId,
-        titleHash: project.titleHash,
-        descriptionHash: project.descriptionHash,
+        title: project.title,
+        description: project.description,
+        status: this.getProjectStatusText(project.status),
+        budget: ethers.formatEther(project.budget),
+        area: project.areaId.toString(),
         manager: project.manager,
-        fundingGoal: project.fundingGoal,
-        escrowed: project.escrowed,
-        released: project.released,
-        status: project.status,
-        milestoneCount: project.milestoneCount,
-        currentMilestone: project.currentMilestone,
-        citizenUpvotes: project.citizenUpvotes,
-        createdAt: project.createdAt
+        completedMilestones: project.completedMilestones.toString(),
+        totalMilestones: project.totalMilestones.toString(),
+        votes: project.votes.toString(),
+        dateCreated: new Date(Number(project.timestamp) * 1000),
+        milestonesData: []  // This would be filled in by another method
       };
     } catch (error) {
       console.error(`Error getting project ${projectId}:`, error);
-      throw error;
+      return null;
+    }
+  }
+
+  // Helper function to convert project status numbers to text
+  private getProjectStatusText(status: number): string {
+    switch (status) {
+      case 0: return 'Proposed';
+      case 1: return 'Approved';
+      case 2: return 'In Progress';
+      case 3: return 'Completed';
+      case 4: return 'Cancelled';
+      default: return 'Unknown';
     }
   }
 
@@ -2091,7 +2589,7 @@ export class ContractService {
 
   public async getTaxCollectionStats(): Promise<any> {
     try {
-      if (!this.taxModuleContract) await this.initContracts();
+      if(!this.taxModuleContract) await this.initContracts();
       if (!this.taxModuleContract) throw new Error('Tax Module contract not initialized');
       
       // In a real implementation, this would call a contract method
@@ -2466,65 +2964,80 @@ export class ContractService {
   }
 
   public async getPendingTaxAssessments(
-    year?: number,
+    limitOrYear?: number,
     citizenAddress?: string
   ): Promise<any[]> {
     try {
       if (!this.taxModuleContract) await this.initContracts();
       if (!this.taxModuleContract) throw new Error('Tax Module contract not initialized');
-      
-      // If citizenAddress is provided, get assessments for that citizen only
+
+      // If citizenAddress is provided, get assessments for that citizen only.
+      // In this branch, limitOrYear is interpreted as a year filter if provided.
       if (citizenAddress) {
         const assessmentCount = await this.taxModuleContract['getTaxAssessmentCountForCitizen'](citizenAddress);
-        const assessments = [];
+        const assessments = [] as any[];
         
         for (let i = 0; i < assessmentCount; i++) {
           const id = await this.taxModuleContract['getCitizenTaxAssessmentIdAtIndex'](citizenAddress, i);
           const assessment = await this.taxModuleContract['getTaxAssessment'](id);
-          
+
           // Skip if paid or if year doesn't match (if year is specified)
-          if (assessment.paid || (year !== undefined && assessment.year !== year)) {
+          if (assessment.paid || (limitOrYear !== undefined && assessment.year !== limitOrYear)) {
             continue;
           }
-          
+
+          const dueSeconds = Number(assessment.dueDate);
+          const month = new Date(dueSeconds * 1000).getUTCMonth();
+          const quarter = Math.floor(month / 3) + 1;
+
+          const citizenInfo = await this.getCitizenInfo(assessment.citizen);
+
           assessments.push({
             id: id.toString(),
             amount: ethers.formatEther(assessment.amount),
             year: assessment.year,
-            paid: assessment.paid,
-            dueDate: new Date(Number(assessment.dueDate) * 1000),
-            citizen: assessment.citizen,
-            propertyId: assessment.propertyId,
-            description: assessment.description || ''
-          });
-        }
-        
-        return assessments;
-      } 
-      // Otherwise, get all pending assessments for the specified year
-      else {
-        const pendingCount = await this.taxModuleContract['getPendingAssessmentCount'](year || 0);
-        const assessments = [];
-        
-        for (let i = 0; i < pendingCount; i++) {
-          const id = await this.taxModuleContract['getPendingAssessmentAtIndex'](i, year || 0);
-          const assessment = await this.taxModuleContract['getTaxAssessment'](id);
-          
-          assessments.push({
-            id: id.toString(),
-            amount: ethers.formatEther(assessment.amount),
-            year: assessment.year,
-            paid: false, // Must be pending since we're calling getPendingAssessmentAtIndex
-            dueDate: new Date(Number(assessment.dueDate) * 1000),
-            citizen: assessment.citizen,
-            propertyId: assessment.propertyId,
-            description: assessment.description || ''
+            dueDate: dueSeconds, // seconds
+            quarter,
+            citizenAddress: assessment.citizen,
+            citizenName: citizenInfo?.name || 'Unknown',
+            propertyId: assessment.propertyId
           });
         }
         
         return assessments;
       }
-    } catch (error) {
+
+      // Otherwise (no citizen filter), treat the single numeric argument as a limit.
+      const limit = typeof limitOrYear === 'number' ? limitOrYear : undefined;
+      const pendingCountBn = await this.taxModuleContract['getPendingAssessmentCount'](0);
+      const pendingCount = Number(pendingCountBn);
+      const toFetch = limit ? Math.min(pendingCount, limit) : pendingCount;
+
+      const assessments = [] as any[];
+      for (let i = 0; i < toFetch; i++) {
+        const id = await this.taxModuleContract['getPendingAssessmentAtIndex'](i, 0);
+        const assessment = await this.taxModuleContract['getTaxAssessment'](id);
+
+        const dueSeconds = Number(assessment.dueDate);
+        const month = new Date(dueSeconds * 1000).getUTCMonth();
+        const quarter = Math.floor(month / 3) + 1;
+
+        const citizenInfo = await this.getCitizenInfo(assessment.citizen);
+
+        assessments.push({
+          id: id.toString(),
+          amount: ethers.formatEther(assessment.amount),
+          year: assessment.year,
+          dueDate: dueSeconds, // seconds
+          quarter,
+          citizenAddress: assessment.citizen,
+          citizenName: citizenInfo?.name || 'Unknown',
+          propertyId: assessment.propertyId
+        });
+      }
+
+      return assessments;
+    } catch (error: any) {
       console.error('Error getting pending tax assessments:', error);
       return [];
     }
@@ -2564,6 +3077,60 @@ export class ContractService {
     }
   }
 
+  public async getRecentTaxPayments(limit: number = 5): Promise<any[]> {
+    try {
+      if (!this.taxModuleContract) await this.initContracts();
+      if (!this.taxModuleContract) throw new Error('Tax Module contract not initialized');
+
+      // Guard
+      if (limit <= 0) return [];
+
+      const totalCountBn = await this.taxModuleContract['getTotalPaymentCount']();
+      const totalCount = Number(totalCountBn);
+      if (totalCount === 0) return [];
+
+      const startIndex = Math.max(0, totalCount - limit);
+      const results: any[] = [];
+
+      for (let i = startIndex; i < totalCount; i++) {
+        try {
+          const paymentId = await this.taxModuleContract['getPaymentIdAtIndex'](i);
+          const payment = await this.taxModuleContract['getPayment'](paymentId);
+
+          // Fetch assessment to get year/quarter context
+          const assessment = await this.taxModuleContract['getTaxAssessment'](payment.assessmentId);
+
+          // Derive quarter from due date if available (fallback to current quarter)
+          const dueTsSec = Number(assessment?.dueDate || 0);
+          const dateForQuarter = dueTsSec > 0 ? new Date(dueTsSec * 1000) : new Date(Number(payment.timestamp) * 1000);
+          const month = dateForQuarter.getUTCMonth(); // 0-11
+          const quarter = Math.floor(month / 3) + 1; // 1-4
+
+          // Get citizen info for display name
+          const citizenInfo = await this.getCitizenInfo(payment.citizen);
+
+          results.push({
+            id: paymentId.toString(),
+            citizenAddress: payment.citizen,
+            citizenName: citizenInfo?.name || 'Unknown',
+            amount: ethers.formatEther(payment.amount),
+            paidOn: Number(payment.timestamp), // seconds
+            year: Number(assessment?.year || dateForQuarter.getUTCFullYear()),
+            quarter
+          });
+        } catch (innerErr) {
+          console.warn('Error processing recent payment at index', i, innerErr);
+        }
+      }
+
+      // Ensure most recent first
+      return results.sort((a, b) => b.paidOn - a.paidOn).slice(0, limit);
+    } catch (error: any) {
+      console.error('Error getting recent tax payments:', error);
+      return [];
+    }
+  }
+
   // Project management methods
   public async getManagerProjects(managerAddress: string): Promise<number[]> {
     try {
@@ -2599,6 +3166,107 @@ export class ContractService {
     }
   }
   
+  // Get all projects from the contract
+  public async getAllProjects(): Promise<any[]> {
+    try {
+      if (!this.projectRegistryContract) await this.initContracts();
+      if (!this.projectRegistryContract) throw new Error('Project Registry contract not initialized');
+      
+      // Get total project count
+      const projectCount = await this.projectRegistryContract['getTotalProjects']();
+      const projects = [];
+      
+      // Fetch each project by ID
+      for (let i = 1; i <= Number(projectCount); i++) {
+        try {
+          const project = await this.getProject(i);
+          if (project) {
+            projects.push(project);
+          }
+        } catch (err) {
+          console.warn(`Error fetching project ${i}:`, err);
+        }
+      }
+      
+      return projects;
+    } catch (error) {
+      console.error('Error getting all projects:', error);
+      return [];
+    }
+  }
+
+  // Approve a project proposal
+  public async approveProject(projectId: number): Promise<any> {
+    try {
+      if (!this.projectRegistryContract) await this.initContracts();
+      if (!this.projectRegistryContract) throw new Error('Project Registry contract not initialized');
+      
+      // Get the connected account address
+      const account = this.web3Service.getAccount();
+      if (!account) throw new Error('No connected account');
+      
+      // Call the contract's approveProject method
+      const tx = await this.projectRegistryContract['approveProject'](projectId);
+      await tx.wait();
+      
+      return { success: true, message: `Project ${projectId} has been approved` };
+    } catch (error: any) {
+      console.error(`Error approving project ${projectId}:`, error);
+      return { success: false, message: `Failed to approve project: ${error.message || error}` };
+    }
+  }
+
+  // Reject a project proposal
+  public async rejectProject(projectId: number): Promise<any> {
+    try {
+      if (!this.projectRegistryContract) await this.initContracts();
+      if (!this.projectRegistryContract) throw new Error('Project Registry contract not initialized');
+      
+      // Get the connected account address
+      const account = this.web3Service.getAccount();
+      if (!account) throw new Error('No connected account');
+      
+      // Call the contract's rejectProject method
+      const tx = await this.projectRegistryContract['rejectProject'](projectId);
+      await tx.wait();
+      
+      return { success: true, message: `Project ${projectId} has been rejected` };
+    } catch (error: any) {
+      console.error(`Error rejecting project ${projectId}:`, error);
+      return { success: false, message: `Failed to reject project: ${error.message || error}` };
+    }
+  }
+  
+  // Fund a project with specified amount
+  public async fundProject(projectId: number, amount: string): Promise<any> {
+    try {
+      if (!this.projectRegistryContract) await this.initContracts();
+      if (!this.projectRegistryContract) throw new Error('Project Registry contract not initialized');
+      
+      // Get the connected account address
+      const account = this.web3Service.getAccount();
+      if (!account) throw new Error('No connected account');
+      
+      // Convert amount to wei (ethers format)
+      const amountInWei = ethers.parseEther(amount);
+      
+      // Call the contract's fundProject method with the amount
+      const tx = await this.projectRegistryContract['fundProject'](projectId, amountInWei);
+      await tx.wait();
+      
+      return { 
+        success: true, 
+        message: `Project ${projectId} has been funded with ${amount} ETH` 
+      };
+    } catch (error: any) {
+      console.error(`Error funding project ${projectId}:`, error);
+      return { 
+        success: false, 
+        message: `Failed to fund project: ${error.message || error}` 
+      };
+    }
+  }
+
   public async getMilestone(projectId: number, milestoneIndex: number): Promise<any> {
     try {
       if (!this.projectRegistryContract) await this.initContracts();
@@ -2609,42 +3277,102 @@ export class ContractService {
       const milestoneData = [
         {
           title: 'Project Initiation',
-          description: 'Setting up the project and initial planning',
-          funds: ethers.parseEther('2.5'),
-          completed: true,
-          releaseDate: Math.floor(Date.now() / 1000) - 60 * 60 * 24 * 20 // 20 days ago
+          description: 'Initial planning and requirements gathering',
+          targetDate: new Date('2023-06-15'),
+          fundAmount: 1000,
+          completed: true
         },
         {
-          title: 'Phase 1 Development',
+          title: 'Design Phase',
+          description: 'System design and architecture',
+          targetDate: new Date('2023-08-01'),
+          fundAmount: 2000,
+          completed: false
+        },
+        {
+          title: 'Development Phase',
           description: 'Implementation of core features',
-          funds: ethers.parseEther('2.5'),
-          completed: true,
-          releaseDate: Math.floor(Date.now() / 1000) - 60 * 60 * 24 * 10 // 10 days ago
+          targetDate: new Date('2023-10-15'),
+          fundAmount: 3000,
+          completed: false
         },
         {
-          title: 'Phase 2 Development',
-          description: 'Implementation of advanced features',
-          funds: ethers.parseEther('2.5'),
-          completed: false,
-          releaseDate: 0
-        },
-        {
-          title: 'Final Release',
-          description: 'Final testing and project completion',
-          funds: ethers.parseEther('2.5'),
-          completed: false,
-          releaseDate: 0
+          title: 'Testing and Deployment',
+          description: 'Quality assurance and deployment',
+          targetDate: new Date('2023-12-01'),
+          fundAmount: 2000,
+          completed: false
         }
       ];
       
-      if (milestoneIndex < 0 || milestoneIndex >= milestoneData.length) {
-        throw new Error('Invalid milestone index');
+      if (milestoneIndex >= 0 && milestoneIndex < milestoneData.length) {
+        return { success: true, milestone: milestoneData[milestoneIndex] };
+      } else {
+        throw new Error(`Milestone index ${milestoneIndex} out of range`);
       }
+    } catch (error: any) {
+      console.error(`Error getting milestone for project ${projectId}:`, error);
+      return { success: false, message: `Failed to get milestone: ${error.message || error}` };
+    }
+  }
+
+  // Add a milestone to a project
+  public async addMilestone(projectId: number, title: string, description: string, targetDate: Date, fundAmount: number): Promise<any> {
+    try {
+      if (!this.projectRegistryContract) await this.initContracts();
+      if (!this.projectRegistryContract) throw new Error('Project Registry contract not initialized');
       
-      return milestoneData[milestoneIndex];
-    } catch (error) {
-      console.error(`Error getting milestone for project ${projectId} at index ${milestoneIndex}:`, error);
-      return null;
+      // Get the connected account address
+      const account = this.web3Service.getAccount();
+      if (!account) throw new Error('No connected account');
+      
+      // Convert fundAmount to wei for the contract call
+      const fundAmountInWei = ethers.parseEther(fundAmount.toString());
+      
+      // Format the date as a timestamp for the contract
+      const targetTimestamp = Math.floor(targetDate.getTime() / 1000);
+      
+      // Call the contract's addMilestone method
+      const tx = await this.projectRegistryContract['addMilestone'](projectId, title, description, targetTimestamp, fundAmountInWei);
+      await tx.wait();
+      
+      return {
+        success: true,
+        message: `Milestone "${title}" added to project ${projectId}`
+      };
+    } catch (error: any) {
+      console.error(`Error adding milestone to project ${projectId}:`, error);
+      return {
+        success: false,
+        message: `Failed to add milestone: ${error.message || error}`
+      };
+    }
+  }
+  
+  // Mark a milestone as completed
+  public async completeMilestone(projectId: number, milestoneIndex: number): Promise<any> {
+    try {
+      if (!this.projectRegistryContract) await this.initContracts();
+      if (!this.projectRegistryContract) throw new Error('Project Registry contract not initialized');
+      
+      // Get the connected account address
+      const account = this.web3Service.getAccount();
+      if (!account) throw new Error('No connected account');
+      
+      // Call the contract's completeMilestone method
+      const tx = await this.projectRegistryContract['completeMilestone'](projectId, milestoneIndex);
+      await tx.wait();
+      
+      return {
+        success: true,
+        message: `Milestone ${milestoneIndex} has been marked as complete for project ${projectId}`
+      };
+    } catch (error: any) {
+      console.error(`Error completing milestone ${milestoneIndex} for project ${projectId}:`, error);
+      return {
+        success: false,
+        message: `Failed to complete milestone: ${error.message || error}`
+      };
     }
   }
 
