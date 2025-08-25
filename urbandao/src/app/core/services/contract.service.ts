@@ -1605,44 +1605,68 @@ export class ContractService {
       if (!this.grievanceHubContract) await this.initContracts();
       if (!this.grievanceHubContract) throw new Error('Grievance Hub contract not initialized');
       
-      // Get all grievances with 'Pending' status
-      const pendingGrievanceCount = await this.grievanceHubContract['getPendingGrievanceCount']();
-      const maxCount = limit ? Math.min(limit, pendingGrievanceCount) : pendingGrievanceCount;
-      const grievances = [];
+      // Get total grievances from contract
+      const totalGrievances = await this.grievanceHubContract['getTotalGrievances']();
+      const maxToCheck = Math.min(Number(totalGrievances), 100); // Limit to prevent excessive processing
+      const pendingGrievances = [];
       
-      for (let i = 0; i < maxCount; i++) {
-        const id = await this.grievanceHubContract['getPendingGrievanceAtIndex'](i);
-        const grievance = await this.grievanceHubContract['getGrievance'](id);
-        
-        // Get citizen metadata if available
-        let citizenName = '';
-        try {
-          const metadata = await this.getAddressMetadata(grievance.citizen);
-          if (metadata && metadata.name) {
-            citizenName = metadata.name;
-          }
-        } catch (error) {
-          console.warn(`Could not get metadata for citizen ${grievance.citizen}`, error);
+      // Process in batches to minimize network requests
+      const batchSize = 20;
+      
+      for (let i = 1; i <= maxToCheck; i += batchSize) {
+        const promises = [];
+        for (let j = i; j < i + batchSize && j <= maxToCheck; j++) {
+          promises.push(
+            this.grievanceHubContract['getGrievance'](j)
+              .then(grievance => ({ id: j, ...grievance }))
+              .catch(() => null)
+          );
         }
         
-        // Parse grievance data from contract
-        const parsedGrievance = {
-          id: id.toString(),
-          title: grievance.title || '',
-          description: grievance.description || '',
-          location: grievance.location || '',
-          type: this.resolveGrievanceType(grievance.grievanceType || 0),
-          timestamp: grievance.timestamp ? Number(grievance.timestamp) : Date.now() / 1000,
-          citizenAddress: grievance.citizen,
-          citizenName,
-          urgent: grievance.urgent || false,
-          images: grievance.documents ? this.parseDocumentUrls(grievance.documents) : []
-        };
+        const grievanceBatch = await Promise.all(promises);
         
-        grievances.push(parsedGrievance);
+        for (const grievance of grievanceBatch) {
+          // Check if grievance exists and has status 'Pending' (status code 0)
+          if (grievance && grievance.status === 0) {
+            // Get citizen metadata if available
+            let citizenName = '';
+            try {
+              const metadata = await this.getAddressMetadata(grievance.citizen);
+              if (metadata && metadata.name) {
+                citizenName = metadata.name;
+              }
+            } catch (error) {
+              console.warn(`Could not get metadata for citizen ${grievance.citizen}`, error);
+            }
+            
+            // Parse grievance data from contract
+            const parsedGrievance = {
+              id: grievance.id.toString(),
+              title: grievance.title || '',
+              description: grievance.description || '',
+              location: grievance.location || '',
+              type: this.resolveGrievanceType(grievance.grievanceType || 0),
+              timestamp: grievance.timestamp ? Number(grievance.timestamp) : Date.now() / 1000,
+              citizenAddress: grievance.citizen,
+              citizenName,
+              urgent: grievance.urgent || false,
+              imageUrls: grievance.documents ? this.parseDocumentUrls(grievance.documents) : []
+            };
+            
+            pendingGrievances.push(parsedGrievance);
+            
+            if (limit && pendingGrievances.length >= limit) {
+              break;
+            }
+          }
+        }
+        
+        if (limit && pendingGrievances.length >= limit) {
+          break;
+        }
       }
       
-      return grievances;
+      return pendingGrievances;
     } catch (error) {
       console.error('Error getting pending grievances:', error);
       return [];
@@ -1700,6 +1724,10 @@ export class ContractService {
       if (!this.grievanceHubContract) await this.initContracts();
       if (!this.grievanceHubContract) throw new Error('Grievance Hub contract not initialized');
       
+      // Ensure grievanceId is properly converted to BigNumber
+      // This handles different input formats (string, number) and ensures proper BigNumberish representation
+      const grievanceIdBN = ethers.toBigInt(grievanceId);
+      
       // Check if we should use meta-transactions
       const useMeta = await this.shouldUseMetaTransaction();
       
@@ -1709,17 +1737,18 @@ export class ContractService {
         const hash = await this.sendMetaTransaction(
           environment.contracts.GrievanceHub,
           methodName,
-          [grievanceId, comments]
+          [grievanceIdBN, comments]
         );
         return !!hash;
       } else {
         // Direct transaction
         let tx;
         if (isApproved) {
-          tx = await this.grievanceHubContract['approveGrievance'](grievanceId, comments);
+          tx = await this.grievanceHubContract['approveGrievance'](grievanceIdBN, comments);
         } else {
-          tx = await this.grievanceHubContract['rejectGrievance'](grievanceId, comments);
+          tx = await this.grievanceHubContract['rejectGrievance'](grievanceIdBN, comments);
         }
+        
         await tx.wait();
         return true;
       }
@@ -1734,24 +1763,61 @@ export class ContractService {
       if (!this.grievanceHubContract) await this.initContracts();
       if (!this.grievanceHubContract) throw new Error('Grievance Hub contract not initialized');
       
-      // Get validator stats from contract
-      const pendingCount = await this.grievanceHubContract['getValidatorPendingCount'](validatorAddress);
-      const approvedCount = await this.grievanceHubContract['getValidatorApprovedCount'](validatorAddress);
-      const rejectedCount = await this.grievanceHubContract['getValidatorRejectedCount'](validatorAddress);
+      // Get total grievances
+      const totalGrievances = await this.grievanceHubContract['getTotalGrievances']();
+      let pendingCount = 0;
+      let validatedCount = 0;
+      let rejectedCount = 0;
+      
+      // Iterate through each grievance to check if this validator processed it
+      // Using batch processing to limit API calls
+      const batchSize = 20;
+      const maxGrievances = Math.min(Number(totalGrievances), 100); // Limit to prevent excessive processing
+      
+      for (let i = 1; i <= maxGrievances; i += batchSize) {
+        const promises = [];
+        for (let j = i; j < i + batchSize && j <= maxGrievances; j++) {
+          promises.push(this.grievanceHubContract['getGrievance'](j).catch(() => null));
+        }
+        
+        const grievanceBatch = await Promise.all(promises);
+        
+        for (const grievance of grievanceBatch) {
+          if (grievance && grievance.validator) {
+            // Convert addresses to lowercase for comparison to handle checksum addresses
+            const grievanceValidator = grievance.validator.toLowerCase();
+            const currentValidator = validatorAddress.toLowerCase();
+            
+            if (grievanceValidator === currentValidator) {
+              // Status is an enum: 0=Pending, 1=Validated, 2=Rejected, etc.
+              if (grievance.status === 0) {
+                pendingCount++;
+              } else if (grievance.status === 1) {
+                validatedCount++;
+              } else if (grievance.status === 2) {
+                rejectedCount++;
+              }
+            } else if (grievance.validator === ethers.ZeroAddress && grievance.status === 0) {
+              // Count all pending grievances that aren't assigned to any validator
+              pendingCount++;
+            }
+          }
+        }
+      }
       
       return {
-        pending: Number(pendingCount),
-        approved: Number(approvedCount),
-        rejected: Number(rejectedCount),
-        total: Number(pendingCount) + Number(approvedCount) + Number(rejectedCount)
+        pending: pendingCount,
+        validated: validatedCount,
+        rejected: rejectedCount,
+        totalProcessed: validatedCount + rejectedCount
       };
     } catch (error) {
       console.error(`Error getting validator stats for ${validatorAddress}:`, error);
       return {
         pending: 0,
-        approved: 0,
+        validated: 0,
         rejected: 0,
-        total: 0
+        totalProcessed: 0
       };
     }
   }
@@ -1761,44 +1827,72 @@ export class ContractService {
       if (!this.grievanceHubContract) await this.initContracts();
       if (!this.grievanceHubContract) throw new Error('Grievance Hub contract not initialized');
       
-      // Get all processed grievances for this validator
-      const processedCount = await this.grievanceHubContract['getValidatorProcessedCount'](validatorAddress);
-      const grievances = [];
+      // Get total grievances from contract
+      const totalGrievances = await this.grievanceHubContract['getTotalGrievances']();
+      const maxToCheck = Math.min(Number(totalGrievances), 100); // Limit to prevent excessive processing
+      const processedGrievances = [];
       
-      for (let i = 0; i < processedCount; i++) {
-        const id = await this.grievanceHubContract['getValidatorProcessedIdAtIndex'](validatorAddress, i);
-        const grievance = await this.grievanceHubContract['getGrievance'](id);
-        
-        // Get citizen metadata if available
-        let citizenName = '';
-        try {
-          const metadata = await this.getAddressMetadata(grievance.citizen);
-          if (metadata && metadata.name) {
-            citizenName = metadata.name;
-          }
-        } catch (error) {
-          console.warn(`Could not get metadata for citizen ${grievance.citizen}`, error);
+      // Process in batches to minimize network requests
+      const batchSize = 20;
+      
+      for (let i = 1; i <= maxToCheck; i += batchSize) {
+        const promises = [];
+        for (let j = i; j < i + batchSize && j <= maxToCheck; j++) {
+          promises.push(
+            this.grievanceHubContract['getGrievance'](j)
+              .then(grievance => ({ id: j, ...grievance }))
+              .catch(() => null)
+          );
         }
         
-        // Parse grievance data from contract
-        const parsedGrievance = {
-          id: id.toString(),
-          title: grievance.title || '',
-          description: grievance.description || '',
-          status: this.resolveGrievanceStatus(grievance.status),
-          timestamp: grievance.timestamp ? new Date(Number(grievance.timestamp) * 1000) : new Date(),
-          resolutionTimestamp: grievance.resolutionTimestamp ? new Date(Number(grievance.resolutionTimestamp) * 1000) : new Date(),
-          citizenAddress: grievance.citizen,
-          citizenName,
-          urgent: grievance.urgent || false,
-          comments: grievance.comments || '',
-          type: this.resolveGrievanceType(grievance.grievanceType || 0)
-        };
+        const grievanceBatch = await Promise.all(promises);
         
-        grievances.push(parsedGrievance);
+        for (const grievance of grievanceBatch) {
+          // Check if grievance exists, has been processed by this validator (status 1=Validated or 2=Rejected)
+          // and the validator address matches
+          if (grievance && 
+              (grievance.status === 1 || grievance.status === 2) && 
+              grievance.validator.toLowerCase() === validatorAddress.toLowerCase()) {
+            
+            // Get citizen metadata if available
+            let citizenName = '';
+            try {
+              const metadata = await this.getAddressMetadata(grievance.citizen);
+              if (metadata && metadata.name) {
+                citizenName = metadata.name;
+              }
+            } catch (error) {
+              console.warn(`Could not get metadata for citizen ${grievance.citizen}`, error);
+            }
+            
+            // Parse grievance data from contract
+            const parsedGrievance = {
+              id: grievance.id.toString(),
+              title: grievance.title || '',
+              description: grievance.description || '',
+              location: grievance.location || '',
+              status: this.resolveGrievanceStatus(grievance.status),
+              timestamp: grievance.timestamp ? new Date(Number(grievance.timestamp) * 1000) : new Date(),
+              resolutionTimestamp: grievance.resolutionTimestamp ? new Date(Number(grievance.resolutionTimestamp) * 1000) : null,
+              citizenAddress: grievance.citizen,
+              citizenName,
+              urgent: grievance.urgent || false,
+              comments: grievance.comments || '',
+              type: this.resolveGrievanceType(grievance.grievanceType || 0),
+              imageUrls: grievance.documents ? this.parseDocumentUrls(grievance.documents) : []
+            };
+            
+            processedGrievances.push(parsedGrievance);
+          }
+        }
       }
       
-      return grievances;
+      // Sort by timestamp (most recent first)
+      processedGrievances.sort((a, b) => {
+        return b.timestamp.getTime() - a.timestamp.getTime();
+      });
+      
+      return processedGrievances;
     } catch (error) {
       console.error(`Error getting processed grievances for validator ${validatorAddress}:`, error);
       return [];

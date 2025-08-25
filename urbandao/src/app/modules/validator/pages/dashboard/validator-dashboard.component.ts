@@ -63,20 +63,22 @@ export class ValidatorDashboardComponent implements OnInit {
           pending: stats.pending,
           validated: stats.validated,
           rejected: stats.rejected,
-          totalProcessed: stats.validated + stats.rejected
+          totalProcessed: stats.totalProcessed || (stats.validated + stats.rejected)
         };
       }
       
       // Get recent grievances awaiting validation
       const recentPending = await this.contractService.getPendingGrievances(5);
-      if (recentPending) {
+      if (recentPending && recentPending.length > 0) {
         this.recentGrievances = recentPending.map(g => ({
           id: g.id,
-          title: g.title,
-          location: g.location,
-          createdAt: new Date(g.createdAt * 1000),
-          type: g.type
+          title: g.title || 'Untitled Grievance',
+          location: g.location || 'Unknown Location',
+          createdAt: g.timestamp ? new Date(Number(g.timestamp) * 1000) : new Date(),
+          type: g.type || 'General'
         }));
+      } else {
+        this.recentGrievances = [];
       }
       
       this.error = null;

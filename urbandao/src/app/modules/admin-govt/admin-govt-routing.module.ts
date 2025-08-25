@@ -10,7 +10,7 @@ export const routes: Routes = [
   {
     path: '',
     canActivate: [authGuard],
-    data: { roles: ['ADMIN_GOVT_ROLE'] },
+    data: { roles: ['ADMIN_GOVT_ROLE', 'OWNER_ROLE'] },
     children: [
       {
         path: '',

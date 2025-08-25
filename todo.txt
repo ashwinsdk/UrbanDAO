@@ -1,0 +1,67 @@
+Comprensive issues:
+1. Owner_role not redireted to adminGovt dashboard
+console-log:
+User role from contract service (attempt 1): OWNER_ROLE, OWNER_ROLE
+auth.service.ts:98 User has role: OWNER_ROLE, setting as logged in
+role.guard.ts:33 Access denied: Required roles ADMIN_GOVT_ROLE, user role: OWNER_ROLE
+- after redicection is resolved:
+UI - update dashboard, other pages and make it look similar to validator pages
+- remove all mock data and mock implementation.
+- integrate all admingovt(or owner if thats what metioned in contract) related contract function properly with admingovt pages
+
+2. Validator:
+- UI issue : Update quick Action buttions (Citizen VerificationView All PendingProcessing History)
+- integrate all validator related contract function properly with validator pages
+- console log:
+Error getting validator stats for 0x29b0aeff310bc99ce4009b6599ac45471354cba4: TypeError: this.grievanceHubContract.getValidatorPendingCount is not a function
+    at _ContractService.<anonymous> (contract.service.ts:1738:86)
+Error getting pending grievances: TypeError: this.grievanceHubContract.getPendingGrievanceCount is not a function
+    at _ContractService.<anonymous> (contract.service.ts:1609:95)
+Error getting validator stats for 0x29b0aeff310bc99ce4009b6599ac45471354cba4: TypeError: this.grievanceHubContract.getValidatorPendingCount is not a function
+    at _ContractService.<anonymous> (contract.service.ts:1738:86)
+Error getting role requests for CITIZEN_ROLE: TypeError: this.urbanCoreContract.getRoleRequestCount is not a function
+    at _ContractService.<anonymous> (contract.service.ts:1391:78)
+
+In Citizen Verification,
+No Pending Verifications
+There are currently no citizens waiting for verification
+But actually there should be one request! I made a citizen registration succesfully.
+logs:
+Loaded pending verifications: 
+[]
+length: 0
+[[Prototype]]: Array(0)
+
+3. Tax collector:
+- remove all mock data and mock implementation.
+- integrate all tax collector related contract function properly with tax collector pages
+- console-logs:
+Error getting pending tax assessments: TypeError: this.taxModuleContract.getPendingAssessmentCount is not a function
+
+Error getting all tax payments: TypeError: this.taxModuleContract.getTotalPaymentCount is not a function
+    at _ContractService.<anonymous> (contract.service.ts:2445:79)
+
+4. Project Manager:
+UI - update dashboard, other pages and make it look similar to validator pages
+- integrate all project manager related contract function properly with project manager pages
+logs:
+User has role: PROJECT_MANAGER_ROLE, setting as logged in
+MetaMask - RPC Error: execution reverted {code: 3, message: 'execution reverted', data: '0xa89b369d0000000000000000000000000000000000000000000000000000000000000002', stack: '{\n  "code": 3,\n  "message": "execution reverted",\n…ihfbeogaeaoehlefnkodbefgpgknn/common-1.js:3:85134'}
+Error getting project 2: Error: execution reverted: ProjectNotFound(uint256)
+Error loading projects: Error: execution reverted: ProjectNotFound(uint256)
+MetaMask - RPC Error: execution reverted {code: 3, message: 'execution reverted', data: '0xa89b369d0000000000000000000000000000000000000000000000000000000000000003', stack: '{\n  "code": 3,\n  "message": "execution reverted",\n…ihfbeogaeaoehlefnkodbefgpgknn/common-1.js:3:85134'}
+
+5. AdminHead module:
+UI - update dashboard, other pages and make it look similar to validator pages
+- remove all mock data and mock implementation.
+- integrate all adminhead related contract function properly with adminhead pages
+- console logs:
+Error getting grievance with ID grievance-5: TypeError: invalid BigNumberish string: Cannot convert grievance-5 to a BigInt (argument="value", value="grievance-5", code=INVALID_ARGUMENT, version=6.15.0)
+Error getting grievance with ID grievance-4: TypeError: invalid BigNumberish string: Cannot convert grievance-4 to a BigInt (argument="value", value="grievance-4", code=INVALID_ARGUMENT, version=6.15.0)
+Error getting role requests for CITIZEN_ROLE: TypeError: this.urbanCoreContract.getRoleRequestCount is not a function
+    at _ContractService.<anonymous> (contract.service.ts:1391:78)
+Error getting projects: TypeError: this.projectRegistryContract.getProjectCountInArea is not a function
+
+
+This prompt is very big so please do make a detailed & clear to-do complete/update/resolve all issues slowly, step-by-step and after clear analyzation of actual implementation.
+Make sure to update proper css or if aready implmentated use the same and please clean code if duplicates are found.
