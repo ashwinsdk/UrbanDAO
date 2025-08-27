@@ -5,7 +5,6 @@ import { Web3Service } from './web3.service';
 import { ContractService } from './contract.service';
 import { UserRole } from '../models/role.model';
 import { Router } from '@angular/router';
-import * as ethers from 'ethers';
 import { environment } from '../../../environments/environment';
 
 export interface User {
@@ -222,24 +221,48 @@ export class AuthService {
       const name = dataOrName.name || dataOrName.fullName;
       const aadhaar = dataOrName.aadhaar || dataOrName.id;
       const area = dataOrName.area || dataOrName.areaId || 1;
+      const email = dataOrName.email || null;
+      const phone = dataOrName.phone || null;
+      const physicalAddress = dataOrName.physicalAddress || dataOrName.address || null;
+      const kycFile: File | Blob | null = dataOrName.kycFile || null;
       
-      // Create bytes32 hash of citizen data
-      const dataHash = ethers.keccak256(
-        ethers.toUtf8Bytes(
-          JSON.stringify({
-            name: name,
-            aadhaar: aadhaar,
-            area: area
-          })
-        )
-      );
-      
+      // 1) Upload KYC document file first to IPFS to get its CID/URI
+      if (!kycFile) {
+        throw new Error('KYC document file is required');
+      }
+      const documentUri = await this.contractService.uploadFileToIPFS(kycFile, (kycFile as any).name || 'kyc-document');
+      console.log('Uploaded KYC document to IPFS:', documentUri);
+
+      // 2) Prepare metadata JSON including the document CID/URI and other fields
+      const metadata: any = {
+        type: 'UrbanDAO-KYC',
+        version: 1,
+        name,
+        aadhaar,
+        areaId: area,
+        address,
+        email,
+        phone,
+        physicalAddress,
+        documentHash: documentUri, // ipfs://<cid>
+        documentName: (kycFile as any).name || 'kyc-document',
+        timestamp: Math.floor(Date.now() / 1000)
+      };
+
+      // 3) Upload metadata JSON to IPFS using configured gateway (Pinata/Infura)
+      const ipfsUri = await this.contractService.uploadToIPFS(metadata);
+      console.log('Uploaded registration metadata to IPFS:', ipfsUri);
+
+      // 4) Convert metadata CID to bytes32 digest for UrbanCore.registerCitizen(bytes32)
+      const docsHash = this.contractService.cidToBytes32(ipfsUri);
+      console.log('Derived docsHash (bytes32) from CID:', docsHash);
+
+      // 5) Use gasless transaction via MetaForwarder
       console.log('Using gasless transaction for registration');
-      // Use gasless transaction via MetaForwarder
       const txHash = await this.contractService.sendMetaTransaction(
         environment.contracts.UrbanCore,
         'registerCitizen',
-        [dataHash]
+        [docsHash]
       );
       
       if (!txHash) {

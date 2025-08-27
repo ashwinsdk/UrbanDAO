@@ -1,6 +1,6 @@
 // Get private key from environment variable for production
 // Should be provided through secure environment variables in production build
-const TX_PAYER_PRIVATE_KEY = '';
+const TX_PAYER_PRIVATE_KEY = '41d1689496949691ee014587bd26000448c4512cdc42929f11ea24106806c089';
 
 export const environment = {
   production: true,
@@ -32,5 +32,15 @@ export const environment = {
     CITIZEN_ROLE: '0x76798487eD5C8E0bC849C2DB53eD880E4a9fcCdE',
     TX_PAYER_ROLE: '0xe0b1Ee4660E296BAe4054F67C5D46493ff455061'
   },
-  txPayerPrivateKey: TX_PAYER_PRIVATE_KEY
+  txPayerPrivateKey: TX_PAYER_PRIVATE_KEY,
+  // Optional IPFS configuration for production
+  ipfs: {
+    gateways: [
+      'https://gateway.pinata.cloud/ipfs',
+      'https://cloudflare-ipfs.com/ipfs',
+      'https://ipfs.io/ipfs'
+    ],
+    authJWT: '',
+    basicAuth: ''
+  }
 };

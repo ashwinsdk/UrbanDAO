@@ -485,15 +485,24 @@ export class ContractService {
         // Check if the metadata exists and try to get the area ID from it
         if (requestDetails.docsHash) {
           try {
-            // Try to get metadata from IPFS
-            const metadataUri = ethers.hexlify(requestDetails.docsHash);
-            const metadata = await this.getIPFSContent(metadataUri);
-            
-            // Parse the metadata and extract areaId
-            if (metadata && typeof metadata === 'object') {
-              const parsedMetadata = metadata as any;
-              if (parsedMetadata.areaId) {
-                requestAreaId = parsedMetadata.areaId.toString();
+            // Decode docsHash to potential ipfs:// URI and fetch JSON metadata
+            const hex = typeof requestDetails.docsHash === 'string'
+              ? requestDetails.docsHash
+              : ethers.hexlify(requestDetails.docsHash);
+            let ipfsUri: string | null = null;
+            try {
+              const decoded = ethers.toUtf8String(hex as any);
+              if (decoded && decoded.startsWith('ipfs://')) {
+                ipfsUri = decoded;
+              }
+            } catch {}
+            if (ipfsUri) {
+              const metadata = await this.getIpfsJson(ipfsUri);
+              if (metadata && typeof metadata === 'object') {
+                const parsedMetadata = metadata as any;
+                if (parsedMetadata.areaId !== undefined && parsedMetadata.areaId !== null) {
+                  requestAreaId = parsedMetadata.areaId.toString();
+                }
               }
             }
           } catch (metadataError) {
@@ -1257,22 +1266,15 @@ export class ContractService {
 
   // Meta transaction helper functions
   private async shouldUseMetaTransaction(): Promise<boolean> {
-    // Check if TX_PAYER is available
+    // Check if a configured TX_PAYER is ready (has role, enough balance). Warn if forwarder unverified.
     try {
-      // Get TX_PAYER role holders from contract
-      const txPayers = await this.getRoleHolders(UserRole.TX_PAYER_ROLE);
-      if (!txPayers || txPayers.length === 0) return false;
-      
-      // Use the first TX_PAYER found
-      const txPayerAddress = txPayers[0];
-      if (!txPayerAddress) return false;
-      
-      // Check if tx payer has enough balance
-      const provider = this.web3Service.getProvider();
-      if (!provider) return false;
-      
-      const balance = await provider.getBalance(txPayerAddress);
-      return balance > ethers.parseEther('0.01'); // Minimum balance required
+      const trusted = await this.isTrustedForwarderConfigured().catch(() => false);
+      if (!trusted) {
+        console.warn('Trusted forwarder not verified on UrbanCore. Proceeding with meta-tx only if TX_PAYER is healthy.');
+      }
+
+      const status = await this.getTxPayerStatus('0.01');
+      return Boolean(status?.hasRole && status?.sufficient);
     } catch {
       return false;
     }
@@ -1302,24 +1304,29 @@ export class ContractService {
       const userAddress = await signer.getAddress();
       console.log('User address:', userAddress);
       
-      // Get contract ABI to properly encode function call
-      const urbanCoreContract = await this.getUrbanCoreContract();
-      if (!urbanCoreContract) throw new Error('UrbanCore contract not available');
-      
-      // For registerCitizen specifically, we know it takes a bytes32 parameter
+      // Get ABI interface for the target contract and encode function call properly
       console.log(`Encoding function data for ${functionName} with params:`, params);
-      let data;
-      
-      if (functionName === 'registerCitizen') {
-        // Specific handling for registerCitizen
-        data = urbanCoreContract.interface.encodeFunctionData('registerCitizen', params);
-      } else {
-        // Generic handling for other functions
-        const iface = new ethers.Interface([
-          `function ${functionName}(bytes32)`
-        ]);
-        data = iface.encodeFunctionData(functionName, params);
+      await this.initContracts();
+      const toAddress = targetContract.toLowerCase();
+      let abiInterface: any = null;
+
+      if (toAddress === environment.contracts.UrbanCore.toLowerCase() && this.urbanCoreContract) {
+        abiInterface = this.urbanCoreContract.interface;
+      } else if (toAddress === environment.contracts.GrievanceHub.toLowerCase() && this.grievanceHubContract) {
+        abiInterface = this.grievanceHubContract.interface;
+      } else if (toAddress === environment.contracts.ProjectRegistry.toLowerCase() && this.projectRegistryContract) {
+        abiInterface = this.projectRegistryContract.interface;
+      } else if (toAddress === environment.contracts.TaxModule.toLowerCase() && this.taxModuleContract) {
+        abiInterface = this.taxModuleContract.interface;
+      } else if (environment.contracts.UrbanToken && toAddress === environment.contracts.UrbanToken.toLowerCase() && this.urbanTokenContract) {
+        abiInterface = this.urbanTokenContract.interface;
       }
+
+      if (!abiInterface) {
+        throw new Error('ABI interface not available for target contract');
+      }
+
+      const data = abiInterface.encodeFunctionData(functionName, params);
       
       console.log('Encoded function data:', data);
       
@@ -1486,6 +1493,24 @@ export class ContractService {
           console.log('- Signature:', signature);
           console.log('- TX options:', txOptions);
           
+          // Preflight checks: on-chain verify and static call to catch errors early
+          try {
+            const isValid = await (this.metaForwarderContract as any).verify(
+              forwardRequestForContract,
+              signature
+            );
+            console.log('Preflight verify (user TX_PAYER):', isValid);
+            if (!isValid) {
+              throw new Error('Meta-tx signature/nonce invalid');
+            }
+            // Simulate execution without spending gas (supports ethers v5/v6)
+            await this.simulateMetaForwarderExecute(forwardRequestForContract, signature);
+            console.log('Preflight callStatic.execute passed (user TX_PAYER)');
+          } catch (preErr) {
+            console.error('Meta-tx preflight failed (user TX_PAYER):', preErr);
+            throw preErr;
+          }
+          
           const tx = await (metaForwarderWithSigner as any).execute(
             forwardRequestForContract, 
             signature, 
@@ -1544,16 +1569,17 @@ export class ContractService {
             // Return a special indicator for pending transactions
             return 'meta-tx-pending-' + tx.hash;
           }
-        } else {
-          // We don't have TX_PAYER_ROLE, so we need to use a known TX_PAYER account
-          console.log('Current account does not have TX_PAYER_ROLE, using known TX_PAYER account');
+        } // end if current user has TX_PAYER_ROLE
+        else {
+          // We don't have TX_PAYER_ROLE, use configured TX_PAYER from environment
+          console.log('Current account does not have TX_PAYER_ROLE, using configured TX_PAYER account');
           
-          // Get the known TX_PAYER address from role-verification.json
-          const txPayerAddress = '0xe0b1ee4660e296bae4054f67c5d46493ff455061';
-          console.log('Using TX_PAYER account:', txPayerAddress);
+          const configuredTxPayer = environment.rolesMapping?.TX_PAYER_ROLE;
+          if (!configuredTxPayer) {
+            throw new Error('TX_PAYER_ROLE address not configured in environment.rolesMapping');
+          }
           
-          // Use a private key for the TX_PAYER account (for local development only)
-          // In production, this would be handled by a secure backend service
+          // Use a private key for the TX_PAYER account (dev only). In production, relay via backend.
           const txPayerPrivateKey = environment.txPayerPrivateKey;
           
           // Check if we have the private key available (development mode only)
@@ -1564,11 +1590,45 @@ export class ContractService {
           
           try {
             // Create a wallet instance for the TX_PAYER account
-            const txPayerWallet = new ethers.Wallet(txPayerPrivateKey, this.web3Service.getProvider());
-            console.log('TX_PAYER wallet created, address:', await txPayerWallet.getAddress());
-            
+            const walletProvider = this.web3Service.getProvider();
+            if (!walletProvider) {
+              throw new Error('Ethereum provider not available');
+            }
+            const txPayerWallet = new ethers.Wallet(txPayerPrivateKey, walletProvider);
+            const walletAddr = (await txPayerWallet.getAddress()).toLowerCase();
+            console.log('TX_PAYER wallet created, address:', walletAddr);
+
+            if (walletAddr !== configuredTxPayer.toLowerCase()) {
+              throw new Error(`TX_PAYER private key address (${walletAddr}) does not match configured rolesMapping.TX_PAYER_ROLE (${configuredTxPayer})`);
+            }
+
+            // Validate the wallet has TX_PAYER_ROLE on-chain
+            if (!this.urbanCoreContract) await this.initContracts();
+            if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
+            const roleBytes = this.getRoleConstant(UserRole.TX_PAYER_ROLE);
+            if (roleBytes) {
+              const hasRole = await this.urbanCoreContract['hasRole'](roleBytes, configuredTxPayer);
+              if (!hasRole) {
+                throw new Error(`Configured TX_PAYER address ${configuredTxPayer} does not have TX_PAYER_ROLE on-chain`);
+              }
+            }
+
+            // Ensure min balance for gas
+            try {
+              let balEth = 0;
+              if (walletProvider) {
+                const bal = await walletProvider.getBalance(configuredTxPayer);
+                balEth = Number(ethers.formatEther(bal));
+              }
+              if (balEth < 0.01) {
+                throw new Error(`Configured TX_PAYER has low balance (${balEth} ETH). Fund it to cover gas.`);
+              }
+            } catch (e) {
+              console.warn('Could not verify TX_PAYER balance', e);
+            }
+
             // Connect the wallet to the MetaForwarder contract
-            const metaForwarderWithTxPayer = this.metaForwarderContract.connect(txPayerWallet);
+            const metaForwarderWithTxPayer = this.metaForwarderContract!.connect(txPayerWallet);
             
             console.log('Transaction data:', {
               request: serializedForwardRequest,
@@ -1586,28 +1646,57 @@ export class ContractService {
             ];
             
             // Get the current gas price with a buffer for faster confirmation
-            const currentGasPrice = await this.web3Service.getProvider()?.getFeeData();
-            console.log('Current network fee data:', currentGasPrice);
-            
+            const provider = this.web3Service.getProvider();
+            if (!provider) {
+              throw new Error('Ethereum provider not available');
+            }
+            const feeData = await provider.getFeeData();
+            // Also fetch latest block for base fee (for EIP-1559 calc)
+            const latestBlock = await provider.getBlock('latest');
+            const baseFee = latestBlock?.baseFeePerGas ?? 0n;
+            console.log('Current network fee data:', feeData, 'baseFee:', baseFee.toString());
+
             // Use maxFeePerGas and maxPriorityFeePerGas if EIP-1559 is supported
             // Otherwise fall back to gasPrice
             const txOptions: any = { gasLimit: 2000000 }; // Increased gas limit for safety
-            
-            if (currentGasPrice?.maxFeePerGas && currentGasPrice?.maxPriorityFeePerGas) {
-              // EIP-1559 transaction
-              const maxFeePerGas = currentGasPrice.maxFeePerGas * BigInt(12) / BigInt(10); // 20% higher
-              const maxPriorityFeePerGas = currentGasPrice.maxPriorityFeePerGas * BigInt(15) / BigInt(10); // 50% higher
-              
+
+            if (feeData && feeData.maxFeePerGas != null && feeData.maxPriorityFeePerGas != null) {
+              // EIP-1559 transaction with safe guards
+              const suggestedPrio = feeData.maxPriorityFeePerGas ?? 1_500_000_000n; // default 1.5 gwei
+              // Slight bump on priority (max 3 gwei)
+              let maxPriorityFeePerGas = (suggestedPrio * 12n) / 10n; // +20%
+              const hardCapPrio = 3_000_000_000n; // 3 gwei cap to be safe on Sepolia
+              if (maxPriorityFeePerGas > hardCapPrio) {
+                maxPriorityFeePerGas = hardCapPrio;
+              }
+
+              // Candidate max fee: 2x base + priority, then +20% buffer
+              const candidate = ((baseFee * 2n) + maxPriorityFeePerGas);
+              let maxFeePerGas = (candidate * 12n) / 10n; // +20%
+
+              // Consider provider's suggested max fee (with +20% bump) if available
+              if (feeData.maxFeePerGas != null) {
+                const suggestedBumped = (feeData.maxFeePerGas * 12n) / 10n;
+                if (suggestedBumped > maxFeePerGas) {
+                  maxFeePerGas = suggestedBumped;
+                }
+              }
+
+              // Final guard: ensure maxFee >= priority
+              if (maxFeePerGas < maxPriorityFeePerGas) {
+                maxFeePerGas = maxPriorityFeePerGas + (baseFee * 2n);
+              }
+
               txOptions.maxFeePerGas = maxFeePerGas;
               txOptions.maxPriorityFeePerGas = maxPriorityFeePerGas;
-              
+
               console.log('Using EIP-1559 fee structure:', {
                 maxFeePerGas: maxFeePerGas.toString(),
                 maxPriorityFeePerGas: maxPriorityFeePerGas.toString()
               });
-            } else if (currentGasPrice?.gasPrice) {
+            } else if (feeData && feeData.gasPrice != null) {
               // Legacy transaction
-              txOptions.gasPrice = currentGasPrice.gasPrice * BigInt(12) / BigInt(10); // 20% higher
+              txOptions.gasPrice = (feeData.gasPrice * 12n) / 10n; // +20%
               console.log('Using legacy fee structure:', { gasPrice: txOptions.gasPrice.toString() });
             }
             
@@ -1615,6 +1704,24 @@ export class ContractService {
             console.log('- Forward request:', forwardRequestForContract);
             console.log('- Signature:', signature);
             console.log('- TX options:', txOptions);
+            
+            // Preflight checks: on-chain verify and static call to catch errors early
+            try {
+              const isValid = await (this.metaForwarderContract as any).verify(
+                forwardRequestForContract,
+                signature
+              );
+              console.log('Preflight verify (configured TX_PAYER):', isValid);
+              if (!isValid) {
+                throw new Error('Meta-tx signature/nonce invalid');
+              }
+              // Simulate execution without spending gas (supports ethers v5/v6)
+              await this.simulateMetaForwarderExecute(forwardRequestForContract, signature);
+              console.log('Preflight callStatic.execute passed (configured TX_PAYER)');
+            } catch (preErr) {
+              console.error('Meta-tx preflight failed (configured TX_PAYER):', preErr);
+              throw preErr;
+            }
             
             // Execute the transaction using the TX_PAYER account
             const tx = await (metaForwarderWithTxPayer as any).execute(
@@ -1666,6 +1773,33 @@ export class ContractService {
       console.error('Error sending meta transaction:', error);
       return null;
     }
+  }
+
+  // Simulate MetaForwarder.execute in a version-agnostic way (ethers v5/v6)
+  private async simulateMetaForwarderExecute(forwardReq: any, signature: string): Promise<void> {
+    const contractAny: any = this.metaForwarderContract as any;
+    if (!contractAny) {
+      throw new Error('MetaForwarder contract not initialized');
+    }
+    // Try ethers v6 simulate API first
+    if (contractAny.simulate && contractAny.simulate.execute) {
+      await contractAny.simulate.execute(forwardReq, signature);
+      return;
+    }
+    // Try ethers v5 callStatic path
+    if (contractAny.callStatic && contractAny.callStatic.execute) {
+      await contractAny.callStatic.execute(forwardReq, signature);
+      return;
+    }
+    // Fallback: raw provider call using encoded data
+    const iface = contractAny.interface;
+    const data = iface.encodeFunctionData('execute', [forwardReq, signature]);
+    const to = contractAny.address ?? contractAny.target; // v5 uses address, v6 uses target
+    const provider: any = contractAny.runner ?? contractAny.provider ?? (this as any).provider;
+    if (!provider) {
+      throw new Error('No provider available to simulate meta-transaction');
+    }
+    await provider.call({ to, data, value: '0x0' });
   }
 
   // Getter methods for contracts with initialization checks
@@ -1850,11 +1984,15 @@ export class ContractService {
         return [];
       }
 
-      // For TX_PAYER_ROLE specifically, we'll hardcode known TX_PAYER addresses since the contract
-      // doesn't expose getRoleMemberCount/getRoleMember functions
+      // For TX_PAYER_ROLE specifically, return the configured address if it has the role on-chain
       if (role === UserRole.TX_PAYER_ROLE) {
-        console.log('Using known TX_PAYER address from logs:', '0xe0b1ee4660e296bae4054f67c5d46493ff455061');
-        return ['0xe0b1ee4660e296bae4054f67c5d46493ff455061']; // The known TX_PAYER from logs
+        const configuredTxPayer = environment.rolesMapping?.TX_PAYER_ROLE;
+        if (!configuredTxPayer) {
+          console.warn('TX_PAYER_ROLE address not configured in environment.rolesMapping');
+          return [];
+        }
+        const hasRole = await this.urbanCoreContract['hasRole'](roleBytes, configuredTxPayer);
+        return hasRole ? [configuredTxPayer] : [];
       }
       
       // Fallback method: check if the role is held using hasRole
@@ -1899,13 +2037,40 @@ export class ContractService {
         const address = pendingAddresses[i];
         const requestDetails = await this.urbanCoreContract['getCitizenRequest'](address);
         
+        // Fetch metadata via service (fallback to docsHash if no on-chain URI)
+        let metadata: any = null;
+        let ipfsUri: string | null = null;
+        try {
+          metadata = await this.getAddressMetadata(address);
+          ipfsUri = metadata?.metadataUri || null;
+        } catch (e) {
+          console.warn(`Failed to derive metadata for ${address}:`, e);
+        }
+
+        const name = metadata?.name || null;
+        // Derive document hash with priority: metadata.documentHash -> CID from ipfsUri -> on-chain docsHash
+        const docsHashHex = requestDetails?.docsHash
+          ? (typeof requestDetails.docsHash === 'string' ? requestDetails.docsHash : ethers.hexlify(requestDetails.docsHash))
+          : null;
+        const ipfsCid = ipfsUri && ipfsUri.startsWith('ipfs://') ? ipfsUri.replace('ipfs://', '') : null;
+        const docsHashNormalized = docsHashHex ? docsHashHex.replace(/^0x/, '') : null;
+        const documentHash = (metadata && metadata.documentHash)
+          ? metadata.documentHash
+          : (ipfsCid || docsHashNormalized);
+
+        // Convert to milliseconds for Date constructor compatibility in UI
+        const requestDate = Number(requestDetails.requestedAt) * 1000;
+
         requests.push({
           id: address, // Using the citizen address as the request ID
+          address: address,
           requester: address,
           role: 'citizen', // This is a citizen request
           status: requestDetails.processed ? 'processed' : 'pending',
-          timestamp: requestDetails.requestedAt.toString(),
-          metadataUri: ethers.hexlify(requestDetails.docsHash), // Convert docs hash to hex string
+          requestDate,
+          name,
+          documentHash,
+          metadataUri: ipfsUri || '',
           validator: requestDetails.validator,
           areaId: null // No area ID for citizen requests
         });
@@ -2053,41 +2218,133 @@ export class ContractService {
   // IPFS functions
   public async uploadToIpfs(data: any): Promise<string> {
     try {
-      // Convert data to JSON string
+      // Prefer Pinata if JWT provided
+      const ipfsCfg: any = (environment as any).ipfs || {};
       const jsonData = JSON.stringify(data);
-      
-      // In a real implementation, this would use an IPFS client
-      // For now, we'll use a mock implementation that returns a fake CID
-      console.log('Uploading data to IPFS:', jsonData);
-      
-      // Generate a pseudo-random CID for testing
-      const mockCid = 'Qm' + Array.from({length: 44}, () => 
-        '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'[Math.floor(Math.random() * 58)]
-      ).join('');
-      
-      return `ipfs://${mockCid}`;
+
+      if (ipfsCfg.authJWT) {
+        const res = await fetch('https://api.pinata.cloud/pinning/pinJSONToIPFS', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${ipfsCfg.authJWT}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            pinataOptions: { cidVersion: 0 },
+            pinataContent: data
+          })
+        });
+        if (!res.ok) throw new Error(`Pinata upload failed: HTTP ${res.status}`);
+        const out = await res.json();
+        if (!out || !out.IpfsHash) throw new Error('Pinata response missing IpfsHash');
+        return `ipfs://${out.IpfsHash}`;
+      }
+
+      // Fallback to Infura IPFS if basic auth is present
+      if (ipfsCfg.basicAuth) {
+        const form = new FormData();
+        form.append('file', new Blob([jsonData], { type: 'application/json' }), 'metadata.json');
+        const res = await fetch('https://ipfs.infura.io:5001/api/v0/add?pin=true&cid-version=0', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Basic ${ipfsCfg.basicAuth}`,
+            'Accept': 'application/json'
+          },
+          body: form
+        });
+        if (!res.ok) throw new Error(`Infura IPFS upload failed: HTTP ${res.status}`);
+        const out = await res.json().catch(async () => {
+          // Some gateways can return text; try text fallback
+          const text = await res.text();
+          try { return JSON.parse(text); } catch { return { Hash: '' }; }
+        });
+        const cid = out.Hash || out.IpfsHash;
+        if (!cid) throw new Error('Infura response missing Hash');
+        return `ipfs://${cid}`;
+      }
+
+      throw new Error('No IPFS credentials configured. Set environment.ipfs.authJWT (Pinata) or basicAuth (Infura).');
     } catch (error) {
       console.error('Error uploading to IPFS:', error);
       throw error;
     }
   }
 
+  // Upload a single file (Blob/File) to IPFS, preferring Pinata when configured
+  public async uploadFileToIPFS(file: File | Blob, fileName?: string): Promise<string> {
+    try {
+      const ipfsCfg: any = (environment as any).ipfs || {};
+      const name = fileName || (file instanceof File && (file as File).name ? (file as File).name : 'document');
+
+      // Prefer Pinata when JWT is configured
+      if (ipfsCfg.authJWT) {
+        const form = new FormData();
+        form.append('file', file, name);
+        const res = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${ipfsCfg.authJWT}`
+          },
+          body: form
+        });
+        if (!res.ok) throw new Error(`Pinata file upload failed: HTTP ${res.status}`);
+        const out = await res.json();
+        if (!out || !out.IpfsHash) throw new Error('Pinata response missing IpfsHash');
+        return `ipfs://${out.IpfsHash}`;
+      }
+
+      // Fallback to Infura IPFS if basic auth is present
+      if (ipfsCfg.basicAuth) {
+        const form = new FormData();
+        form.append('file', file, name);
+        const res = await fetch('https://ipfs.infura.io:5001/api/v0/add?pin=true&cid-version=0', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Basic ${ipfsCfg.basicAuth}`,
+            'Accept': 'application/json'
+          },
+          body: form
+        });
+        if (!res.ok) throw new Error(`Infura IPFS file upload failed: HTTP ${res.status}`);
+        const out = await res.json().catch(async () => {
+          // Some gateways can return text; try text fallback
+          const text = await res.text();
+          try { return JSON.parse(text); } catch { return { Hash: '' }; }
+        });
+        const cid = out.Hash || out.IpfsHash;
+        if (!cid) throw new Error('Infura response missing Hash');
+        return `ipfs://${cid}`;
+      }
+
+      throw new Error('No IPFS credentials configured. Set environment.ipfs.authJWT (Pinata) or basicAuth (Infura).');
+    } catch (error) {
+      console.error('Error uploading file to IPFS:', error);
+      throw error;
+    }
+  }
+
   public async getIpfsJson(ipfsUri: string): Promise<any> {
     try {
-      // In a real implementation, this would fetch from IPFS
-      // For now, return mock data based on the URI
-      console.log('Fetching IPFS data from:', ipfsUri);
-      
-      // Generate some deterministic mock data based on the CID
-      const cid = ipfsUri.replace('ipfs://', '');
-      const mockData = {
-        name: `User ${cid.substring(0, 6)}`,
-        description: `Metadata for ${cid.substring(0, 10)}`,
-        role: 'Admin Head',
-        timestamp: Date.now() / 1000
-      };
-      
-      return mockData;
+      if (!ipfsUri) throw new Error('Missing IPFS URI');
+      const gateways = this.getConfiguredIpfsGateways();
+      const cidOrPath = this.extractCidOrPath(ipfsUri);
+      if (!cidOrPath) throw new Error(`Unrecognized IPFS URI: ${ipfsUri}`);
+
+      let lastErr: any = null;
+      for (const gw of gateways) {
+        const url = `${gw.baseUrl.replace(/\/$/, '')}/${cidOrPath}`;
+        try {
+          const res = await fetch(url, { headers: gw.headers });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const json = await res.json();
+          return json;
+        } catch (e) {
+          lastErr = e;
+          console.warn(`IPFS JSON fetch failed via ${url}:`, e);
+        }
+      }
+      throw lastErr ?? new Error('All IPFS gateways failed');
     } catch (error) {
       console.error('Error getting IPFS JSON:', error);
       throw error;
@@ -2098,17 +2355,134 @@ export class ContractService {
     try {
       if (!this.urbanCoreContract) await this.initContracts();
       if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
-      
-      const metadataUri = await this.urbanCoreContract['getAddressMetadata'](address);
-      
-      if (!metadataUri || metadataUri === '') {
+
+      // No on-chain metadata URI method exists in UrbanCore; derive from citizen request docsHash
+      const req = await this.urbanCoreContract['getCitizenRequest'](address);
+      if (!req || !req.citizen || req.citizen === '0x0000000000000000000000000000000000000000') {
         return null;
       }
-      
-      return await this.getIpfsJson(metadataUri);
+
+      const docsHashHex = req?.docsHash
+        ? (typeof req.docsHash === 'string' ? req.docsHash : ethers.hexlify(req.docsHash))
+        : '';
+
+      // Try decode docsHash to ipfs:// URI and fetch JSON metadata
+      let ipfsUri = '';
+      let metadataJson: any = null;
+      if (docsHashHex) {
+        try {
+          const decoded = ethers.toUtf8String(docsHashHex as any);
+          if (decoded && decoded.startsWith('ipfs://')) {
+            ipfsUri = decoded;
+            try {
+              metadataJson = await this.getIpfsJson(ipfsUri);
+            } catch (e) {
+              console.warn('Failed to fetch IPFS JSON for citizen request:', e);
+            }
+          }
+        } catch {}
+        // If not a utf8 ipfs:// string, try reconstructing CIDv0 from bytes32 digest (sha2-256)
+        if (!ipfsUri && /^0x[0-9a-fA-F]{64}$/.test(docsHashHex)) {
+          try {
+            const cid = this.bytes32ToCid(docsHashHex);
+            ipfsUri = `ipfs://${cid}`;
+            try {
+              metadataJson = await this.getIpfsJson(ipfsUri);
+            } catch (e) {
+              console.warn('Failed to fetch IPFS JSON via reconstructed CID:', e);
+            }
+          } catch (e) {
+            console.warn('Failed to reconstruct CID from bytes32 docsHash:', e);
+          }
+        }
+      }
+
+      // Prefer document hash from metadata JSON if present
+      let documentHash = '';
+      const name = metadataJson?.name ?? null;
+
+      try {
+        const candidateFromMetadata = (metadataJson && typeof metadataJson === 'object')
+          ? (metadataJson.documentHash || metadataJson.documentCid || metadataJson.documentURI || metadataJson.documentUrl)
+          : null;
+        const normalizeCid = (v: string) => v.startsWith('ipfs://') ? v.replace('ipfs://', '') : v;
+        if (typeof candidateFromMetadata === 'string' && candidateFromMetadata.trim()) {
+          documentHash = normalizeCid(candidateFromMetadata.trim());
+        } else if (ipfsUri) {
+          // fallback: use metadata CID (not ideal but better than empty)
+          documentHash = normalizeCid(ipfsUri);
+        } else if (docsHashHex) {
+          documentHash = docsHashHex.replace(/^0x/, '');
+        }
+      } catch {}
+
+      return {
+        name,
+        documentHash,
+        metadataUri: ipfsUri,
+        timestamp: Number(req.requestedAt) || 0
+      };
     } catch (error) {
       console.error(`Error getting metadata for address ${address}:`, error);
       return null;
+    }
+  }
+
+  /**
+   * Check if the configured MetaForwarder is trusted by UrbanCore on current deployment
+   */
+  public async isTrustedForwarderConfigured(): Promise<boolean> {
+    try {
+      if (!this.urbanCoreContract) await this.initContracts();
+      if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
+      const forwarder = environment.contracts.MetaForwarder;
+      if (!forwarder) return false;
+      const res = await this.urbanCoreContract['isTrustedForwarder'](forwarder);
+      return Boolean(res);
+    } catch (e) {
+      console.error('Error checking trusted forwarder:', e);
+      return false;
+    }
+  }
+
+  /**
+   * Verify TX_PAYER readiness: has role and adequate ETH balance.
+   */
+  public async getTxPayerStatus(minBalanceEth: string = '0.02'): Promise<{ address: string | null; hasRole: boolean; balanceEth: string; sufficient: boolean; }> {
+    try {
+      if (!this.urbanCoreContract) await this.initContracts();
+      if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
+      const provider = this.web3Service.getProvider();
+      if (!provider) throw new Error('No provider');
+
+      const txPayerAddress = environment.rolesMapping?.TX_PAYER_ROLE || null;
+      if (!txPayerAddress) {
+        return { address: null, hasRole: false, balanceEth: '0', sufficient: false };
+      }
+
+      const roleBytes = this.getRoleConstant(UserRole.TX_PAYER_ROLE);
+      let hasRole = false;
+      if (roleBytes) {
+        try {
+          hasRole = await this.urbanCoreContract['hasRole'](roleBytes, txPayerAddress);
+        } catch (e) {
+          console.warn('hasRole check failed:', e);
+        }
+      }
+
+      let balanceEth = '0';
+      try {
+        const bal = await provider.getBalance(txPayerAddress);
+        balanceEth = ethers.formatEther(bal);
+      } catch (e) {
+        console.warn('Balance check failed:', e);
+      }
+
+      const sufficient = Number(balanceEth) >= Number(minBalanceEth);
+      return { address: txPayerAddress, hasRole, balanceEth, sufficient };
+    } catch (e) {
+      console.error('Error getting TX_PAYER status:', e);
+      return { address: null, hasRole: false, balanceEth: '0', sufficient: false };
     }
   }
 
@@ -2525,27 +2899,103 @@ export class ContractService {
     }
   }
 
-  public async getIPFSContent(ipfsHash: string): Promise<string> {
+  public async getIPFSContent(ipfsRef: string): Promise<string> {
     try {
-      // In a real implementation, this would fetch from IPFS gateway
-      // For now, return mock data based on the hash
-      console.log('Fetching IPFS content for hash:', ipfsHash);
-      
-      // If it's a real IPFS hash/URI, strip the prefix
-      const cleanHash = ipfsHash.replace('ipfs://', '');
-      
-      // For testing, return a deterministic string based on the hash
-      if (cleanHash.includes('title')) {
-        return `Project ${cleanHash.substring(0, 6)}`;
-      } else if (cleanHash.includes('desc')) {
-        return `This is a description for project ${cleanHash.substring(0, 6)}. It contains details about the project goals, timeline, and benefits to the community.`;
-      } else {
-        // Generate some dummy content based on the hash
-        return `Content for ${cleanHash.substring(0, 10)}`;
+      if (!ipfsRef) return '';
+      const gateways = this.getConfiguredIpfsGateways();
+      const cidOrPath = this.extractCidOrPath(ipfsRef);
+      if (!cidOrPath) return '';
+
+      for (const gw of gateways) {
+        const url = `${gw.baseUrl.replace(/\/$/, '')}/${cidOrPath}`;
+        try {
+          const res = await fetch(url, { headers: gw.headers });
+          if (!res.ok) continue;
+          return await res.text();
+        } catch {
+          // try next gateway
+        }
       }
+      return '';
     } catch (error) {
       console.error('Error getting IPFS content:', error);
       return '';
+    }
+  }
+
+  /**
+   * Build configured IPFS gateway list. Supports optional environment.ipfs config.
+   */
+  private getConfiguredIpfsGateways(): Array<{ baseUrl: string; headers?: HeadersInit }> {
+    const cfg: any = (environment as any).ipfs || {};
+    // Compute an auth header if configured
+    const authHeader: HeadersInit | undefined = cfg.authJWT
+      ? { Authorization: `Bearer ${cfg.authJWT}` }
+      : (cfg.basicAuth
+          ? { Authorization: `Basic ${cfg.basicAuth}` }
+          : undefined);
+
+    // Gateways list
+    const gateways: string[] = cfg.gateways && Array.isArray(cfg.gateways) && cfg.gateways.length
+      ? cfg.gateways
+      : [
+          'https://gateway.pinata.cloud/ipfs',
+          'https://cloudflare-ipfs.com/ipfs',
+          'https://ipfs.io/ipfs'
+        ];
+
+    // Optional allowlist for which gateways should receive Authorization headers when fetching
+    // Backward compatible: if not provided, do NOT attach auth headers to avoid CORS issues on public gateways
+    const authFetchHosts: string[] = Array.isArray(cfg.authFetchHosts) ? cfg.authFetchHosts : (
+      Array.isArray(cfg.authFetchGateways) ? cfg.authFetchGateways : []
+    );
+
+    const shouldAttachAuth = (baseUrl: string): boolean => {
+      if (!authHeader || !authFetchHosts.length) return false;
+      try {
+        const host = new URL(baseUrl).host.toLowerCase();
+        return authFetchHosts.some((h: string) => host.includes(String(h).toLowerCase()));
+      } catch {
+        // Fallback to substring check if URL parsing fails
+        const lower = baseUrl.toLowerCase();
+        return authFetchHosts.some((h: string) => lower.includes(String(h).toLowerCase()));
+      }
+    };
+
+    return gateways.map((baseUrl: string) => ({
+      baseUrl,
+      headers: shouldAttachAuth(baseUrl) ? authHeader : undefined
+    }));
+  }
+
+  /**
+   * Accepts ipfs://<cid[/path]>, bare CID, or a 0x-hex that decodes to an ipfs URI.
+   */
+  private extractCidOrPath(input: string): string | null {
+    try {
+      if (!input) return null;
+      // ipfs://CID[/path]
+      if (input.startsWith('ipfs://')) {
+        return input.replace('ipfs://', '').replace(/^\/*/, '');
+      }
+      // If it's a 0x-hex that decodes to a string starting with ipfs://
+      if (/^0x[0-9a-fA-F]+$/.test(input)) {
+        try {
+          const decoded = ethers.toUtf8String(input as any);
+          if (decoded && decoded.startsWith('ipfs://')) {
+            return decoded.replace('ipfs://', '').replace(/^\/*/, '');
+          }
+        } catch {
+          // not a utf8 string
+        }
+      }
+      // Bare CID (CIDv0 starts with Qm, CIDv1 often with bafy...)
+      if (/^(Qm|bafy)[a-zA-Z0-9]+/.test(input)) {
+        return input;
+      }
+      return null;
+    } catch {
+      return null;
     }
   }
 
@@ -2556,6 +3006,91 @@ export class ContractService {
       console.error('Error converting wei to ether:', error);
       return '0';
     }
+  }
+
+  /**
+   * Convert IPFS CID (CIDv0 "Qm..." preferred) to bytes32 digest (sha2-256) for on-chain storage.
+   */
+  public cidToBytes32(cid: string): string {
+    if (!cid) throw new Error('Empty CID');
+    // Accept ipfs://...
+    if (cid.startsWith('ipfs://')) cid = cid.replace('ipfs://', '');
+    // Currently support CIDv0 (base58btc, multihash sha2-256 32 bytes)
+    if (!/^Qm[1-9A-HJ-NP-Za-km-z]+$/.test(cid)) {
+      throw new Error('Only CIDv0 is supported for conversion. Configure uploader to use cidVersion=0.');
+    }
+    const bytes = this.base58btcDecode(cid);
+    if (bytes.length !== 34 || bytes[0] !== 0x12 || bytes[1] !== 0x20) {
+      throw new Error('Unsupported multihash format; expected sha2-256 digest');
+    }
+    const digest = bytes.slice(2);
+    return '0x' + Array.from(digest).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  /**
+   * Convert bytes32 sha2-256 digest to CIDv0 string (Qm...).
+   */
+  public bytes32ToCid(digestHex: string): string {
+    if (!/^0x[0-9a-fA-F]{64}$/.test(digestHex)) throw new Error('Invalid bytes32 digest');
+    const hex = digestHex.replace(/^0x/, '');
+    const digest = new Uint8Array(hex.match(/.{1,2}/g)!.map(h => parseInt(h, 16)));
+    const mh = new Uint8Array(2 + digest.length);
+    mh[0] = 0x12; // sha2-256 code
+    mh[1] = 0x20; // 32 bytes
+    mh.set(digest, 2);
+    return this.base58btcEncode(mh);
+  }
+
+  // Base58 BTC alphabet
+  private readonly b58Alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+
+  private base58btcEncode(buffer: Uint8Array): string {
+    if (buffer.length === 0) return '';
+    let digits = [0];
+    for (let i = 0; i < buffer.length; i++) {
+      let carry = buffer[i];
+      for (let j = 0; j < digits.length; j++) {
+        const x = (digits[j] << 8) + carry;
+        digits[j] = x % 58;
+        carry = Math.floor(x / 58);
+      }
+      while (carry) {
+        digits.push(carry % 58);
+        carry = Math.floor(carry / 58);
+      }
+    }
+    // deal with leading zeros
+    for (let k = 0; k < buffer.length && buffer[k] === 0; k++) {
+      digits.push(0);
+    }
+    return digits.reverse().map(d => this.b58Alphabet[d]).join('');
+  }
+
+  private base58btcDecode(str: string): Uint8Array {
+    if (str.length === 0) return new Uint8Array(0);
+    const map: Record<string, number> = {};
+    for (let i = 0; i < this.b58Alphabet.length; i++) map[this.b58Alphabet[i]] = i;
+    let bytes = [0];
+    for (let i = 0; i < str.length; i++) {
+      const c = str[i];
+      const val = map[c];
+      if (val === undefined) throw new Error('Invalid base58 character');
+      let carry = val;
+      for (let j = 0; j < bytes.length; j++) {
+        const x = bytes[j] * 58 + carry;
+        bytes[j] = x & 0xff;
+        carry = x >> 8;
+      }
+      while (carry) {
+        bytes.push(carry & 0xff);
+        carry >>= 8;
+      }
+    }
+    // deal with leading ones
+    for (let k = 0; k < str.length && str[k] === '1'; k++) {
+      bytes.push(0);
+    }
+    return new Uint8Array(bytes.reverse());
   }
 
   // Methods for tax collector module

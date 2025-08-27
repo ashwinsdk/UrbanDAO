@@ -65,15 +65,14 @@ export class CitizenVerificationComponent implements OnInit {
     try {
       this.loading = true;
       
-      // Check if TX_PAYER role holders exist for gasless transactions
-      const txPayers = await this.contractService.getRoleHolders(UserRole.TX_PAYER_ROLE);
-      const useMeta = txPayers && txPayers.length > 0;
+      // Prefer meta-tx only if relayer is properly configured and funded
+      const useMeta = await (this.contractService as any).shouldUseMetaTransaction?.() || false;
       let result;
       
       if (useMeta) {
         result = await this.contractService.sendMetaTransaction(
           environment.contracts.UrbanCore,
-          'approveRoleRequest',
+          'approveCitizen',
           [this.selectedCitizen.id]
         );
       } else {
@@ -104,9 +103,8 @@ export class CitizenVerificationComponent implements OnInit {
     try {
       this.loading = true;
       
-      // Check if TX_PAYER role holders exist for gasless transactions
-      const txPayers = await this.contractService.getRoleHolders(UserRole.TX_PAYER_ROLE);
-      const useMeta = txPayers && txPayers.length > 0;
+      // Prefer meta-tx only if relayer is properly configured and funded
+      const useMeta = await (this.contractService as any).shouldUseMetaTransaction?.() || false;
       let result;
       
       if (useMeta) {

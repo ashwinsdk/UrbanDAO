@@ -1,5 +1,5 @@
 // Get private key from environment variable or use a placeholder for development
-const TX_PAYER_PRIVATE_KEY = '41d1689496949691ee014587bd26000448c4512cdc42929f11ea24106806c089';
+const TX_PAYER_PRIVATE_KEY = 'e2e7813cd14e8e7765b848d4eb48bf8257e1367ba4d896a867b9e1224a0b07fe';
 
 export const environment = {
   production: false,
@@ -34,5 +34,18 @@ export const environment = {
   // Private key for the TX_PAYER account (only for development)
   // This should be replaced with a real private key for testing
   // In production, this should be handled by a secure backend service
-  txPayerPrivateKey: TX_PAYER_PRIVATE_KEY
+  txPayerPrivateKey: TX_PAYER_PRIVATE_KEY,
+  // Optional IPFS configuration for development
+  // You can set a custom gateway list and add Authorization headers if needed.
+  // Example for Pinata JWT: set authJWT to your JWT string.
+  // Example for Basic auth (Infura IPFS): set basicAuth to base64("<projectId>:<projectSecret>").
+  ipfs: {
+    gateways: [
+      'https://gateway.pinata.cloud/ipfs',
+      'https://cloudflare-ipfs.com/ipfs',
+      'https://ipfs.io/ipfs'
+    ],
+    authJWT: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiJkYTJhNTE3Yy05MTZmLTQ1OTktYjU3MC00YmRiYmU4NzUzNjEiLCJlbWFpbCI6ImFzaHdpbjIwMDVzQGdtYWlsLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJwaW5fcG9saWN5Ijp7InJlZ2lvbnMiOlt7ImRlc2lyZWRSZXBsaWNhdGlvbkNvdW50IjoxLCJpZCI6IkZSQTEifSx7ImRlc2lyZWRSZXBsaWNhdGlvbkNvdW50IjoxLCJpZCI6Ik5ZQzEifV0sInZlcnNpb24iOjF9LCJtZmFfZW5hYmxlZCI6ZmFsc2UsInN0YXR1cyI6IkFDVElWRSJ9LCJhdXRoZW50aWNhdGlvblR5cGUiOiJzY29wZWRLZXkiLCJzY29wZWRLZXlLZXkiOiJiNTZlNzQ0MjM1NTUwNjk2YmQ2ZiIsInNjb3BlZEtleVNlY3JldCI6IjVkYTE0M2YwMzNhNDJjYzA2OTE1ZDY1YzVmOGRiOWI3MGEwODQzZmIwNTc5YWVkMzQ0NzA1OWQxM2YwYWYwY2QiLCJleHAiOjE3ODcwNjk1MDN9.Ueugd1W9LxYUPvLGI2tJUyLPWwYihfVXOvCOsob9Fx0',
+    basicAuth: ''
+  }
 };

@@ -103,6 +103,38 @@ import { UserRole } from '../../core/models/role.model';
                 <input type="hidden" formControlName="role">
               </div>
               
+              <div class="form-group">
+                <label for="areaId">Area ID</label>
+                <input
+                  type="number"
+                  id="areaId"
+                  formControlName="areaId"
+                  placeholder="Enter your area ID"
+                  min="1"
+                  [class.is-invalid]="formSubmitted && f['areaId'].errors"
+                >
+                <div *ngIf="formSubmitted && f['areaId'].errors" class="error-message">
+                  <span *ngIf="f['areaId'].errors['required']">Area ID is required</span>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="kycFile">KYC Document (PDF/Image)</label>
+                <input
+                  type="file"
+                  id="kycFile"
+                  (change)="onFileSelected($event)"
+                  accept=".pdf,image/*"
+                  [class.is-invalid]="formSubmitted && f['kycFile'].errors"
+                >
+                <div class="selected-file" *ngIf="selectedFileName">Selected: {{ selectedFileName }}</div>
+                <div *ngIf="formSubmitted && f['kycFile'].errors" class="error-message">
+                  <span *ngIf="f['kycFile'].errors['required']">KYC document is required</span>
+                  <span *ngIf="f['kycFile'].errors['invalidType']">Only PDF or image files are allowed</span>
+                  <span *ngIf="f['kycFile'].errors['maxSize']">File must be 10MB or smaller</span>
+                </div>
+              </div>
+              
               <div class="form-actions">
                 <button type="button" class="btn-secondary" (click)="cancel()">Cancel</button>
                 <button type="submit" class="btn-primary" [disabled]="isSubmitting">Register</button>
@@ -133,6 +165,7 @@ export class RegisterComponent implements OnInit {
   isSubmitting = false;
   formSubmitted = false;
   error: string | null = null;
+  selectedFileName: string | null = null;
   
   // Only citizen registration is allowed
   readonly CITIZEN_ROLE = UserRole.CITIZEN_ROLE;
@@ -154,7 +187,9 @@ export class RegisterComponent implements OnInit {
       // Always set to Citizen role
       role: [this.CITIZEN_ROLE, Validators.required],
       // Default area ID is 1 - this matches contract expectations
-      areaId: [1, Validators.required]
+      areaId: [1, Validators.required],
+      // File control will be populated via change handler
+      kycFile: [null, Validators.required]
     });
     
     // Check wallet connection
@@ -176,6 +211,41 @@ export class RegisterComponent implements OnInit {
     } catch (error: any) {
       this.error = error.message || 'Failed to connect wallet';
     }
+  }
+
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files && input.files.length > 0 ? input.files[0] : null;
+    const ctrl = this.registrationForm.get('kycFile');
+    if (!ctrl) return;
+
+    if (!file) {
+      ctrl.setValue(null);
+      this.selectedFileName = null;
+      return;
+    }
+
+    const isValidType = file.type === 'application/pdf' || file.type.startsWith('image/');
+    const isValidSize = file.size <= 10 * 1024 * 1024; // 10 MB
+
+    if (!isValidType) {
+      ctrl.setErrors({ ...(ctrl.errors || {}), invalidType: true });
+      ctrl.setValue(null);
+      this.selectedFileName = null;
+      return;
+    }
+
+    if (!isValidSize) {
+      ctrl.setErrors({ ...(ctrl.errors || {}), maxSize: true });
+      ctrl.setValue(null);
+      this.selectedFileName = null;
+      return;
+    }
+
+    ctrl.setErrors(null);
+    ctrl.setValue(file);
+    ctrl.markAsTouched();
+    this.selectedFileName = file.name;
   }
   
   async checkRegistrationStatus(): Promise<void> {
@@ -217,7 +287,8 @@ export class RegisterComponent implements OnInit {
         // Include additional form fields as metadata (not directly used by contract)
         phone: this.registrationForm.value.phone,
         physicalAddress: this.registrationForm.value.address,
-        walletAddress: this.walletAddress
+        walletAddress: this.walletAddress,
+        kycFile: this.registrationForm.value.kycFile
       };
       
       await this.authService.register(registrationData);
