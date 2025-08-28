@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { ContractService } from '../../core/services/contract.service';
 import { Web3Service } from '../../core/services/web3.service';
 import { UserRole } from '../../core/models/role.model';
 
@@ -104,17 +105,23 @@ import { UserRole } from '../../core/models/role.model';
               </div>
               
               <div class="form-group">
-                <label for="areaId">Area ID</label>
-                <input
-                  type="number"
-                  id="areaId"
-                  formControlName="areaId"
-                  placeholder="Enter your area ID"
-                  min="1"
-                  [class.is-invalid]="formSubmitted && f['areaId'].errors"
-                >
+                <label for="areaId">Area</label>
+                <ng-container *ngIf="!areasLoading; else areasLoadingTpl">
+                  <select
+                    id="areaId"
+                    formControlName="areaId"
+                    [class.is-invalid]="formSubmitted && f['areaId'].errors"
+                  >
+                    <option value="" disabled>Select an area</option>
+                    <option *ngFor="let id of areaIds" [value]="id">Area #{{ id }}</option>
+                  </select>
+                  <div *ngIf="areasError" class="hint warning">{{ areasError }}</div>
+                </ng-container>
+                <ng-template #areasLoadingTpl>
+                  <div class="hint">Loading available areas...</div>
+                </ng-template>
                 <div *ngIf="formSubmitted && f['areaId'].errors" class="error-message">
-                  <span *ngIf="f['areaId'].errors['required']">Area ID is required</span>
+                  <span *ngIf="f['areaId'].errors['required']">Area selection is required</span>
                 </div>
               </div>
 
@@ -166,6 +173,9 @@ export class RegisterComponent implements OnInit {
   formSubmitted = false;
   error: string | null = null;
   selectedFileName: string | null = null;
+  areaIds: string[] = [];
+  areasLoading = true;
+  areasError: string | null = null;
   
   // Only citizen registration is allowed
   readonly CITIZEN_ROLE = UserRole.CITIZEN_ROLE;
@@ -174,7 +184,8 @@ export class RegisterComponent implements OnInit {
     private formBuilder: FormBuilder,
     private authService: AuthService,
     private web3Service: Web3Service,
-    private router: Router
+    private router: Router,
+    private contractService: ContractService
   ) {}
 
   ngOnInit(): void {
@@ -186,12 +197,15 @@ export class RegisterComponent implements OnInit {
       address: ['', Validators.required],
       // Always set to Citizen role
       role: [this.CITIZEN_ROLE, Validators.required],
-      // Default area ID is 1 - this matches contract expectations
-      areaId: [1, Validators.required],
+      // Area must be selected from dropdown
+      areaId: ['', Validators.required],
       // File control will be populated via change handler
       kycFile: [null, Validators.required]
     });
     
+    // Load available areas ASAP
+    this.loadAvailableAreas();
+
     // Check wallet connection
     this.web3Service.account$.subscribe(address => {
       this.walletAddress = address;
@@ -201,6 +215,24 @@ export class RegisterComponent implements OnInit {
         this.checkRegistrationStatus();
       }
     });
+  }
+
+  private async loadAvailableAreas(): Promise<void> {
+    this.areasLoading = true;
+    this.areasError = null;
+    try {
+      const ids = await this.contractService.getAllAreaIds();
+      this.areaIds = (ids || []).sort((a: string, b: string) => Number(a) - Number(b));
+      // If only one area, preselect it
+      if (this.areaIds.length === 1) {
+        this.registrationForm.get('areaId')?.setValue(this.areaIds[0]);
+      }
+    } catch (e: any) {
+      console.error('Failed to load area IDs:', e);
+      this.areasError = 'Unable to load areas. Please retry.';
+    } finally {
+      this.areasLoading = false;
+    }
   }
   
   get f() { return this.registrationForm.controls; }
@@ -282,7 +314,7 @@ export class RegisterComponent implements OnInit {
       const registrationData = {
         name: this.registrationForm.value.fullName,
         email: this.registrationForm.value.email,
-        areaId: this.registrationForm.value.areaId,
+        areaId: Number(this.registrationForm.value.areaId),
         role: this.CITIZEN_ROLE,
         // Include additional form fields as metadata (not directly used by contract)
         phone: this.registrationForm.value.phone,

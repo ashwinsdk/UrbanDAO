@@ -23,7 +23,7 @@
   <div *ngIf="!loading && !error && grievance" class="grievance-content">
     <header class="grievance-header">
       <div class="title-section">
-        <h1>{{ grievance.title }}</h1>
+        <h1>{{ grievance.titleText || grievance.title }}</h1>
         <div class="header-meta">
           <div class="meta-item">
             <span class="meta-label">ID:</span>
@@ -35,7 +35,7 @@
           </div>
           <div class="meta-item">
             <span class="meta-label">Type:</span>
-            <span class="meta-value">{{ grievance.type }}</span>
+            <span class="meta-value">{{ grievance.type || '—' }}</span>
           </div>
         </div>
       </div>
@@ -48,11 +48,11 @@
       <div class="grievance-main-section">
         <div class="info-card">
           <h2>Description</h2>
-          <p class="description">{{ grievance.description }}</p>
+          <p class="description">{{ grievance.descriptionText || grievance.description }}</p>
           
           <div class="location">
             <h3>Location</h3>
-            <p>{{ grievance.location }}</p>
+            <p>{{ grievance.location || '—' }}</p>
           </div>
           
           <div *ngIf="grievance.images && grievance.images.length > 0" class="images-section">
@@ -125,13 +125,18 @@
             <p>No comments yet.</p>
           </div>
           
-          <div class="add-comment">
+          <div *ngIf="canSubmitFeedback(); else feedbackDisabled" class="add-comment">
             <textarea [(ngModel)]="newComment" placeholder="Add your comment..." rows="3"></textarea>
             <button (click)="submitComment()" class="btn-primary" [disabled]="!newComment.trim() || isSubmittingComment">
               <span class="spinner" *ngIf="isSubmittingComment"></span>
               {{ isSubmittingComment ? 'Submitting...' : 'Add Comment' }}
             </button>
           </div>
+          <ng-template #feedbackDisabled>
+            <div class="helper-text">
+              Feedback can be submitted after the grievance moves to In Project or Resolved.
+            </div>
+          </ng-template>
         </div>
       </div>
       

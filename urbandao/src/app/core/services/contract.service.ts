@@ -638,8 +638,20 @@ export class ContractService {
   }
   
   // Helper methods for currency conversion
-  public weiToEth(weiValue: string): string {
-    return ethers.formatEther(weiValue);
+  public weiToEth(weiValue: any): string {
+    try {
+      if (weiValue === null || weiValue === undefined) return '0';
+      const asStr = typeof weiValue === 'string' ? weiValue : (weiValue.toString?.() ?? String(weiValue));
+      // If the string looks like a decimal (already in ether), just return it
+      if (typeof asStr === 'string' && asStr.includes('.')) {
+        return asStr;
+      }
+      // Otherwise treat as a wei BigNumberish and format
+      return ethers.formatEther(weiValue);
+    } catch (e) {
+      // Last resort: return string representation to avoid UI crash
+      try { return weiValue?.toString?.() ?? '0'; } catch { return '0'; }
+    }
   }
   
   // Convert role enum to bytes32 format for contract calls
@@ -765,37 +777,28 @@ export class ContractService {
       if (!this.urbanCoreContract) await this.initContracts();
       if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
       
-      // Get citizens from the contract using the area ID
-      const citizenAddresses = await this.urbanCoreContract['getAreaCitizens'](areaId);
+      // UrbanCore does not expose getAreaCitizens. Derive by scanning CitizenApproved events
+      const provider = this.web3Service.getProvider();
+      if (!provider) throw new Error('No provider available');
+      const latestBlock = await provider.getBlockNumber();
+      const filter = this.urbanCoreContract.filters['CitizenApproved']();
+      const logs = await this.urbanCoreContract.queryFilter(filter, 0, latestBlock);
       
-      // Process each citizen address to get additional metadata
       const citizens: any[] = [];
-      
-      for (const address of citizenAddresses) {
-        // Skip invalid addresses
-        if (!address || address === '0x0000000000000000000000000000000000000000') continue;
-        
+      for (const log of logs) {
+        const anyLog = log as any;
+        const addr: string = anyLog?.args?.citizen ?? anyLog?.args?.account ?? '';
+        if (!addr) continue;
         try {
-          // Get citizen metadata if available
-          const metadata = await this.getAddressMetadata(address);
-          const registrationTime = await this.urbanCoreContract['getCitizenRegistrationTime'](address);
-          
-          citizens.push({
-            address,
-            name: metadata?.name || 'Unknown',
-            registrationDate: registrationTime ? new Date(Number(registrationTime) * 1000) : new Date(),
-            metadata
-          });
+          const metadata = await this.getAddressMetadata(addr);
+          const metaAreaId = metadata?.areaId?.toString?.() ?? metadata?.area?.toString?.() ?? null;
+          if (!metaAreaId || String(metaAreaId) !== String(areaId)) continue;
+          citizens.push({ address: addr, name: metadata?.name || 'Unknown', registrationDate: null, metadata });
         } catch (e) {
-          console.warn(`Error fetching metadata for address ${address}:`, e);
-          citizens.push({
-            address,
-            name: 'Unknown',
-            registrationDate: new Date()
-          });
+          // If metadata unavailable, skip as we cannot attribute area
+          continue;
         }
       }
-      
       return citizens;
     } catch (error) {
       console.error('Error getting citizens by area:', error);
@@ -861,9 +864,10 @@ export class ContractService {
       if (!this.taxModuleContract) await this.initContracts();
       if (!this.taxModuleContract) throw new Error('Tax Module contract not initialized');
       
-      // Get total tax collected from the contract
-      const totalTax = await this.taxModuleContract['getTotalTaxCollected']();
-      return ethers.formatEther(totalTax); // Format to ETH units
+      // TaxModule does not expose getTotalTaxCollected(); it has getTotalCollected(uint256 year)
+      const currentYear = new Date().getFullYear();
+      const totalTax = await this.taxModuleContract['getTotalCollected'](currentYear);
+      return ethers.formatEther(totalTax);
     } catch (error) {
       console.error('Error getting total tax collected:', error);
       return '0';
@@ -886,9 +890,9 @@ export class ContractService {
       }
       
       const events: any[] = [];
-      // Access the underlying ethers.js provider from the contract
-      // Cast to any to bypass TypeScript constraints
-      const provider = (this.urbanCoreContract as any).provider;
+      // Use provider from Web3Service (contract.provider may be undefined in ethers v6)
+      const provider = this.web3Service.getProvider();
+      if (!provider) throw new Error('No provider available');
       
       // Get latest block number
       const latestBlock = await provider.getBlockNumber();
@@ -907,25 +911,23 @@ export class ContractService {
       
       // UrbanCore events
       try {
-        // Area events
-        const areaFilter = this.urbanCoreContract.filters['AreaCreated']();
-        const areaLogs = await this.urbanCoreContract.queryFilter(areaFilter, fromBlock);
-        
-        for (const log of areaLogs) {
-          // Cast to any to access event args
+        // Area head assignments (UrbanCore doesn't have AreaCreated)
+        const headFilter = this.urbanCoreContract.filters['AreaHeadAssigned']();
+        const headLogs = await this.urbanCoreContract.queryFilter(headFilter, fromBlock);
+        for (const log of headLogs) {
           const logAny = log as any;
           const args = logAny.args || {};
           const timestamp = await getBlockTimestamp(logAny.blockNumber);
           events.push({
-            id: `area-${logAny.transactionHash}-${logAny.logIndex}`,
-            eventType: 'AreaCreated',
-            address: args.creator || '',
-            timestamp: timestamp,
+            id: `areahead-${logAny.transactionHash}-${logAny.logIndex}`,
+            eventType: 'AreaHeadAssigned',
+            address: args.head || '',
+            timestamp,
             data: {
               areaId: args.areaId?.toString() || '',
-              name: args.name || ''
+              head: args.head || ''
             },
-            description: `Area "${args.name || ''}" (#${args.areaId?.toString() || ''}) created`
+            description: `Area #${args.areaId?.toString() || ''} head set to ${this.formatAddress(args.head || '')}`
           });
         }
         
@@ -1041,10 +1043,11 @@ export class ContractService {
       if (!this.urbanCoreContract) await this.initContracts();
       if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
       
-      // Access provider and define a reasonable lookback window
-      const provider = (this.urbanCoreContract as any).provider;
+      // Access provider and scan from genesis to latest for correctness
+      const provider = this.web3Service.getProvider();
+      if (!provider) throw new Error('No provider available');
       const latestBlock = await provider.getBlockNumber();
-      const fromBlock = Math.max(0, latestBlock - 5000);
+      const fromBlock = 0;
       
       // Query AreaHeadAssigned events to infer existing area IDs
       const filter = this.urbanCoreContract.filters['AreaHeadAssigned']();
@@ -1053,16 +1056,48 @@ export class ContractService {
       const uniqueIds = new Set<string>();
       for (const log of logs) {
         const logAny = log as any;
-        const args = logAny.args || {};
-        const areaId = args.areaId;
-        if (areaId !== undefined && areaId !== null) {
-          uniqueIds.add(areaId.toString());
+        if (logAny?.args && logAny.args.areaId !== undefined) {
+          uniqueIds.add(String(logAny.args.areaId));
         }
       }
       
       return Array.from(uniqueIds);
     } catch (error) {
       console.error('Error getting all area IDs:', error);
+      return [];
+    }
+  }
+
+  public async getCurrentAreaHeads(): Promise<{ areaId: string; head: string }[]> {
+    try {
+      if (!this.urbanCoreContract) await this.initContracts();
+      if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
+
+      const provider = this.web3Service.getProvider();
+      if (!provider) throw new Error('No provider available');
+
+      // Query all AreaHeadAssigned logs from genesis to latest for correctness
+      const filter = this.urbanCoreContract.filters['AreaHeadAssigned']();
+      const logs = await this.urbanCoreContract.queryFilter(filter, 0, await provider.getBlockNumber());
+
+      // Track latest (blockNumber, logIndex) per areaId
+      const latestMap = new Map<string, { head: string; blockNumber: number; logIndex: number }>();
+      for (const log of logs) {
+        const anyLog = log as any;
+        const areaId = String(anyLog?.args?.areaId ?? '');
+        const head = String(anyLog?.args?.adminHead ?? anyLog?.args?.head ?? '');
+        if (!areaId) continue;
+        const bn = Number((log as any).blockNumber ?? 0);
+        const li = Number((log as any).logIndex ?? 0);
+        const prev = latestMap.get(areaId);
+        if (!prev || bn > prev.blockNumber || (bn === prev.blockNumber && li > prev.logIndex)) {
+          latestMap.set(areaId, { head, blockNumber: bn, logIndex: li });
+        }
+      }
+
+      return Array.from(latestMap.entries()).map(([areaId, v]) => ({ areaId, head: v.head }));
+    } catch (error) {
+      console.error('Error getting current area heads:', error);
       return [];
     }
   }
@@ -1077,15 +1112,43 @@ export class ContractService {
     }
   }
   
-  // Create a new area
-  public async createArea(areaName: string): Promise<string | null> {
+  // Create a new area by assigning an initial area head (no name stored on-chain)
+  // We derive a deterministic areaId from the provided areaName for UX convenience
+  // Returns a TransactionResponse-like object supporting wait()
+  public async createArea(areaName: string): Promise<{ hash: string; wait: () => Promise<{ hash: string }> } | null> {
     try {
       if (!this.urbanCoreContract) await this.initContracts();
       if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
       
-      // Mock implementation
-      console.log(`Creating area ${areaName}`);
-      return 'mock-transaction-hash';
+      if (!areaName || !areaName.trim()) throw new Error('Area name is required');
+
+      // Derive a pseudo areaId from name (keccak256 -> uint -> clamp)
+      const nameBytes = ethers.toUtf8Bytes(areaName.trim());
+      const nameHash = ethers.keccak256(nameBytes);
+      // Take lower 24 bits to keep IDs manageable (0 .. ~16M)
+      const areaId = Number(BigInt(nameHash) & BigInt(0xFFFFFFn));
+      if (areaId === 0) throw new Error('Invalid derived areaId');
+
+      // Use current account as initial Admin Head for this area
+      const account = this.web3Service.getAccount();
+      if (!account) throw new Error('No connected account');
+
+      const useMeta = await this.shouldUseMetaTransaction();
+      if (useMeta) {
+        const txHash = await this.sendMetaTransaction(
+          environment.contracts.UrbanCore,
+          'assignAreaHead',
+          [areaId, account]
+        );
+        if (!txHash) throw new Error('Meta-transaction failed to submit');
+        const hash: string = txHash!;
+        // Return shim with wait() to align with component expectations
+        return { hash, wait: async () => ({ hash }) };
+      } else {
+        const tx = await this.urbanCoreContract['assignAreaHead'](areaId, account);
+        // Wrap to a consistent shape
+        return { hash: tx.hash, wait: async () => await tx.wait() };
+      }
     } catch (error) {
       console.error('Error creating area:', error);
       return null;
@@ -1945,27 +2008,41 @@ export class ContractService {
       if (!this.urbanCoreContract) await this.initContracts();
       if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
       
-      const area = await this.urbanCoreContract['getArea'](areaId);
-      return {
-        id: areaId,
-        name: area.name,
-        adminHead: area.adminHead,
-        citizenCount: area.citizenCount.toString(),
-        metadata: area.metadata
-      };
+      const numericAreaId = typeof areaId === 'string' ? Number(areaId) : (areaId as any);
+      // UrbanCore ABI exposes getAreaHead(areaId) and not getArea()
+      const adminHead = await this.urbanCoreContract['getAreaHead'](numericAreaId);
+      // Optionally derive citizen count via helper (best-effort)
+      let citizenCount = 0;
+      try { citizenCount = await this.getAreaCitizenCount(String(numericAreaId)); } catch {}
+      return { id: String(numericAreaId), adminHead, citizenCount };
     } catch (error) {
       console.error(`Error getting area details for area ${areaId}:`, error);
       return {};
     }
   }
 
-  public async assignAreaAdminHead(areaId: string, adminHeadAddress: string): Promise<any> {
+  // Returns a TransactionResponse-like object supporting wait() for both meta and direct flows
+  public async assignAreaAdminHead(areaId: string, adminHeadAddress: string): Promise<{ hash: string; wait: () => Promise<any> }> {
     try {
       if (!this.urbanCoreContract) await this.initContracts();
       if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
-      
-      const tx = await this.urbanCoreContract['assignAreaAdminHead'](areaId, adminHeadAddress);
-      return tx;
+
+      const numericAreaId = typeof areaId === 'string' ? Number(areaId) : (areaId as any);
+      const useMeta = await this.shouldUseMetaTransaction();
+      if (useMeta) {
+        const txHash = await this.sendMetaTransaction(
+          environment.contracts.UrbanCore,
+          'assignAreaHead',
+          [numericAreaId, adminHeadAddress]
+        );
+        if (!txHash) throw new Error('Meta-transaction failed to submit');
+        const hash: string = txHash!;
+        return { hash, wait: async () => ({ hash }) };
+      } else {
+        const tx = await this.urbanCoreContract['assignAreaHead'](numericAreaId, adminHeadAddress);
+        // Return TransactionResponse so caller can call tx.wait()
+        return { hash: tx.hash, wait: async () => await tx.wait() };
+      }
     } catch (error) {
       console.error(`Error assigning admin head to area ${areaId}:`, error);
       throw error;
@@ -2331,14 +2408,27 @@ export class ContractService {
       const cidOrPath = this.extractCidOrPath(ipfsUri);
       if (!cidOrPath) throw new Error(`Unrecognized IPFS URI: ${ipfsUri}`);
 
+      // Overall time budget per call (ms) to avoid long page stalls
+      const overallBudgetMs = 5000;
+      const deadline = Date.now() + overallBudgetMs;
+
       let lastErr: any = null;
       for (const gw of gateways) {
         const url = `${gw.baseUrl.replace(/\/$/, '')}/${cidOrPath}`;
         try {
-          const res = await fetch(url, { headers: gw.headers });
+          // Stop early if overall budget exceeded
+          if (Date.now() > deadline) throw new Error('IPFS overall timeout exceeded');
+          const res = await this.fetchWithTimeout(url, { headers: gw.headers }, 3000);
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const json = await res.json();
-          return json;
+          try {
+            // Try JSON first
+            const json = await res.clone().json();
+            return json;
+          } catch {
+            // Some gateways mislabel content-type. Try text->JSON parse
+            const text = await res.text();
+            try { return JSON.parse(text); } catch { throw new Error('Invalid JSON content'); }
+          }
         } catch (e) {
           lastErr = e;
           console.warn(`IPFS JSON fetch failed via ${url}:`, e);
@@ -2515,7 +2605,7 @@ export class ContractService {
         for (let j = i; j < i + batchSize && j <= maxToCheck; j++) {
           promises.push(
             this.grievanceHubContract['getGrievance'](j)
-              .then(grievance => ({ id: j, ...grievance }))
+              .then(grievance => ({ id: j, data: grievance }))
               .catch(() => null)
           );
         }
@@ -2523,34 +2613,66 @@ export class ContractService {
         const grievanceBatch = await Promise.all(promises);
         
         for (const grievance of grievanceBatch) {
-          // Check if grievance exists and has status 'Pending' (status code 0)
-          if (grievance && grievance.status === 0) {
+          if (grievance && grievance.data && grievance.data.status === 0) {
+            const g = grievance.data;
             // Get citizen metadata if available
             let citizenName = '';
             try {
-              const metadata = await this.getAddressMetadata(grievance.citizen);
+              const metadata = await this.getAddressMetadata(g.citizen);
               if (metadata && metadata.name) {
                 citizenName = metadata.name;
               }
             } catch (error) {
-              console.warn(`Could not get metadata for citizen ${grievance.citizen}`, error);
+              console.warn(`Could not get metadata for citizen ${g.citizen}`, error);
             }
-            
-            // Parse grievance data from contract
-            const parsedGrievance = {
+
+            // Resolve title/body from IPFS
+            const titleCid = g.titleHash ? String(g.titleHash) : '';
+            const bodyCid = g.bodyHash ? String(g.bodyHash) : '';
+            let titleText = '';
+            let descriptionText = '';
+            let inferredType = '';
+            let inferredLocation = '';
+
+            try {
+              if (titleCid) {
+                const raw = await this.getIPFSContent(titleCid);
+                try {
+                  const j = JSON.parse(raw);
+                  titleText = j?.title || j?.text || raw;
+                } catch {
+                  titleText = raw || titleCid;
+                }
+              }
+            } catch { titleText = titleCid; }
+
+            try {
+              if (bodyCid) {
+                const raw = await this.getIPFSContent(bodyCid);
+                try {
+                  const j = JSON.parse(raw);
+                  descriptionText = j?.description || j?.text || raw;
+                  inferredType = j?.type || j?.category || '';
+                  inferredLocation = j?.location || j?.address || '';
+                } catch {
+                  descriptionText = raw || bodyCid;
+                }
+              }
+            } catch { descriptionText = bodyCid; }
+
+            const createdAtSec = Number(g.createdAt ?? 0);
+            pendingGrievances.push({
               id: grievance.id.toString(),
-              title: grievance.title || '',
-              description: grievance.description || '',
-              location: grievance.location || '',
-              type: this.resolveGrievanceType(grievance.grievanceType || 0),
-              timestamp: grievance.timestamp ? Number(grievance.timestamp) : Date.now() / 1000,
-              citizenAddress: grievance.citizen,
+              title: titleText || titleCid,
+              description: descriptionText || bodyCid,
+              location: inferredLocation,
+              type: inferredType,
+              timestamp: createdAtSec,
+              citizenAddress: g.citizen,
               citizenName,
-              urgent: grievance.urgent || false,
-              imageUrls: grievance.documents ? this.parseDocumentUrls(grievance.documents) : []
-            };
-            
-            pendingGrievances.push(parsedGrievance);
+              urgent: false,
+              imageUrls: []
+            });
             
             if (limit && pendingGrievances.length >= limit) {
               break;
@@ -2591,12 +2713,58 @@ export class ContractService {
       // Map according to current ABI shape (see GrievanceHub.getGrievance)
       // Return numeric Unix seconds so components can convert to Date correctly
       const createdAtSec = Number(grievance.createdAt ?? grievance.timestamp ?? 0);
+
+      // Resolve IPFS content for title/body if possible
+      const titleCid = grievance.titleHash ? String(grievance.titleHash) : '';
+      const bodyCid = grievance.bodyHash ? String(grievance.bodyHash) : '';
+
+      let titleText = '';
+      let descriptionText = '';
+      let inferredType = '';
+      let inferredLocation = '';
+
+      try {
+        if (titleCid) {
+          const titleRaw = await this.getIPFSContent(titleCid);
+          try {
+            const titleJson = JSON.parse(titleRaw);
+            titleText = titleJson?.title || titleJson?.text || titleRaw;
+          } catch {
+            titleText = titleRaw || titleCid;
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to resolve title from IPFS', e);
+        titleText = titleCid;
+      }
+
+      try {
+        if (bodyCid) {
+          const bodyRaw = await this.getIPFSContent(bodyCid);
+          try {
+            const bodyJson = JSON.parse(bodyRaw);
+            descriptionText = bodyJson?.description || bodyJson?.text || bodyRaw;
+            inferredType = bodyJson?.type || bodyJson?.category || '';
+            inferredLocation = bodyJson?.location || bodyJson?.address || '';
+          } catch {
+            descriptionText = bodyRaw || bodyCid;
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to resolve body from IPFS', e);
+        descriptionText = bodyCid;
+      }
+
       return {
         id: grievanceId,
-        title: grievance.titleHash ?? '',
-        description: grievance.bodyHash ?? '',
-        location: '',
-        grievanceType: '',
+        // Keep original CIDs for reference
+        title: titleCid,
+        description: bodyCid,
+        // Resolved content for UI
+        titleText,
+        descriptionText,
+        location: inferredLocation,
+        grievanceType: inferredType,
         timestamp: createdAtSec,
         lastUpdated: createdAtSec,
         citizenAddress: grievance.citizen,
@@ -2930,10 +3098,14 @@ export class ContractService {
       const cidOrPath = this.extractCidOrPath(ipfsRef);
       if (!cidOrPath) return '';
 
+      const overallBudgetMs = 5000;
+      const deadline = Date.now() + overallBudgetMs;
+
       for (const gw of gateways) {
         const url = `${gw.baseUrl.replace(/\/$/, '')}/${cidOrPath}`;
         try {
-          const res = await fetch(url, { headers: gw.headers });
+          if (Date.now() > deadline) break;
+          const res = await this.fetchWithTimeout(url, { headers: gw.headers }, 3000);
           if (!res.ok) continue;
           return await res.text();
         } catch {
@@ -2963,9 +3135,10 @@ export class ContractService {
     const gateways: string[] = cfg.gateways && Array.isArray(cfg.gateways) && cfg.gateways.length
       ? cfg.gateways
       : [
-          'https://gateway.pinata.cloud/ipfs',
-          'https://cloudflare-ipfs.com/ipfs',
-          'https://ipfs.io/ipfs'
+          // Keep a lean default list to avoid long retries; env can override
+          'https://ipfs.io/ipfs',
+          'https://dweb.link/ipfs',
+          'https://gateway.pinata.cloud/ipfs'
         ];
 
     // Optional allowlist for which gateways should receive Authorization headers when fetching
@@ -2990,6 +3163,27 @@ export class ContractService {
       baseUrl,
       headers: shouldAttachAuth(baseUrl) ? authHeader : undefined
     }));
+  }
+
+  /**
+   * Fetch with timeout helper to avoid long hangs on failing gateways
+   */
+  private async fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit, timeoutMs: number = 10000): Promise<Response> {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      return await fetch(input, { ...(init || {}), signal: controller.signal });
+    } finally {
+      clearTimeout(id);
+    }
+  }
+
+  // Direct call helper: get current head for an area via UrbanCore view
+  public async getAreaHead(areaId: string | number): Promise<string> {
+    if (!this.urbanCoreContract) await this.initContracts();
+    if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
+    const idNum = typeof areaId === 'string' ? Number(areaId) : areaId;
+    return await this.urbanCoreContract['getAreaHead'](idNum);
   }
 
   /**

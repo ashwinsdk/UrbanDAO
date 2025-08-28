@@ -7,8 +7,10 @@ import { AuthService } from '../../../../core/services/auth.service';
 
 interface GrievanceDetail {
   id: string;
-  title: string;
-  description: string;
+  title: string; // CID
+  titleText?: string; // Resolved text
+  description: string; // CID
+  descriptionText?: string; // Resolved text
   status: 'pending' | 'validated' | 'assigned' | 'resolved' | 'rejected';
   createdAt: Date;
   lastUpdated: Date;
@@ -90,7 +92,9 @@ export class GrievanceDetailComponent implements OnInit {
         this.grievance = {
           id: grievanceData.id,
           title: grievanceData.title,
+          titleText: grievanceData.titleText,
           description: grievanceData.description,
+          descriptionText: grievanceData.descriptionText,
           status: this.mapContractStatusToUI(grievanceData.status),
           createdAt: new Date(grievanceData.timestamp * 1000),
           lastUpdated: new Date(grievanceData.lastUpdated * 1000),
@@ -224,5 +228,10 @@ export class GrievanceDetailComponent implements OnInit {
   // Add null checks to avoid template errors
   isGrievanceResolved(): boolean {
     return this.grievance?.status === 'resolved';
+  }
+
+  // Only allow feedback when the grievance is resolved (aligns with contract semantics)
+  canSubmitFeedback(): boolean {
+    return !!this.grievance && (this.grievance.status === 'resolved' || this.grievance.status === 'assigned');
   }
 }
