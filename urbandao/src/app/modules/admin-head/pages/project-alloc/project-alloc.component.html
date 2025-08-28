@@ -7,35 +7,35 @@
   </div>
 
   <!-- Loading State -->
-  <div *ngIf="loading" class="loading-container">
+  <div *ngIf="loading" class="loading-container glass-card">
     <div class="spinner"></div>
     <p>Loading project data...</p>
   </div>
 
   <!-- Error State -->
-  <div *ngIf="!loading && error" class="error-container">
+  <div *ngIf="!loading && error" class="error-container glass-card">
     <div class="error-icon">
       <i class="fas fa-exclamation-triangle"></i>
     </div>
-    <h2>Error</h2>
+    <h2 class="gradient-text">Error</h2>
     <p>{{ error }}</p>
-    <button class="primary-btn" (click)="loadAdminData()">Try Again</button>
+    <button class="primary-btn gradient-btn" (click)="loadAdminData()">Try Again</button>
   </div>
 
   <!-- Project Management View -->
   <ng-container *ngIf="!loading && !error && !selectedProject">
     <div class="projects-view">
       <header class="list-header">
-        <h1>Project Management</h1>
+        <h1 class="gradient-text">Project Management</h1>
         <div class="header-actions">
-          <button class="create-btn" (click)="showCreateProjectForm()">
+          <button class="create-btn gradient-btn" (click)="showCreateProjectForm()">
             <i class="fas fa-plus"></i> Create Project
           </button>
         </div>
       </header>
 
       <!-- Success Message -->
-      <div *ngIf="success" class="success-message">
+      <div *ngIf="success" class="success-message glass-card">
         <i class="fas fa-check-circle"></i>
         <p>{{ success }}</p>
         <button class="close-btn" (click)="success = null">
@@ -45,9 +45,9 @@
 
       <!-- Project Form -->
       <div *ngIf="projectForm.dirty" class="project-form-container">
-        <div class="form-card">
+        <div class="form-card glass-card">
           <div class="card-header">
-            <h2>Create New Project</h2>
+            <h2 class="gradient-text">Create New Project</h2>
             <button class="close-btn" (click)="projectForm.reset(); projectForm.markAsPristine()">
               <i class="fas fa-times"></i>
             </button>
@@ -170,7 +170,7 @@
                 </button>
                 <button
                   type="submit"
-                  class="primary-btn"
+                  class="primary-btn gradient-btn"
                   [disabled]="projectForm.invalid || loadingAction"
                 >
                   <span *ngIf="!loadingAction">Create Project</span>
@@ -208,15 +208,15 @@
         </div>
 
         <!-- Empty State -->
-        <div *ngIf="filteredProjects.length === 0" class="empty-state">
+        <div *ngIf="filteredProjects.length === 0" class="empty-state glass-card">
           <i class="fas fa-clipboard-list"></i>
           <p>No projects found matching your criteria</p>
-          <button class="primary-btn" (click)="showCreateProjectForm()">Create First Project</button>
+          <button class="primary-btn gradient-btn" (click)="showCreateProjectForm()">Create First Project</button>
         </div>
 
         <!-- Project Grid -->
         <div *ngIf="filteredProjects.length > 0" class="project-grid">
-          <div *ngFor="let project of filteredProjects" class="project-card" (click)="showProjectDetails(project)">
+          <div *ngFor="let project of filteredProjects" class="project-card glass-card" (click)="showProjectDetails(project)">
             <div class="card-header">
               <div class="project-id">#{{ project.id }}</div>
               <div class="project-status" [ngClass]="project.status.toLowerCase()">
@@ -248,16 +248,16 @@
   <ng-container *ngIf="!loading && !error && selectedProject">
     <div class="project-detail-view">
       <header class="detail-header">
-        <h1>
+        <h1 class="gradient-text">
           Project #{{ selectedProject?.id || '' }}
           <span class="status-badge" [ngClass]="selectedProject?.status?.toLowerCase() || ''">{{ selectedProject?.status || '' }}</span>
         </h1>
       </header>
 
       <div class="detail-section">
-        <div class="detail-card">
+        <div class="detail-card glass-card">
           <div class="card-header">
-            <h2>{{ selectedProject?.title || 'Project Details' }}</h2>
+            <h2 class="gradient-text">{{ selectedProject?.title || 'Project Details' }}</h2>
             <button class="close-btn" (click)="closeDetails()">
               <i class="fas fa-times"></i>
             </button>

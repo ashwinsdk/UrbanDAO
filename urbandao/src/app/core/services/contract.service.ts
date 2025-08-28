@@ -2416,11 +2416,21 @@ export class ContractService {
         }
       } catch {}
 
+      // Extract areaId if present in metadata JSON
+      let areaIdFromMeta: string | null = null;
+      try {
+        const raw = (metadataJson && typeof metadataJson === 'object') ? (metadataJson as any).areaId : null;
+        if (raw !== undefined && raw !== null) {
+          areaIdFromMeta = raw.toString();
+        }
+      } catch {}
+
       return {
         name,
         documentHash,
         metadataUri: ipfsUri,
-        timestamp: Number(req.requestedAt) || 0
+        timestamp: Number(req.requestedAt) || 0,
+        areaId: areaIdFromMeta
       };
     } catch (error) {
       console.error(`Error getting metadata for address ${address}:`, error);
@@ -2578,23 +2588,30 @@ export class ContractService {
         console.warn(`Could not get metadata for citizen ${grievance.citizen}`, error);
       }
       
-      // Parse grievance data from contract
+      // Map according to current ABI shape (see GrievanceHub.getGrievance)
+      // Return numeric Unix seconds so components can convert to Date correctly
+      const createdAtSec = Number(grievance.createdAt ?? grievance.timestamp ?? 0);
       return {
         id: grievanceId,
-        title: grievance.title || '',
-        description: grievance.description || '',
-        location: grievance.location || '',
-        type: this.resolveGrievanceType(grievance.grievanceType || 0),
-        timestamp: grievance.timestamp ? new Date(Number(grievance.timestamp) * 1000) : new Date(),
+        title: grievance.titleHash ?? '',
+        description: grievance.bodyHash ?? '',
+        location: '',
+        grievanceType: '',
+        timestamp: createdAtSec,
+        lastUpdated: createdAtSec,
         citizenAddress: grievance.citizen,
         citizenName,
         validatorAddress: grievance.validator,
-        status: this.resolveGrievanceStatus(grievance.status),
-        urgent: grievance.urgent || false,
-        imageUrls: grievance.documents ? this.parseDocumentUrls(grievance.documents) : [],
-        comments: grievance.comments || '',
-        resolutionDetails: grievance.resolutionDetails || '',
-        resolutionTimestamp: grievance.resolutionTimestamp ? new Date(Number(grievance.resolutionTimestamp) * 1000) : null
+        status: grievance.status,
+        urgent: false,
+        images: [],
+        comments: [],
+        resolutionDetails: '',
+        resolvedAt: null,
+        assignedTo: grievance.headReviewer && grievance.headReviewer !== ethers.ZeroAddress
+          ? grievance.headReviewer
+          : grievance.validator || ethers.ZeroAddress,
+        resolvedBy: null
       };
     } catch (error) {
       console.error(`Error getting grievance with ID ${grievanceId}:`, error);
@@ -2835,19 +2852,26 @@ export class ContractService {
       if (!this.grievanceHubContract) await this.initContracts();
       if (!this.grievanceHubContract) throw new Error('Grievance Hub contract not initialized');
       
+      // Upload the comment to IPFS and convert CID to bytes32 digest expected by contract
+      const ipfsUri = await this.uploadToIpfs({ kind: 'grievance_comment', text: comment, createdAt: Date.now() });
+      const feedbackDigest = this.cidToBytes32(ipfsUri);
+
+      // Ensure grievanceId is BigInt for contract call
+      const grievanceIdBN = ethers.toBigInt(grievanceId);
+
       // Check if we should use meta-transactions
       const useMeta = await this.shouldUseMetaTransaction();
       
       if (useMeta) {
-        // Use meta transaction
+        // Use meta transaction with correct method name per ABI
         return await this.sendMetaTransaction(
           environment.contracts.GrievanceHub,
-          'addComment',
-          [grievanceId, comment]
+          'submitFeedback',
+          [grievanceIdBN, feedbackDigest, false]
         );
       } else {
         // Direct transaction
-        const tx = await this.grievanceHubContract['addComment'](grievanceId, comment);
+        const tx = await this.grievanceHubContract['submitFeedback'](grievanceIdBN, feedbackDigest, false);
         const receipt = await tx.wait();
         return receipt.hash;
       }
@@ -3148,75 +3172,90 @@ export class ContractService {
     }
   }
 
-  // Implementation of missing methods for citizen module
-  public async getUserGrievances(userAddress: string | null): Promise<any[]> {
+ // Implementation of missing methods for citizen module
+ public async getUserGrievances(userAddress: string | null): Promise<any[]> {
+  try {
+    if (!userAddress) return [];
+    if (!this.grievanceHubContract) await this.initContracts();
+    if (!this.grievanceHubContract) throw new Error('Grievance Hub contract not initialized');
+    
+    // Get all grievance IDs for the citizen
+    const grievanceIds: bigint[] = await this.grievanceHubContract!['getCitizenGrievances'](userAddress);
+    
+    // Fetch grievances for each ID
+    const grievances = await Promise.all(
+      grievanceIds.map(async (idBigInt: bigint) => {
+        const id = Number(idBigInt); // Convert BigInt to number for ID (safe as IDs are incremental)
+        const grievance = await this.grievanceHubContract!['getGrievance'](id);
+        
+        // Parse the Grievance struct
+        const citizen: string = grievance[1];
+        const areaId: bigint = grievance[2];
+        const titleHash: string = grievance[3];
+        const bodyHash: string = grievance[4];
+        const createdAt: bigint = grievance[5];
+        const status: number = Number(grievance[6]); // Enum as number
+        const validator: string = grievance[7];
+        const headReviewer: string = grievance[8];
+        const disputeCount: number = Number(grievance[9]);
+        const linkedProjectId: bigint = grievance[10];
+        
+        // Adapt to expected format (use hashes for title/description, no lastUpdated so use createdAt, assignedTo as validator or headReviewer if set, no resolvedBy/resolvedAt/images)
+        return {
+          id: id.toString(),
+          title: titleHash, // IPFS hash proxy for title
+          description: bodyHash, // IPFS hash proxy for description
+          status: status, // 0=Pending, etc.
+          timestamp: Number(createdAt),
+          lastUpdated: Number(createdAt), // Use createdAt as proxy, or fetch from feedback if needed
+          assignedTo: headReviewer !== ethers.ZeroAddress ? headReviewer : validator,
+          resolvedBy: null, // Not available
+          resolvedAt: null, // Not available
+          images: [] // Not available, empty array
+        };
+      })
+    );
+    
+    return grievances;
+  } catch (error: any) {
+    console.error(`Error getting user grievances for ${userAddress}:`, error);
+    return [];
+  }
+}
+  
+  public async submitGrievance(grievanceData: {
+    areaId: number | string;
+    titleIpfsHash: string; // ipfs://CIDv0 or Qm...
+    bodyIpfsHash: string;  // ipfs://CIDv0 or Qm...
+  }): Promise<boolean> {
     try {
-      if (!userAddress) return [];
       if (!this.grievanceHubContract) await this.initContracts();
       if (!this.grievanceHubContract) throw new Error('Grievance Hub contract not initialized');
       
-      // Mock implementation - to be replaced with actual contract call
-      return [
-        {
-          id: '1',
-          title: 'Road pothole on Main Street',
-          description: 'Large pothole causing traffic hazards',
-          status: 0, // 0=pending, 1=validated, 2=assigned, 3=resolved, 4=rejected
-          timestamp: Math.floor(Date.now() / 1000) - 86400 * 5, // 5 days ago
-          lastUpdated: Math.floor(Date.now() / 1000) - 86400 * 2, // 2 days ago
-          assignedTo: '0x0000000000000000000000000000000000000000',
-          resolvedBy: null,
-          resolvedAt: null,
-          images: ['ipfs://QmHash1', 'ipfs://QmHash2']
-        },
-        {
-          id: '2',
-          title: 'Broken streetlight on Oak Avenue',
-          description: 'Streetlight non-functional for 2 weeks causing safety concerns',
-          status: 2, // assigned
-          timestamp: Math.floor(Date.now() / 1000) - 86400 * 10, // 10 days ago
-          lastUpdated: Math.floor(Date.now() / 1000) - 86400 * 1, // 1 day ago
-          assignedTo: '0x1234567890123456789012345678901234567890',
-          resolvedBy: null,
-          resolvedAt: null,
-          images: ['ipfs://QmHash3']
-        }
-      ];
-    } catch (error: any) {
-      console.error(`Error getting user grievances for ${userAddress}:`, error);
-      return [];
-    }
-  }
-  
-  public async submitGrievance(grievanceData: any): Promise<boolean> {
-    try {
-      if (!this.grievanceHubContract) await this.initContracts();
-      if (!this.grievanceHubContract) throw new Error('Grievance Hub contract not initialized');
+      // Normalize inputs
+      const areaIdNum = typeof grievanceData.areaId === 'string'
+        ? parseInt(grievanceData.areaId, 10)
+        : grievanceData.areaId;
+      if (!Number.isFinite(areaIdNum) || areaIdNum <= 0) {
+        throw new Error('Invalid areaId for grievance');
+      }
+      
+      // Convert IPFS CIDs to bytes32 digests expected by contract
+      const titleDigest = this.cidToBytes32(grievanceData.titleIpfsHash);
+      const bodyDigest = this.cidToBytes32(grievanceData.bodyIpfsHash);
       
       // Check if we should use meta-transactions
       const useMeta = await this.shouldUseMetaTransaction();
       
       if (useMeta) {
-        // Use meta transaction
         const hash = await this.sendMetaTransaction(
           environment.contracts.GrievanceHub,
-          'submitGrievance',
-          [
-            grievanceData.title,
-            grievanceData.description,
-            grievanceData.location || '',
-            grievanceData.images || []
-          ]
+          'fileGrievance',
+          [areaIdNum, titleDigest, bodyDigest]
         );
         return !!hash;
       } else {
-        // Direct transaction
-        const tx = await this.grievanceHubContract['submitGrievance'](
-          grievanceData.title,
-          grievanceData.description,
-          grievanceData.location || '',
-          grievanceData.images || []
-        );
+        const tx = await this.grievanceHubContract['fileGrievance'](areaIdNum, titleDigest, bodyDigest);
         await tx.wait();
         return true;
       }
@@ -3301,40 +3340,40 @@ export class ContractService {
       if (!this.taxModuleContract) await this.initContracts();
       if (!this.taxModuleContract) throw new Error('Tax Module contract not initialized');
       
-      // Mock implementation - to be replaced with actual contract call
-      return [
-        {
-          id: '1',
-          propertyId: '101',
-          amount: ethers.parseEther('1.2'),
-          dueDate: Math.floor(Date.now() / 1000) + 86400 * 15, // 15 days from now
-          isPaid: false,
-          year: 2023,
-          description: 'Annual property tax',
-          createdAt: Math.floor(Date.now() / 1000) - 86400 * 10 // 10 days ago
-        },
-        {
-          id: '2',
-          propertyId: '102',
-          amount: ethers.parseEther('0.8'),
-          dueDate: Math.floor(Date.now() / 1000) - 86400 * 5, // 5 days ago (overdue)
-          isPaid: false,
-          year: 2023,
-          description: 'Special assessment for road maintenance',
-          createdAt: Math.floor(Date.now() / 1000) - 86400 * 20 // 20 days ago
-        },
-        {
-          id: '3',
-          propertyId: '101',
-          amount: ethers.parseEther('1.5'),
-          dueDate: Math.floor(Date.now() / 1000) - 86400 * 60, // 60 days ago
-          isPaid: true,
-          paymentDate: Math.floor(Date.now() / 1000) - 86400 * 65, // paid 65 days ago
-          year: 2022,
-          description: 'Annual property tax',
-          createdAt: Math.floor(Date.now() / 1000) - 86400 * 120 // 120 days ago
-        }
-      ];
+      // Get all tax years for the citizen
+      const taxYears: bigint[] = await this.taxModuleContract!['getCitizenTaxYears'](userAddress);
+      
+      // Fetch assessments for each year
+      const assessments = await Promise.all(
+        taxYears.map(async (yearBigInt: bigint) => {
+          const year = Number(yearBigInt); // Convert BigInt to number for year (safe as years are small)
+          const assessment = await this.taxModuleContract!['getAssessment'](userAddress, year);
+          
+          // Parse the assessment struct
+          const amount: bigint = assessment[0];
+          const docsHash: string = assessment[1];
+          const assessedBy: string = assessment[2];
+          const paid: boolean = assessment[3];
+          const paidAt: bigint = assessment[4];
+          const objectionHash: string = assessment[5];
+          const objectionFiled: boolean = assessment[6];
+          const meetingTimestamp: bigint = assessment[7];
+          
+          // Adapt to expected format (no propertyId or dueDate in contract, use year as id, no createdAt so use paidAt or 0 if not paid)
+          return {
+            id: year.toString(),
+            propertyId: 'N/A', // Not available in contract
+            amount: amount, // Keep as BigInt for summation handling
+            dueDate: 0, // Not available, set to 0
+            isPaid: paid,
+            year: year,
+            description: docsHash, // Use docsHash as description proxy
+            createdAt: paid ? Number(paidAt) : 0 // Use paidAt if paid, else 0
+          };
+        })
+      );
+      
+      return assessments;
     } catch (error: any) {
       console.error(`Error getting tax assessments for ${userAddress}:`, error);
       return [];

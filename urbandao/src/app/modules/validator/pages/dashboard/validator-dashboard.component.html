@@ -1,12 +1,12 @@
-<div class="validator-dashboard">
+<div class="validator-dashboard backdrop-blur">
   <!-- Header Section -->
   <header class="dashboard-header">
     <div class="header-content">
-      <h1>Validator Dashboard</h1>
+      <h1 class="gradient-text">Validator Dashboard</h1>
       <p *ngIf="userName">Welcome, <span class="gradient-text">{{ userName }}</span></p>
     </div>
-    <button class="refresh-btn" (click)="refreshDashboard()" [disabled]="loading">
-      <i class="fas fa-sync-alt"></i> Refresh
+    <button class="primary-btn" (click)="refreshDashboard()" [disabled]="loading">
+      <i class="fas fa-sync-alt"></i> Refresh Data
     </button>
   </header>
 
@@ -30,51 +30,51 @@
   <div *ngIf="!loading && !error" class="dashboard-content">
     <!-- Stats Cards -->
     <div class="stats-container">
-      <div class="stats-card" (click)="navigateToPendingGrievances()">
+      <div class="stats-card glass-card" (click)="navigateToPendingGrievances()">
         <div class="stats-icon pending">
           <i class="fas fa-clock"></i>
         </div>
         <div class="stats-info">
-          <h3>{{ grievanceStats.pending }}</h3>
+          <h3 class="gradient-text">{{ grievanceStats.pending }}</h3>
           <p>Pending Grievances</p>
         </div>
       </div>
 
-      <div class="stats-card" (click)="navigateToProcessedGrievances()">
+      <div class="stats-card glass-card" (click)="navigateToProcessedGrievances()">
         <div class="stats-icon validated">
           <i class="fas fa-check-circle"></i>
         </div>
         <div class="stats-info">
-          <h3>{{ grievanceStats.validated }}</h3>
+          <h3 class="gradient-text">{{ grievanceStats.validated }}</h3>
           <p>Validated Grievances</p>
         </div>
       </div>
 
-      <div class="stats-card" (click)="navigateToProcessedGrievances()">
+      <div class="stats-card glass-card" (click)="navigateToProcessedGrievances()">
         <div class="stats-icon rejected">
           <i class="fas fa-times-circle"></i>
         </div>
         <div class="stats-info">
-          <h3>{{ grievanceStats.rejected }}</h3>
+          <h3 class="gradient-text">{{ grievanceStats.rejected }}</h3>
           <p>Rejected Grievances</p>
         </div>
       </div>
 
-      <div class="stats-card" (click)="navigateToProcessedGrievances()">
+      <div class="stats-card glass-card" (click)="navigateToProcessedGrievances()">
         <div class="stats-icon total">
           <i class="fas fa-list-alt"></i>
         </div>
         <div class="stats-info">
-          <h3>{{ grievanceStats.totalProcessed }}</h3>
+          <h3 class="gradient-text">{{ grievanceStats.totalProcessed }}</h3>
           <p>Total Processed</p>
         </div>
       </div>
     </div>
 
     <!-- Recent Pending Grievances -->
-    <div class="section recent-grievances">
+    <div class="section recent-grievances glass-card">
       <div class="section-header">
-        <h2>Recent Pending Grievances</h2>
+        <h2 class="gradient-text">Recent Pending Grievances</h2>
         <button class="view-all-btn" (click)="navigateToPendingGrievances()">
           View All <i class="fas fa-arrow-right"></i>
         </button>
@@ -112,18 +112,18 @@
     </div>
 
     <!-- Quick Actions -->
-    <div class="section quick-actions">
-      <h2>Quick Actions</h2>
+    <div class="section quick-actions glass-card">
+      <h2 class="gradient-text">Quick Actions</h2>
       <div class="action-buttons">
-        <button class="action-btn" (click)="navigateToCitizenVerification()">
+        <button class="action-btn glass-effect" (click)="navigateToCitizenVerification()">
           <i class="fas fa-user-check"></i>
           <span>Citizen Verification</span>
         </button>
-        <button class="action-btn" (click)="navigateToPendingGrievances()">
+        <button class="action-btn glass-effect" (click)="navigateToPendingGrievances()">
           <i class="fas fa-clipboard-list"></i>
           <span>View All Pending</span>
         </button>
-        <button class="action-btn" (click)="navigateToProcessedGrievances()">
+        <button class="action-btn glass-effect" (click)="navigateToProcessedGrievances()">
           <i class="fas fa-history"></i>
           <span>Processing History</span>
         </button>

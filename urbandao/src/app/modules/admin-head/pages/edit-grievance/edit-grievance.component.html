@@ -1,25 +1,22 @@
 <div class="grievance-container">
   <!-- Back Navigation -->
   <div class="back-nav">
-    <button class="back-btn" (click)="navigateBack()">
-      <i class="fas fa-arrow-left"></i> Back
-    </button>
+    <a class="back-btn" routerLink="/admin-head/home">
+      Back to Dashboard
+    </a>
   </div>
 
   <!-- Loading State -->
-  <div *ngIf="loading" class="loading-container">
+  <div class="loading-container" *ngIf="loading">
     <div class="spinner"></div>
     <p>Loading grievance data...</p>
   </div>
 
   <!-- Error State -->
-  <div *ngIf="!loading && error" class="error-container">
-    <div class="error-icon">
-      <i class="fas fa-exclamation-triangle"></i>
-    </div>
-    <h2>Error</h2>
+  <div class="error-container" *ngIf="error && !loading">
+    <h2>Error Loading Grievances</h2>
     <p>{{ error }}</p>
-    <button class="primary-btn" (click)="grievanceId ? loadGrievanceDetails(grievanceId) : loadAdminAreaId()">
+    <button class="retry-btn" (click)="navigateBack()">
       Try Again
     </button>
   </div>
@@ -27,8 +24,8 @@
   <!-- List View (shown when no grievanceId is provided) -->
   <ng-container *ngIf="!loading && !error && !grievanceId">
     <div class="grievances-list-view">
-      <header class="list-header">
-        <h1>Grievance Management</h1>
+      <div class="list-header">
+        <h1 class="gradient-text">Manage Grievances</h1>
         <div class="filters">
           <div class="filter-group">
             <label for="status-filter">Status:</label>
@@ -52,17 +49,17 @@
             </select>
           </div>
         </div>
-      </header>
+      </div>
 
       <!-- Empty State -->
-      <div *ngIf="filteredGrievances.length === 0" class="empty-state">
-        <i class="fas fa-inbox"></i>
-        <p>No grievances found matching your criteria</p>
+      <div class="glass-card empty-state" *ngIf="filteredGrievances.length === 0 && !loading && !error">
+        <h3>No Grievances Found</h3>
+        <p>There are no grievances matching your current filters.</p>
       </div>
 
       <!-- Grievance List -->
-      <div *ngIf="filteredGrievances.length > 0" class="grievance-list">
-        <div *ngFor="let grievance of filteredGrievances" class="grievance-card" (click)="navigateToGrievance(grievance.id)">
+      <div class="grievance-list" *ngIf="filteredGrievances.length > 0 && !loading && !error">
+        <div class="glass-card grievance-card" *ngFor="let grievance of filteredGrievances" (click)="navigateToGrievance(grievance.id)">
           <div class="grievance-header">
             <div class="grievance-id">#{{ grievance.id }}</div>
             <div class="grievance-status" [ngClass]="grievance.status.toLowerCase()">
@@ -72,19 +69,15 @@
           <div class="grievance-title">{{ grievance.title }}</div>
           <div class="grievance-meta">
             <div class="meta-item">
-              <i class="fas fa-user"></i>
               <span>{{ formatAddress(grievance.citizenAddress) }}</span>
             </div>
             <div class="meta-item">
-              <i class="fas fa-calendar-alt"></i>
               <span>{{ formatDate(grievance.createdAt) }}</span>
             </div>
             <div class="meta-item severity">
-              <i class="fas fa-exclamation-triangle"></i>
               <span>Level {{ grievance.severityLevel }}</span>
             </div>
             <div class="meta-item area">
-              <i class="fas fa-map-marker-alt"></i>
               <span>Area {{ grievance.area }}</span>
             </div>
           </div>
@@ -97,26 +90,24 @@
   <ng-container *ngIf="!loading && !error && grievanceId && grievance">
     <div class="grievance-detail-view">
       <header class="detail-header">
-        <h1>
-          Grievance #{{ grievance.id }}
+        <h1 class="gradient-text">Grievance Details: #{{ grievance.id.slice(0, 8) }}
           <span class="status-badge" [ngClass]="grievance.status.toLowerCase()">{{ grievance.status }}</span>
         </h1>
       </header>
 
       <!-- Success Message -->
-      <div *ngIf="success" class="success-message">
-        <i class="fas fa-check-circle"></i>
+      <div class="success-message" *ngIf="success">
         <p>{{ success }}</p>
         <button class="close-btn" (click)="success = null">
-          <i class="fas fa-times"></i>
+          Close
         </button>
       </div>
 
       <!-- Grievance Details -->
       <div class="detail-section">
-        <div class="detail-card">
+        <div class="glass-card detail-card">
           <div class="card-header">
-            <h2>Grievance Details</h2>
+            <h2>Grievance Information</h2>
           </div>
           <div class="card-content">
             <div class="detail-row">
@@ -157,88 +148,90 @@
         <!-- History Records would go here, if available from the contract -->
 
         <!-- Admin Actions Form -->
-        <div *ngIf="grievance.status === 'VALIDATED' || grievance.status === 'PENDING'" class="action-card">
-          <div class="card-header">
-            <h2>Admin Actions</h2>
-          </div>
-          <div class="card-content">
-            <form [formGroup]="actionForm" (ngSubmit)="submitAction()">
-              <!-- Action Type Selection -->
-              <div class="form-group">
-                <label for="action-type">Select Action:</label>
-                <select 
-                  id="action-type" 
-                  formControlName="action"
-                  (change)="changeActionType($event)"
-                  [class.invalid]="actionForm.get('action')?.invalid && actionForm.get('action')?.touched"
-                >
-                  <option value="" disabled selected>Select an action...</option>
-                  <option *ngIf="grievance.status === 'VALIDATED'" value="escalate_to_project">Escalate to Project</option>
-                  <option *ngIf="grievance.status === 'VALIDATED'" value="reject">Reject Grievance</option>
-                </select>
-                <div *ngIf="actionForm.get('action')?.invalid && actionForm.get('action')?.touched" class="error-message">
-                  Please select an action
+        <div *ngIf="grievance.status === 'VALIDATED' || grievance.status === 'PENDING'">
+          <div class="glass-card action-card">
+            <div class="card-header">
+              <h2>Admin Action</h2>
+            </div>
+            <div class="card-content">
+              <form [formGroup]="actionForm" (ngSubmit)="submitAction()">
+                <!-- Action Type Selection -->
+                <div class="form-group">
+                  <label for="action-type">Select Action:</label>
+                  <select 
+                    id="action-type" 
+                    formControlName="action"
+                    (change)="changeActionType($event)"
+                    [class.invalid]="actionForm.get('action')?.invalid && actionForm.get('action')?.touched"
+                  >
+                    <option value="" disabled selected>Select an action...</option>
+                    <option *ngIf="grievance.status === 'VALIDATED'" value="escalate_to_project">Escalate to Project</option>
+                    <option *ngIf="grievance.status === 'VALIDATED'" value="reject">Reject Grievance</option>
+                  </select>
+                  <div *ngIf="actionForm.get('action')?.invalid && actionForm.get('action')?.touched" class="error-message">
+                    Please select an action
+                  </div>
                 </div>
-              </div>
 
-              <!-- Project Manager Address (only for escalate_to_project) -->
-              <div *ngIf="actionForm.get('action')?.value === 'escalate_to_project'" class="form-group">
-                <label for="project-manager">Project Manager Address:</label>
-                <input 
-                  type="text" 
-                  id="project-manager" 
-                  formControlName="projectManagerAddress"
-                  placeholder="0x..."
-                  [class.invalid]="actionForm.get('projectManagerAddress')?.invalid && actionForm.get('projectManagerAddress')?.touched"
-                >
-                <div *ngIf="actionForm.get('projectManagerAddress')?.invalid && actionForm.get('projectManagerAddress')?.touched" class="error-message">
-                  Valid Ethereum address required
+                <!-- Project Manager Address (only for escalate_to_project) -->
+                <div *ngIf="actionForm.get('action')?.value === 'escalate_to_project'" class="form-group">
+                  <label for="project-manager">Project Manager Address:</label>
+                  <input 
+                    type="text" 
+                    id="project-manager" 
+                    formControlName="projectManagerAddress"
+                    placeholder="0x..."
+                    [class.invalid]="actionForm.get('projectManagerAddress')?.invalid && actionForm.get('projectManagerAddress')?.touched"
+                  >
+                  <div *ngIf="actionForm.get('projectManagerAddress')?.invalid && actionForm.get('projectManagerAddress')?.touched" class="error-message">
+                    Valid Ethereum address required
+                  </div>
                 </div>
-              </div>
 
-              <!-- Priority Level (only for escalate_to_project) -->
-              <div *ngIf="actionForm.get('action')?.value === 'escalate_to_project'" class="form-group">
-                <label for="priority-level">Priority Level (1-5):</label>
-                <input 
-                  type="number" 
-                  id="priority-level" 
-                  formControlName="priorityLevel"
-                  min="1" 
-                  max="5"
-                  [class.invalid]="actionForm.get('priorityLevel')?.invalid && actionForm.get('priorityLevel')?.touched"
-                >
-                <div *ngIf="actionForm.get('priorityLevel')?.invalid && actionForm.get('priorityLevel')?.touched" class="error-message">
-                  Priority must be between 1-5
+                <!-- Priority Level (only for escalate_to_project) -->
+                <div *ngIf="actionForm.get('action')?.value === 'escalate_to_project'" class="form-group">
+                  <label for="priority-level">Priority Level (1-5):</label>
+                  <input 
+                    type="number" 
+                    id="priority-level" 
+                    formControlName="priorityLevel"
+                    min="1" 
+                    max="5"
+                    [class.invalid]="actionForm.get('priorityLevel')?.invalid && actionForm.get('priorityLevel')?.touched"
+                  >
+                  <div *ngIf="actionForm.get('priorityLevel')?.invalid && actionForm.get('priorityLevel')?.touched" class="error-message">
+                    Priority must be between 1-5
+                  </div>
                 </div>
-              </div>
 
-              <!-- Feedback / Comments -->
-              <div class="form-group">
-                <label for="feedback">Feedback / Comments:</label>
-                <textarea 
-                  id="feedback" 
-                  formControlName="feedback"
-                  rows="4"
-                  placeholder="Provide detailed feedback or reason for this action..."
-                  [class.invalid]="actionForm.get('feedback')?.invalid && actionForm.get('feedback')?.touched"
-                ></textarea>
-                <div *ngIf="actionForm.get('feedback')?.invalid && actionForm.get('feedback')?.touched" class="error-message">
-                  Please provide feedback (minimum 10 characters)
+                <!-- Feedback / Comments -->
+                <div class="form-group">
+                  <label for="feedback">Feedback / Comments:</label>
+                  <textarea 
+                    id="feedback" 
+                    formControlName="feedback"
+                    rows="4"
+                    placeholder="Provide detailed feedback or reason for this action..."
+                    [class.invalid]="actionForm.get('feedback')?.invalid && actionForm.get('feedback')?.touched"
+                  ></textarea>
+                  <div *ngIf="actionForm.get('feedback')?.invalid && actionForm.get('feedback')?.touched" class="error-message">
+                    Please provide feedback (minimum 10 characters)
+                  </div>
                 </div>
-              </div>
 
-              <!-- Submit Button -->
-              <div class="form-actions">
-                <button 
-                  type="submit" 
-                  class="primary-btn" 
-                  [disabled]="actionForm.invalid || loadingAction"
-                >
-                  <span *ngIf="!loadingAction">Submit Action</span>
-                  <span *ngIf="loadingAction" class="spinner-inline"></span>
-                </button>
-              </div>
-            </form>
+                <!-- Submit Button -->
+                <div class="form-actions">
+                  <button 
+                    type="submit" 
+                    class="primary-btn" 
+                    [disabled]="actionForm.invalid || loadingAction"
+                  >
+                    <span *ngIf="!loadingAction">Submit Action</span>
+                    <span *ngIf="loadingAction" class="spinner-inline"></span>
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       </div>

@@ -97,12 +97,14 @@ export class NewGrievanceComponent implements OnInit {
     }
     
     try {
-      // In a real app, this would upload files to IPFS and return CIDs
-      // For now, we'll just simulate it with a delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Upload each file to IPFS using the contract service
+      const uploadPromises = this.selectedFiles.map(async (file) => {
+        // Use contract service to upload file to IPFS
+        const ipfsHash = await this.contractService.uploadFileToIPFS(file, file.name);
+        return ipfsHash; // ipfs://Qm...
+      });
       
-      // Return mock IPFS CIDs
-      return this.selectedFiles.map((_, index) => `ipfs://Qm...${index}`);
+      return Promise.all(uploadPromises);
     } catch (error: any) {
       console.error('Error uploading files to IPFS:', error);
       throw new Error('Failed to upload images. Please try again.');
@@ -128,26 +130,52 @@ export class NewGrievanceComponent implements OnInit {
     this.error = null;
     
     try {
-      // Upload files to IPFS first if any
+      // Upload files to IPFS first if any (not used on-chain today but kept for future evidence links)
       const imageCIDs = await this.uploadFilesToIPFS();
-      
-      // Prepare grievance data
-      const grievanceData = {
-        ...this.grievanceForm.value,
-        images: imageCIDs
-      };
-      
-      // Call contract to submit grievance
-      const txResult = await this.contractService.submitGrievance(grievanceData);
-      
-      console.log('Grievance submitted:', txResult);
+
+      // Upload title and description to IPFS to obtain CIDs
+      const formVal = this.grievanceForm.value;
+      const titleIpfsUri = await this.contractService.uploadToIpfs({
+        kind: 'grievance_title',
+        title: formVal.title,
+        createdAt: Date.now()
+      });
+      const descriptionIpfsUri = await this.contractService.uploadToIpfs({
+        kind: 'grievance_body',
+        description: formVal.description,
+        location: formVal.location,
+        grievanceType: formVal.grievanceType,
+        contactPhone: formVal.contactPhone || '',
+        contactEmail: formVal.contactEmail || '',
+        images: imageCIDs,
+        createdAt: Date.now()
+      });
+
+      // Derive areaId from citizen info
+      const citizenInfo = await this.contractService.getCitizenInfo(this.userAddress!);
+      const areaIdStr = citizenInfo?.areaId?.toString?.() || '0';
+      const areaId = parseInt(areaIdStr, 10);
+      if (!Number.isFinite(areaId) || areaId <= 0) {
+        throw new Error('Unable to determine your area. Please ensure your account is registered with an area.');
+      }
+
+      // Call contract with correct signature: fileGrievance(areaId, bytes32, bytes32)
+      const ok = await this.contractService.submitGrievance({
+        areaId,
+        titleIpfsHash: titleIpfsUri,
+        bodyIpfsHash: descriptionIpfsUri
+      });
+
+      if (!ok) throw new Error('Transaction failed');
+
+      console.log('Grievance submitted');
       this.success = true;
-      
+
       // Redirect after a short delay
       setTimeout(() => {
         this.router.navigate(['/citizen/grievances']);
       }, 3000);
-      
+
     } catch (error: any) {
       console.error('Error submitting grievance:', error);
       this.error = error.message || 'Failed to submit grievance. Please try again later.';

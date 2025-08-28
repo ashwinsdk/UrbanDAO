@@ -2,30 +2,30 @@
   <!-- Header Section -->
   <header class="dashboard-header">
     <div class="header-content">
-      <h1>Admin Head Dashboard</h1>
+      <h1 class="gradient-text">Admin Head Dashboard</h1>
       <p *ngIf="areaId">Area ID: <span class="area-id">{{ areaId }}</span></p>
     </div>
     <div class="header-actions">
-      <button class="refresh-btn" (click)="refreshData()" [disabled]="loading">
+      <button class="refresh-btn gradient-btn" (click)="refreshData()" [disabled]="loading">
         <i class="fas fa-sync-alt"></i> Refresh
       </button>
     </div>
   </header>
 
   <!-- Loading State -->
-  <div *ngIf="loading" class="loading-container">
+  <div *ngIf="loading" class="loading-container glass-card">
     <div class="spinner"></div>
     <p>Loading admin data...</p>
   </div>
 
   <!-- Error State -->
-  <div *ngIf="!loading && error" class="error-container">
+  <div *ngIf="!loading && error" class="error-container glass-card">
     <div class="error-icon">
       <i class="fas fa-exclamation-triangle"></i>
     </div>
-    <h2>Error</h2>
+    <h2 class="gradient-text">Error</h2>
     <p>{{ error }}</p>
-    <button class="primary-btn" (click)="refreshData()">Try Again</button>
+    <button class="primary-btn gradient-btn" (click)="refreshData()">Try Again</button>
   </div>
 
   <!-- Dashboard Content -->
@@ -33,13 +33,13 @@
     <!-- Summary Cards Row -->
     <div class="summary-cards">
       <!-- Area Summary Card -->
-      <div class="summary-card">
+      <div class="summary-card glass-card">
         <div class="card-header">
-          <h2>Area Overview</h2>
+          <h2 class="gradient-text">Area Overview</h2>
         </div>
         <div class="card-content">
           <div class="stat-item">
-            <div class="stat-value">{{ areaData.citizenCount }}</div>
+            <div class="stat-value gradient-text">{{ areaData.citizenCount }}</div>
             <div class="stat-label">Citizens</div>
           </div>
           <div class="stat-item">
@@ -62,9 +62,9 @@
       </div>
 
       <!-- Grievance Stats Card -->
-      <div class="summary-card">
+      <div class="summary-card glass-card">
         <div class="card-header">
-          <h2>Grievance Statistics</h2>
+          <h2 class="gradient-text">Grievance Statistics</h2>
         </div>
         <div class="card-content">
           <div class="stat-grid">
@@ -93,21 +93,21 @@
       </div>
 
       <!-- Quick Actions Card -->
-      <div class="summary-card actions-card">
+      <div class="summary-card actions-card glass-card">
         <div class="card-header">
-          <h2>Quick Actions</h2>
+          <h2 class="gradient-text">Quick Actions</h2>
         </div>
         <div class="card-content">
           <div class="action-buttons">
-            <button class="action-button" (click)="navigateToGrievances()">
+            <button class="action-button glass-effect" (click)="navigateToGrievances()">
               <i class="fas fa-exclamation-circle"></i>
               <span>Manage Grievances</span>
             </button>
-            <button class="action-button" (click)="navigateToProjects()">
+            <button class="action-button glass-effect" (click)="navigateToProjects()">
               <i class="fas fa-project-diagram"></i>
               <span>Project Allocation</span>
             </button>
-            <button class="action-button" (click)="navigateToManageRoles()">
+            <button class="action-button glass-effect" (click)="navigateToManageRoles()">
               <i class="fas fa-user-shield"></i>
               <span>Manage Roles</span>
             </button>
@@ -119,10 +119,10 @@
     <!-- Detail Cards Row -->
     <div class="detail-cards">
       <!-- Recent Grievances Card -->
-      <div class="detail-card">
+      <div class="detail-card glass-card">
         <div class="card-header">
-          <h2>Recent Grievances</h2>
-          <button class="view-all-btn" (click)="navigateToGrievances()">View All</button>
+          <h2 class="gradient-text">Recent Grievances</h2>
+          <button class="view-all-btn gradient-btn" (click)="navigateToGrievances()">View All</button>
         </div>
         <div class="card-content">
           <div *ngIf="recentGrievances.length === 0" class="empty-state">
@@ -152,7 +152,7 @@
                   <span>Level {{ grievance.severityLevel }}</span>
                 </div>
               </div>
-              <button class="view-btn" [routerLink]="['/admin-head/grievances', grievance.id]">
+              <button class="view-btn gradient-btn" [routerLink]="['/admin-head/grievances', grievance.id]">
                 View Details
               </button>
             </div>
@@ -161,10 +161,10 @@
       </div>
 
       <!-- Pending Roles Card -->
-      <div class="detail-card">
+      <div class="detail-card glass-card">
         <div class="card-header">
-          <h2>Pending Role Assignments</h2>
-          <button class="view-all-btn" (click)="navigateToManageRoles()">Manage Roles</button>
+          <h2 class="gradient-text">Pending Role Assignments</h2>
+          <button class="view-all-btn gradient-btn" (click)="navigateToManageRoles()">Manage Roles</button>
         </div>
         <div class="card-content">
           <div *ngIf="pendingRoles.length === 0" class="empty-state">
@@ -179,10 +179,10 @@
               </div>
               <div class="role-name">{{ role.name || 'Applicant' }}</div>
               <div class="role-actions">
-                <button class="approve-btn">
+                <button class="approve-btn gradient-btn">
                   <i class="fas fa-check"></i> Approve
                 </button>
-                <button class="reject-btn">
+                <button class="reject-btn gradient-btn">
                   <i class="fas fa-times"></i> Reject
                 </button>
               </div>

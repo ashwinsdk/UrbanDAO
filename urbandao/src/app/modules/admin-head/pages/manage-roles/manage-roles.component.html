@@ -7,26 +7,26 @@
   </div>
 
   <!-- Loading State -->
-  <div *ngIf="loading" class="loading-container">
+  <div *ngIf="loading" class="loading-container glass-card">
     <div class="spinner"></div>
     <p>Loading role data...</p>
   </div>
 
   <!-- Error State -->
-  <div *ngIf="!loading && error" class="error-container">
+  <div *ngIf="!loading && error" class="error-container glass-card">
     <div class="error-icon">
       <i class="fas fa-exclamation-triangle"></i>
     </div>
-    <h2>Error</h2>
+    <h2 class="gradient-text">Error</h2>
     <p>{{ error }}</p>
-    <button class="primary-btn" (click)="loadAreaAndRoleData()">Try Again</button>
+    <button class="primary-btn gradient-btn" (click)="loadAreaAndRoleData()">Try Again</button>
   </div>
 
   <!-- Role Management View -->
   <ng-container *ngIf="!loading && !error">
     <div class="roles-view">
       <header class="roles-header">
-        <h1>Role Management</h1>
+        <h1 class="gradient-text">Role Management</h1>
       </header>
 
       <!-- Success Message -->
@@ -69,19 +69,19 @@
         <!-- Pending Requests Tab -->
         <div *ngIf="activeTab === 'requests'" class="tab-pane">
           <div class="panel-header">
-            <h2>Role Requests</h2>
+            <h2 class="gradient-text">Role Requests</h2>
           </div>
 
           <!-- Empty State -->
-          <div *ngIf="roleRequests.length === 0" class="empty-state">
-            <i class="fas fa-clipboard-check"></i>
+          <div *ngIf="roleRequests.length === 0" class="empty-state glass-card">
+            <i class="fas fa-clipboard-list"></i>
             <p>No pending role requests</p>
             <span>All role requests have been processed</span>
           </div>
 
           <!-- Request List -->
           <div *ngIf="roleRequests.length > 0" class="requests-list">
-            <div *ngFor="let request of roleRequests" class="request-card">
+            <div *ngFor="let request of roleRequests" class="request-card glass-card">
               <div class="request-header">
                 <div class="request-id">#{{ request.id }}</div>
                 <div class="request-status">{{ request.status }}</div>
@@ -114,14 +114,14 @@
                   (click)="rejectRoleRequest(request)" 
                   [disabled]="loadingAction"
                 >
-                  <i class="fas fa-times"></i> Reject
+                  Reject
                 </button>
                 <button 
                   class="approve-btn" 
                   (click)="approveRoleRequest(request)" 
                   [disabled]="loadingAction"
                 >
-                  <i class="fas fa-check"></i> Approve
+                  Approve
                 </button>
               </div>
             </div>
@@ -131,9 +131,9 @@
         <!-- Assign Role Tab -->
         <div *ngIf="activeTab === 'assign'" class="tab-pane">
           <div class="panel-header">
-            <h2>Assign New Role</h2>
+            <h2 class="gradient-text">Assign New Role</h2>
           </div>
-          <div class="role-form-container">
+          <div class="role-form-container glass-card">
             <form [formGroup]="assignRoleForm" (ngSubmit)="submitAssignRoleForm()">
               <div class="form-group">
                 <label for="address">Ethereum Address:</label>
@@ -198,7 +198,7 @@
               <div class="form-actions">
                 <button 
                   type="submit" 
-                  class="primary-btn" 
+                  class="primary-btn gradient-btn" 
                   [disabled]="assignRoleForm.invalid || loadingAction"
                 >
                   <span *ngIf="!loadingAction">Assign Role</span>
@@ -212,14 +212,14 @@
         <!-- Current Assignments Tab -->
         <div *ngIf="activeTab === 'current'" class="tab-pane">
           <div class="panel-header">
-            <h2>Current Role Assignments</h2>
+            <h2 class="gradient-text">Current Role Assignments</h2>
           </div>
 
           <!-- Empty State -->
-          <div *ngIf="roleAssignments.length === 0" class="empty-state">
+          <div *ngIf="roleAssignments.length === 0" class="empty-state glass-card">
             <i class="fas fa-users"></i>
             <p>No roles assigned yet</p>
-            <button class="primary-btn" (click)="setActiveTab('assign')">Assign Your First Role</button>
+            <button class="primary-btn gradient-btn" (click)="setActiveTab('assign')">Assign Your First Role</button>
           </div>
 
           <!-- Assignments Table -->
