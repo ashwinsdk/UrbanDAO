@@ -133,16 +133,31 @@ export class AdminHomeComponent implements OnInit {
       // Get grievances by status
       const pendingGrievances = await this.contractService.getGrievancesByStatusAndArea('PENDING', this.areaId);
       const validatedGrievances = await this.contractService.getGrievancesByStatusAndArea('VALIDATED', this.areaId);
+      const acceptedGrievances = await this.contractService.getGrievancesByStatusAndArea('ACCEPTED', this.areaId);
       const rejectedGrievances = await this.contractService.getGrievancesByStatusAndArea('REJECTED', this.areaId);
       const resolvedGrievances = await this.contractService.getGrievancesByStatusAndArea('RESOLVED', this.areaId);
-      
-      this.grievanceSummary = {
+      const inProjectGrievances = await this.contractService.getGrievancesByStatusAndArea('IN_PROJECT', this.areaId);
+
+      // Minimal diagnostics to verify pipeline
+      console.log('[AdminHead] loadGrievanceSummary area', this.areaId, {
         pending: pendingGrievances.length,
         validated: validatedGrievances.length,
+        accepted: acceptedGrievances.length,
         rejected: rejectedGrievances.length,
         resolved: resolvedGrievances.length,
-        total: pendingGrievances.length + validatedGrievances.length + 
-               rejectedGrievances.length + resolvedGrievances.length
+        in_project: inProjectGrievances.length
+      });
+
+      // Fold ACCEPTED into validated and IN_PROJECT into resolved for compact dashboard
+      const validatedFold = validatedGrievances.length + acceptedGrievances.length;
+      const resolvedFold = resolvedGrievances.length + inProjectGrievances.length;
+
+      this.grievanceSummary = {
+        pending: pendingGrievances.length,
+        validated: validatedFold,
+        rejected: rejectedGrievances.length,
+        resolved: resolvedFold,
+        total: pendingGrievances.length + validatedFold + rejectedGrievances.length + resolvedFold
       };
     } catch (error) {
       console.error('Error loading grievance summary:', error);

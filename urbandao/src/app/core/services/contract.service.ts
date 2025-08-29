@@ -454,12 +454,15 @@ export class ContractService {
       
       // Get areas administered by this admin head (array)
       const areas: any[] = await this.urbanCoreContract['getHeadAreas'](adminAddress);
+      try { console.debug('[ContractService] getAdminAreaId areas', { adminAddress, raw: areas?.map?.(a => a?.toString?.() ?? String(a)) }); } catch {}
       if (!areas || areas.length === 0) {
         return null;
       }
       // For now, return the first assigned area
       const firstArea = areas[0];
-      return firstArea?.toString?.() ?? String(firstArea);
+      const selected = firstArea?.toString?.() ?? String(firstArea);
+      try { console.debug('[ContractService] getAdminAreaId selected', { adminAddress, selected }); } catch {}
+      return selected;
     } catch (error) {
       console.error('Error getting admin area ID:', error);
       return null;
@@ -800,14 +803,99 @@ export class ContractService {
       if (!this.grievanceHubContract) await this.initContracts();
       if (!this.grievanceHubContract) throw new Error('Grievance Hub contract not initialized');
       
-      // Get all grievances for this area
-      const areaGrievances = await this.getGrievancesByArea(areaId);
+      // Normalize requested status (handle synonyms and casing)
+      const normalizeInputStatus = (s: string): string => {
+        const v = String(s || '').trim().toLowerCase();
+        if (v === 'approved') return 'validated';
+        if (v === 'accepted_by_head' || v === 'acceptedbyhead') return 'accepted';
+        if (v === 'inproject' || v === 'in-project') return 'in_project';
+        return v;
+      };
+      const wanted = normalizeInputStatus(status);
+      
+      // Get all grievances for this area via index, with fallback scanning by areaId if empty
+      let areaGrievances = await this.getGrievancesByArea(areaId);
       const filteredGrievances: string[] = [];
+      let scanned = 0;
+      if (!areaGrievances || areaGrievances.length === 0) {
+        try {
+          const total = Number(await this.grievanceHubContract['getTotalGrievances']());
+          const cap = Math.min(total, 300);
+          const batch = 30;
+          const matchedIds: string[] = [];
+          const encountered: Record<string, Set<string>> = {
+            areaId: new Set(), area: new Set(), areaCode: new Set(), wardId: new Set(), ward: new Set(), zoneId: new Set(), zone: new Set(), pincode: new Set(), postalCode: new Set(), districtId: new Set()
+          };
+          const norm = (v: any) => {
+            const s = (v ?? '').toString().trim();
+            return s;
+          };
+          for (let i = 1; i <= cap; i += batch) {
+            const ps = [] as Promise<any>[];
+            for (let j = i; j < i + batch && j <= cap; j++) {
+              ps.push(this.grievanceHubContract['getGrievance'](j).then(g => ({ id: j, data: g })).catch(() => null));
+            }
+            const res = await Promise.all(ps);
+            for (const entry of res) {
+              if (!entry) continue;
+              // Use robust higher-level getter for areaId comparison
+              try {
+                const full = await this.getGrievanceById(String(entry.id));
+                const f: any = full as any;
+                const candidates: Array<{key: string, val: string}> = [
+                  { key: 'areaId', val: norm(f.areaId) },
+                  { key: 'area', val: norm(f.area) },
+                  { key: 'areaCode', val: norm(f.areaCode) },
+                  { key: 'wardId', val: norm(f.wardId) },
+                  { key: 'ward', val: norm(f.ward) },
+                  { key: 'zoneId', val: norm(f.zoneId) },
+                  { key: 'zone', val: norm(f.zone) },
+                  { key: 'pincode', val: norm(f.pincode) },
+                  { key: 'postalCode', val: norm(f.postalCode) },
+                  { key: 'districtId', val: norm(f.districtId) }
+                ];
+                for (const c of candidates) {
+                  if (c.val) encountered[c.key]?.add(c.val);
+                }
+                const want = norm(areaId);
+                const eqMatch = candidates.some(c => c.val && c.val === want);
+                const containsMatch = !eqMatch && candidates.some(c => c.val && c.val.includes(want));
+                if (eqMatch || containsMatch) {
+                  matchedIds.push(String(entry.id));
+                }
+              } catch {}
+            }
+          }
+          areaGrievances = matchedIds;
+          try {
+            const summarize = (s: Set<string>) => Array.from(s).slice(0, 10);
+            console.debug('[ContractService] fallback area scan used', {
+              areaId,
+              count: matchedIds.length,
+              samples: {
+                areaId: summarize(encountered['areaId']),
+                area: summarize(encountered['area']),
+                areaCode: summarize(encountered['areaCode']),
+                wardId: summarize(encountered['wardId']),
+                ward: summarize(encountered['ward']),
+                zoneId: summarize(encountered['zoneId']),
+                zone: summarize(encountered['zone']),
+                pincode: summarize(encountered['pincode']),
+                postalCode: summarize(encountered['postalCode']),
+                districtId: summarize(encountered['districtId'])
+              }
+            });
+          } catch {}
+        } catch (e) {
+          console.warn('Fallback area scan failed', e);
+        }
+      }
       
       // Filter grievances by status
       for (const grievanceId of areaGrievances) {
         try {
-          const grievance = await this.grievanceHubContract['getGrievance'](grievanceId);
+          const grievanceNumericId = Number(grievanceId);
+          const grievance = await this.grievanceHubContract['getGrievance'](grievanceNumericId);
           // Map the numeric status to string status
           let grievanceStatus: string;
           
@@ -823,7 +911,8 @@ export class ContractService {
           }
           
           // Compare with the requested status
-          if (grievanceStatus.toLowerCase() === status.toLowerCase()) {
+          scanned += 1;
+          if (grievanceStatus === wanted) {
             filteredGrievances.push(grievanceId);
           }
         } catch (grievanceError) {
@@ -831,6 +920,9 @@ export class ContractService {
         }
       }
       
+      try {
+        console.debug('[ContractService] getGrievancesByStatusAndArea', { areaId, wanted, scanned, matched: filteredGrievances.length });
+      } catch {}
       return filteredGrievances;
     } catch (error) {
       console.error(`Error getting ${status} grievances for area ${areaId}:`, error);
@@ -2657,6 +2749,21 @@ export class ContractService {
       // Process in batches to minimize network requests
       const batchSize = 20;
       
+      let scanned = 0;
+      let statusMatched = 0;
+      let validatorMatched = 0;
+      // Helper to safely read struct fields
+      const safeIndex = (s: any, idx: number) => {
+        try {
+          if (!s) return undefined;
+          const len = typeof s.length === 'number' ? Number(s.length) : -1;
+          if (len >= 0 && idx < len) return s[idx];
+          return undefined;
+        } catch {
+          return undefined;
+        }
+      };
+
       for (let i = 1; i <= maxToCheck; i += batchSize) {
         const promises = [];
         for (let j = i; j < i + batchSize && j <= maxToCheck; j++) {
@@ -3017,63 +3124,104 @@ export class ContractService {
       
       // Process in batches to minimize network requests
       const batchSize = 20;
+      // Diagnostics
+      let scanned = 0;
+      let statusMatched = 0;
+      let validatorMatched = 0;
+      // Helper to safely read struct fields by index
+      const safeIndex = (s: any, idx: number) => {
+        try {
+          if (!s) return undefined;
+          const len = typeof s.length === 'number' ? Number(s.length) : -1;
+          if (len >= 0 && idx < len) return s[idx];
+          return undefined;
+        } catch {
+          return undefined;
+        }
+      };
       
       for (let i = 1; i <= maxToCheck; i += batchSize) {
         const promises = [];
         for (let j = i; j < i + batchSize && j <= maxToCheck; j++) {
           promises.push(
             this.grievanceHubContract['getGrievance'](j)
-              .then(grievance => ({ id: j, ...grievance }))
+              .then(grievance => ({ id: j, data: grievance }))
               .catch(() => null)
           );
         }
         
         const grievanceBatch = await Promise.all(promises);
         
-        for (const grievance of grievanceBatch) {
+        for (const entry of grievanceBatch) {
+          scanned += 1;
           // Check if grievance exists, has been processed by this validator (status 1=Validated or 2=Rejected)
           // and the validator address matches
-          if (grievance && 
-              (grievance.status === 1 || grievance.status === 2) && 
-              grievance.validator.toLowerCase() === validatorAddress.toLowerCase()) {
-            
+          if (!entry) continue;
+          const g: any = entry.data;
+          const statusCode = Number((g && (g.status ?? safeIndex(g, 6))) ?? -1);
+          const hasProcessedStatus = statusCode === 1 || statusCode === 2;
+          if (hasProcessedStatus) statusMatched += 1;
+          const validatorAddr = String((g && (g.validator ?? g.reviewer ?? safeIndex(g, 7))) || '');
+          const validatorMatches = validatorAddr.toLowerCase() === String(validatorAddress).toLowerCase();
+          if (hasProcessedStatus && !validatorMatches) {
+            try { console.debug('[ContractService] processed skip: validator mismatch', { id: entry.id, validator: validatorAddr, expected: validatorAddress }); } catch {}
+          }
+          if (hasProcessedStatus && validatorMatches) {
+            validatorMatched += 1;
+
             // Get citizen metadata if available
             let citizenName = '';
             try {
-              const metadata = await this.getAddressMetadata(grievance.citizen);
+              const citizen = String((g && (g.citizen ?? safeIndex(g, 1))) || '');
+              const metadata = await this.getAddressMetadata(citizen);
               if (metadata && metadata.name) {
                 citizenName = metadata.name;
               }
             } catch (error) {
-              console.warn(`Could not get metadata for citizen ${grievance.citizen}`, error);
+              console.warn('Could not get metadata for citizen (processed list)', error);
             }
-            
-            // Parse grievance data from contract
-            const parsedGrievance = {
-              id: grievance.id.toString(),
-              title: grievance.title || '',
-              description: grievance.description || '',
-              location: grievance.location || '',
-              status: this.resolveGrievanceStatus(grievance.status),
-              timestamp: grievance.timestamp ? new Date(Number(grievance.timestamp) * 1000) : new Date(),
-              resolutionTimestamp: grievance.resolutionTimestamp ? new Date(Number(grievance.resolutionTimestamp) * 1000) : null,
-              citizenAddress: grievance.citizen,
-              citizenName,
-              urgent: grievance.urgent || false,
-              comments: grievance.comments || '',
-              type: this.resolveGrievanceType(grievance.grievanceType || 0),
-              imageUrls: grievance.documents ? this.parseDocumentUrls(grievance.documents) : []
-            };
-            
-            processedGrievances.push(parsedGrievance);
+
+            // Return shape aligned with ProcessedGrievancesComponent expectations
+            try {
+              const full = await this.getGrievanceById(String(entry.id));
+              processedGrievances.push({
+                id: String(entry.id ?? ''),
+                title: String((full as any).title || ''),
+                location: String((full as any).location || ''),
+                type: String((full as any).type || this.resolveGrievanceType(Number((g && (g.grievanceType ?? safeIndex(g, 12))) || 0))),
+                citizenAddress: String((full as any).citizen || (g && (g.citizen ?? safeIndex(g, 1))) || ''),
+                citizenName,
+                // seconds since epoch
+                timestamp: Number(((full as any).timestamp ?? (full as any).createdAt ?? (g && (g.timestamp ?? g.createdAt ?? safeIndex(g, 5))) ?? 0)),
+                processedTimestamp: Number(((full as any).resolutionTimestamp ?? (full as any).lastUpdated ?? (g && (g.resolutionTimestamp ?? g.lastUpdated ?? g.timestamp ?? safeIndex(g, 13))) ?? 0)),
+                status: statusCode === 1 ? 'VALIDATED' : 'REJECTED',
+                validatorComments: String((g && (g.comments ?? safeIndex(g, 14))) || ''),
+                validatorAddress: validatorAddr
+              });
+            } catch (enrichErr) {
+              // Fallback to minimal struct if enrich fails
+              processedGrievances.push({
+                id: String(entry.id ?? ''),
+                title: String((g && (g.title || g.titleHash || safeIndex(g, 3))) || ''),
+                location: String((g && (g.location || safeIndex(g, 11))) || ''),
+                type: this.resolveGrievanceType(Number((g && (g.grievanceType ?? safeIndex(g, 12))) || 0)),
+                citizenAddress: String((g && (g.citizen ?? safeIndex(g, 1))) || ''),
+                citizenName,
+                // seconds since epoch
+                timestamp: Number((g && (g.timestamp ?? g.createdAt ?? safeIndex(g, 5))) || 0),
+                processedTimestamp: Number((g && (g.resolutionTimestamp ?? g.lastUpdated ?? g.timestamp ?? safeIndex(g, 13))) || 0),
+                status: statusCode === 1 ? 'VALIDATED' : 'REJECTED',
+                validatorComments: String((g && (g.comments ?? safeIndex(g, 14))) || ''),
+                validatorAddress: validatorAddr
+              });
+            }
           }
         }
       }
       
-      // Sort by timestamp (most recent first)
-      processedGrievances.sort((a, b) => {
-        return b.timestamp.getTime() - a.timestamp.getTime();
-      });
+      try { console.debug('[ContractService] getProcessedGrievancesByValidator summary', { validatorAddress, scanned, statusMatched, validatorMatched, returned: processedGrievances.length }); } catch {}
+      // Sort by timestamp (most recent first) - timestamps are seconds since epoch
+      processedGrievances.sort((a, b) => Number(b.timestamp) - Number(a.timestamp));
       
       return processedGrievances;
     } catch (error) {
@@ -3086,9 +3234,12 @@ export class ContractService {
   private resolveGrievanceStatus(status: number): string {
     const statusMap: {[key: number]: string} = {
       0: 'pending',
-      1: 'approved',
+      1: 'validated',
       2: 'rejected',
-      3: 'resolved'
+      3: 'accepted',
+      4: 'in_project',
+      5: 'resolved',
+      6: 'reopened'
     };
     return statusMap[status] || 'unknown';
   }
@@ -3490,44 +3641,30 @@ export class ContractService {
     // Fetch grievances for each ID
     const grievances = await Promise.all(
       grievanceIds.map(async (idBigInt: bigint) => {
-        const id = Number(idBigInt); // Convert BigInt to number for ID (safe as IDs are incremental)
-        const grievance = await this.grievanceHubContract!['getGrievance'](id);
-        
-        // Parse the Grievance struct
-        const citizen: string = grievance[1];
-        const areaId: bigint = grievance[2];
-        const titleHash: string = grievance[3];
-        const bodyHash: string = grievance[4];
-        const createdAt: bigint = grievance[5];
-        const status: number = Number(grievance[6]); // Enum as number
-        const validator: string = grievance[7];
-        const headReviewer: string = grievance[8];
-        const disputeCount: number = Number(grievance[9]);
-        const linkedProjectId: bigint = grievance[10];
-        
-        // Adapt to expected format (use hashes for title/description, no lastUpdated so use createdAt, assignedTo as validator or headReviewer if set, no resolvedBy/resolvedAt/images)
+        const id = idBigInt.toString();
+        const g = await this.getGrievanceById(id);
+        if (!g) return null;
         return {
-          id: id.toString(),
-          title: titleHash, // IPFS hash proxy for title
-          description: bodyHash, // IPFS hash proxy for description
-          status: status, // 0=Pending, etc.
-          timestamp: Number(createdAt),
-          lastUpdated: Number(createdAt), // Use createdAt as proxy, or fetch from feedback if needed
-          assignedTo: headReviewer !== ethers.ZeroAddress ? headReviewer : validator,
-          resolvedBy: null, // Not available
-          resolvedAt: null, // Not available
-          images: [] // Not available, empty array
+          id: id,
+          title: g.titleHash || '',
+          description: g.descriptionHash || '',
+          status: g.statusCode, // numeric enum per canonical mapping
+          timestamp: Number(g.createdAt),
+          lastUpdated: Number(g.lastUpdated),
+          assignedTo: g.assignedTo,
+          resolvedBy: g.resolvedBy || null,
+          resolvedAt: g.resolvedAt ? Number(g.resolvedAt) : null,
+          images: g.images || []
         };
       })
     );
     
-    return grievances;
+    return grievances.filter(Boolean);
   } catch (error: any) {
     console.error(`Error getting user grievances for ${userAddress}:`, error);
     return [];
   }
 }
-  
   public async submitGrievance(grievanceData: {
     areaId: number | string;
     titleIpfsHash: string; // ipfs://CIDv0 or Qm...

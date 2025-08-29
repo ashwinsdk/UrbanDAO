@@ -40,6 +40,11 @@ export class ProcessedGrievancesComponent implements OnInit {
   
   loading = true;
   error: string | null = null;
+  // Details modal state
+  detailsOpen = false;
+  detailsLoading = false;
+  selectedGrievanceId: string | null = null;
+  grievanceDetails: any | null = null;
   
   grievanceTypes = [
     'All Types',
@@ -160,9 +165,28 @@ export class ProcessedGrievancesComponent implements OnInit {
   }
   
   viewGrievanceDetails(grievanceId: string): void {
-    // Navigate to grievance details (could be a shared component)
-    // For now, just alert the ID
-    alert(`View details for grievance: ${grievanceId}`);
+    this.selectedGrievanceId = grievanceId;
+    this.detailsOpen = true;
+    this.detailsLoading = true;
+    this.grievanceDetails = null;
+    // Fetch full details for human-readable view
+    this.contractService.getGrievanceById(grievanceId)
+      .then((full) => {
+        this.grievanceDetails = full;
+      })
+      .catch((e) => {
+        console.error('Failed to load grievance details for modal', e);
+        this.grievanceDetails = { error: 'Failed to load details' };
+      })
+      .finally(() => {
+        this.detailsLoading = false;
+      });
+  }
+  
+  closeDetails(): void {
+    this.detailsOpen = false;
+    this.selectedGrievanceId = null;
+    this.grievanceDetails = null;
   }
   
   formatDate(date: Date): string {

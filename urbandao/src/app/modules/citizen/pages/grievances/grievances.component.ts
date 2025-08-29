@@ -9,7 +9,7 @@ interface Grievance {
   id: string;
   title: string;
   description: string;
-  status: 'pending' | 'validated' | 'assigned' | 'resolved' | 'rejected';
+  status: 'pending' | 'validated' | 'rejected' | 'accepted' | 'in_project' | 'resolved' | 'reopened' | 'assigned';
   createdAt: Date;
   lastUpdated: Date;
   assignedTo?: string;
@@ -73,6 +73,10 @@ export class GrievancesComponent implements OnInit {
           resolvedAt: g.resolvedAt ? new Date(g.resolvedAt * 1000) : undefined,
           images: g.images
         }));
+        try {
+          console.debug('[Citizen] Grievances fetched:', this.grievances.length);
+          console.debug('[Citizen] Status distribution:', this.grievances.reduce((acc: any, x) => { acc[x.status] = (acc[x.status]||0)+1; return acc; }, {}));
+        } catch {}
       }
     } catch (error: any) {
       console.error('Error fetching grievances:', error);
@@ -82,16 +86,21 @@ export class GrievancesComponent implements OnInit {
     }
   }
   
-  // Helper method to map contract status values to UI-friendly status
-  private mapContractStatusToUI(status: number): 'pending' | 'validated' | 'assigned' | 'resolved' | 'rejected' {
-    const statusMap: {[key: number]: 'pending' | 'validated' | 'assigned' | 'resolved' | 'rejected'} = {
-      0: 'pending',
-      1: 'validated',
-      2: 'assigned',
-      3: 'resolved',
-      4: 'rejected'
-    };
-    return statusMap[status] || 'pending';
+  // Helper method to map contract status code to canonical UI status
+  private mapContractStatusToUI(
+    status: number
+  ): 'pending' | 'validated' | 'rejected' | 'accepted' | 'in_project' | 'resolved' | 'reopened' | 'assigned' {
+    // Canonical mapping per ContractService.getGrievanceById
+    switch (status) {
+      case 0: return 'pending';
+      case 1: return 'validated';
+      case 2: return 'rejected';
+      case 3: return 'accepted';
+      case 4: return 'in_project';
+      case 5: return 'resolved';
+      case 6: return 'reopened';
+      default: return 'pending';
+    }
   }
   
   // Filter methods
@@ -136,24 +145,30 @@ export class GrievancesComponent implements OnInit {
   // Status helpers
   getStatusClass(status: string): string {
     const statusClasses: {[key: string]: string} = {
-      'pending': 'status-pending',
-      'validated': 'status-validated',
-      'assigned': 'status-assigned',
-      'resolved': 'status-resolved',
-      'rejected': 'status-rejected'
+      pending: 'status-pending',
+      validated: 'status-validated',
+      rejected: 'status-rejected',
+      accepted: 'status-accepted',
+      in_project: 'status-in-project',
+      resolved: 'status-resolved',
+      reopened: 'status-reopened',
+      assigned: 'status-assigned'
     };
     return statusClasses[status] || '';
   }
   
   getStatusLabel(status: string): string {
     const statusLabels: {[key: string]: string} = {
-      'pending': 'Pending',
-      'validated': 'Validated',
-      'assigned': 'In Progress',
-      'resolved': 'Resolved',
-      'rejected': 'Rejected'
+      pending: 'Pending',
+      validated: 'Validated',
+      rejected: 'Rejected',
+      accepted: 'Accepted by Head',
+      in_project: 'In Project',
+      resolved: 'Resolved',
+      reopened: 'Reopened',
+      assigned: 'Assigned'
     };
-    return statusLabels[status] || status.charAt(0).toUpperCase() + status.slice(1);
+    return statusLabels[status] || (status ? status[0].toUpperCase() + status.slice(1) : '');
   }
   
   formatDate(date: Date): string {

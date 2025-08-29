@@ -119,5 +119,39 @@
         </tbody>
       </table>
     </div>
+
+    <!-- Details Modal -->
+    <div class="modal-overlay" *ngIf="detailsOpen">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>Grievance Details</h2>
+          <button class="close-btn" (click)="closeDetails()">&times;</button>
+        </div>
+        <div class="modal-body" *ngIf="detailsLoading">
+          <div class="spinner small"></div>
+          <p>Loading details...</p>
+        </div>
+        <div class="modal-body" *ngIf="!detailsLoading">
+          <div *ngIf="grievanceDetails && !grievanceDetails.error; else detailsError">
+            <div class="details-row"><strong>ID:</strong> {{ selectedGrievanceId }}</div>
+            <div class="details-row"><strong>Title:</strong> {{ grievanceDetails.title || 'Untitled' }}</div>
+            <div class="details-row"><strong>Description:</strong> {{ grievanceDetails.description || grievanceDetails.desc || 'N/A' }}</div>
+            <div class="details-row"><strong>Location:</strong> {{ grievanceDetails.location || 'Unknown' }}</div>
+            <div class="details-row"><strong>Type:</strong> {{ grievanceDetails.type || 'Other' }}</div>
+            <div class="details-row"><strong>Status:</strong> {{ grievanceDetails.status || 'Unknown' }}</div>
+            <div class="details-row"><strong>Citizen:</strong> {{ grievanceDetails.citizen || grievanceDetails.citizenAddress }}</div>
+            <div class="details-row"><strong>Filed:</strong> {{ (grievanceDetails.timestamp ? (grievanceDetails.timestamp * 1000) : null) | date:'MMM d, y, h:mm a' }}</div>
+            <div class="details-row"><strong>Last Updated:</strong> {{ (grievanceDetails.lastUpdated ? (grievanceDetails.lastUpdated * 1000) : (grievanceDetails.resolutionTimestamp ? (grievanceDetails.resolutionTimestamp * 1000) : null)) | date:'MMM d, y, h:mm a' }}</div>
+            <div class="details-row"><strong>Validator Comments:</strong> {{ grievanceDetails.validatorComments || grievanceDetails.comments || '—' }}</div>
+          </div>
+          <ng-template #detailsError>
+            <p class="error">{{ grievanceDetails?.error || 'Failed to load details' }}</p>
+          </ng-template>
+        </div>
+        <div class="modal-footer">
+          <button class="secondary-btn" (click)="closeDetails()">Close</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
