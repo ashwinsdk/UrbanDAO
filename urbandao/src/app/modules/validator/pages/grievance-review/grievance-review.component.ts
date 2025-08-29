@@ -74,10 +74,10 @@ export class GrievanceReviewComponent implements OnInit {
       if (grievanceData) {
         this.grievance = {
           id: grievanceData.id,
-          title: grievanceData.title,
-          description: grievanceData.description,
+          title: grievanceData.titleText || grievanceData.title,
+          description: grievanceData.descriptionText || grievanceData.description,
           location: grievanceData.location,
-          type: grievanceData.type,
+          type: grievanceData.grievanceType || grievanceData.type,
           citizenAddress: grievanceData.citizenAddress,
           citizenName: grievanceData.citizenName,
           createdAt: new Date(grievanceData.timestamp * 1000),
@@ -120,15 +120,18 @@ export class GrievanceReviewComponent implements OnInit {
         throw new Error('Grievance ID not found');
       }
       
-      // Call contract service to process grievance
-      await this.contractService.processGrievance(
+      // Call contract service to process grievance and handle result
+      const ok = await this.contractService.processGrievance(
         this.grievanceId,
         isApproved,
         comments
       );
-      
+      if (!ok) {
+        this.actionError = 'Transaction was rejected or failed. Please try again.';
+        this.actionSuccess = false;
+        return;
+      }
       this.actionSuccess = true;
-      
       // Navigate back after 2 seconds
       setTimeout(() => {
         this.router.navigate(['/validator/grievances/pending']);

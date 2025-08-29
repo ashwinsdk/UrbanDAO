@@ -441,21 +441,25 @@ export class ContractService {
       if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
       
       // Check if the address has ADMIN_HEAD_ROLE
-      const hasAdminRole = await this.urbanCoreContract['hasRole'](this.convertRoleToBytes32(UserRole.ADMIN_HEAD_ROLE), adminAddress);
+      const adminHeadBytes = this.getRoleConstant(UserRole.ADMIN_HEAD_ROLE);
+      if (!adminHeadBytes) {
+        console.error('ADMIN_HEAD_ROLE constant not found');
+        return null;
+      }
+      const hasAdminRole = await this.urbanCoreContract['hasRole'](adminHeadBytes, adminAddress);
       if (!hasAdminRole) {
         console.log('Address does not have ADMIN_HEAD_ROLE');
         return null;
       }
       
-      // Get the area administered by this admin head
-      const areaId = await this.urbanCoreContract['getAdminHeadArea'](adminAddress);
-      
-      // If the area ID is 0, it means the admin head is not assigned to any area
-      if (areaId.toString() === '0') {
+      // Get areas administered by this admin head (array)
+      const areas: any[] = await this.urbanCoreContract['getHeadAreas'](adminAddress);
+      if (!areas || areas.length === 0) {
         return null;
       }
-      
-      return areaId.toString();
+      // For now, return the first assigned area
+      const firstArea = areas[0];
+      return firstArea?.toString?.() ?? String(firstArea);
     } catch (error) {
       console.error('Error getting admin area ID:', error);
       return null;
@@ -697,24 +701,9 @@ export class ContractService {
       if (!this.grievanceHubContract) await this.initContracts();
       if (!this.grievanceHubContract) throw new Error('Grievance Hub contract not initialized');
       
-      // Get all grievance IDs from the contract
-      const grievanceCount = await this.grievanceHubContract['getGrievanceCount']();
-      const allGrievanceIds: string[] = [];
-      
-      // Collect all grievances and filter by area
-      for (let i = 1; i <= grievanceCount; i++) {
-        try {
-          const grievance = await this.grievanceHubContract['getGrievance'](i);
-          // Check if grievance belongs to the specified area
-          if (grievance && grievance.areaId.toString() === areaId) {
-            allGrievanceIds.push(i.toString());
-          }
-        } catch (grievanceError) {
-          console.warn(`Error fetching grievance ${i}:`, grievanceError);
-        }
-      }
-      
-      return allGrievanceIds;
+      // Use direct area index from contract
+      const ids: any[] = await this.grievanceHubContract['getAreaGrievances'](Number(areaId));
+      return (ids || []).map(id => id?.toString?.() ?? String(id));
     } catch (error) {
       console.error('Error getting grievances by area:', error);
       return [];
@@ -738,21 +727,15 @@ export class ContractService {
           // Map the numeric status to string status
           let grievanceStatus: string;
           
-          switch (grievance.status) {
-            case 0:
-              grievanceStatus = 'pending';
-              break;
-            case 1:
-              grievanceStatus = 'approved';
-              break;
-            case 2:
-              grievanceStatus = 'rejected';
-              break;
-            case 3:
-              grievanceStatus = 'resolved';
-              break;
-            default:
-              grievanceStatus = 'unknown';
+          switch (Number(grievance.status)) {
+            case 0: grievanceStatus = 'pending'; break;              // Pending
+            case 1: grievanceStatus = 'validated'; break;            // Validated
+            case 2: grievanceStatus = 'rejected'; break;             // Rejected
+            case 3: grievanceStatus = 'accepted'; break;             // AcceptedByHead
+            case 4: grievanceStatus = 'in_project'; break;           // InProject
+            case 5: grievanceStatus = 'resolved'; break;             // Resolved
+            case 6: grievanceStatus = 'reopened'; break;             // Reopened
+            default: grievanceStatus = 'unknown';
           }
           
           // Compare with the requested status
@@ -1258,27 +1241,17 @@ export class ContractService {
       if (!this.projectRegistryContract) await this.initContracts();
       if (!this.projectRegistryContract) throw new Error('Project Registry contract not initialized');
       
-      // Get project count for this area
-      const projectCount = await this.projectRegistryContract['getProjectCountForArea'](areaId);
-      
-      const projects = [];
-      
-      for (let i = 0; i < Number(projectCount); i++) {
+      // Get project IDs for this area directly
+      const ids: any[] = await this.projectRegistryContract['getAreaProjects'](Number(areaId));
+      const projects: any[] = [];
+      for (const id of ids || []) {
         try {
-          // Get project ID by index in area
-          const projectId = await this.projectRegistryContract['getProjectIdForAreaAtIndex'](areaId, i);
-          
-          // Get project details using our getProject method
-          const project = await this.getProject(Number(projectId));
-          
-          if (project) {
-            projects.push(project);
-          }
+          const project = await this.getProject(Number(id));
+          if (project) projects.push(project);
         } catch (err) {
-          console.warn(`Error getting project at index ${i} for area ${areaId}:`, err);
+          console.warn(`Error getting project ${id} for area ${areaId}:`, err);
         }
       }
-      
       return projects;
     } catch (error) {
       console.error('Error getting projects in area:', error);
@@ -2613,7 +2586,8 @@ export class ContractService {
         const grievanceBatch = await Promise.all(promises);
         
         for (const grievance of grievanceBatch) {
-          if (grievance && grievance.data && grievance.data.status === 0) {
+          // Coerce status to number to handle BigInt from ethers v6
+          if (grievance && grievance.data && Number(grievance.data.status) === 0) {
             const g = grievance.data;
             // Get citizen metadata if available
             let citizenName = '';
@@ -2627,8 +2601,19 @@ export class ContractService {
             }
 
             // Resolve title/body from IPFS
-            const titleCid = g.titleHash ? String(g.titleHash) : '';
-            const bodyCid = g.bodyHash ? String(g.bodyHash) : '';
+            let titleCid = g.titleHash ? String(g.titleHash) : '';
+            let bodyCid = g.bodyHash ? String(g.bodyHash) : '';
+            // If hashes are bytes32 digests, convert to CIDv0 for fetching
+            try {
+              if (titleCid && /^0x[0-9a-fA-F]{64}$/.test(titleCid)) {
+                titleCid = `ipfs://${this.bytes32ToCid(titleCid)}`;
+              }
+            } catch {}
+            try {
+              if (bodyCid && /^0x[0-9a-fA-F]{64}$/.test(bodyCid)) {
+                bodyCid = `ipfs://${this.bytes32ToCid(bodyCid)}`;
+              }
+            } catch {}
             let titleText = '';
             let descriptionText = '';
             let inferredType = '';
@@ -2660,7 +2645,8 @@ export class ContractService {
               }
             } catch { descriptionText = bodyCid; }
 
-            const createdAtSec = Number(g.createdAt ?? 0);
+            // Prefer createdAt, fallback to timestamp if present
+            const createdAtSec = Number((g as any).createdAt ?? (g as any).timestamp ?? 0);
             pendingGrievances.push({
               id: grievance.id.toString(),
               title: titleText || titleCid,
@@ -2725,7 +2711,14 @@ export class ContractService {
 
       try {
         if (titleCid) {
-          const titleRaw = await this.getIPFSContent(titleCid);
+          let ref = titleCid;
+          // Convert bytes32 digest to CID if needed
+          try {
+            if (/^0x[0-9a-fA-F]{64}$/.test(ref)) {
+              ref = `ipfs://${this.bytes32ToCid(ref)}`;
+            }
+          } catch {}
+          const titleRaw = await this.getIPFSContent(ref);
           try {
             const titleJson = JSON.parse(titleRaw);
             titleText = titleJson?.title || titleJson?.text || titleRaw;
@@ -2740,7 +2733,14 @@ export class ContractService {
 
       try {
         if (bodyCid) {
-          const bodyRaw = await this.getIPFSContent(bodyCid);
+          let ref = bodyCid;
+          // Convert bytes32 digest to CID if needed
+          try {
+            if (/^0x[0-9a-fA-F]{64}$/.test(ref)) {
+              ref = `ipfs://${this.bytes32ToCid(ref)}`;
+            }
+          } catch {}
+          const bodyRaw = await this.getIPFSContent(ref);
           try {
             const bodyJson = JSON.parse(bodyRaw);
             descriptionText = bodyJson?.description || bodyJson?.text || bodyRaw;
@@ -2755,22 +2755,49 @@ export class ContractService {
         descriptionText = bodyCid;
       }
 
+      // Normalize status to a lowercase string for UI safety
+      const statusCode = Number(grievance.status);
+      let statusStr: string;
+      switch (statusCode) {
+        case 0: statusStr = 'pending'; break;
+        case 1: statusStr = 'validated'; break;
+        case 2: statusStr = 'rejected'; break;
+        case 3: statusStr = 'accepted'; break;
+        case 4: statusStr = 'in_project'; break;
+        case 5: statusStr = 'resolved'; break;
+        case 6: statusStr = 'reopened'; break;
+        default: statusStr = 'unknown';
+      }
+
       return {
         id: grievanceId,
         // Keep original CIDs for reference
         title: titleCid,
         description: bodyCid,
+        // Back-compat aliases expected by components
+        titleHash: titleCid,
+        descriptionHash: bodyCid,
         // Resolved content for UI
         titleText,
         descriptionText,
         location: inferredLocation,
         grievanceType: inferredType,
+        // Timestamps (seconds)
         timestamp: createdAtSec,
+        createdAt: createdAtSec,
         lastUpdated: createdAtSec,
+        // Addresses
         citizenAddress: grievance.citizen,
+        citizen: grievance.citizen,
         citizenName,
         validatorAddress: grievance.validator,
-        status: grievance.status,
+        // Status in multiple convenient forms
+        status: statusStr.toUpperCase(),
+        statusLower: statusStr,
+        statusCode,
+        // Optional fields (best-effort from contract struct)
+        area: Number(grievance.areaId ?? grievance.area ?? 0) || undefined,
+        severityLevel: Number(grievance.severityLevel ?? grievance.priority ?? 0) || 0,
         urgent: false,
         images: [],
         comments: [],

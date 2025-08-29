@@ -218,10 +218,26 @@ export class AdminHomeComponent implements OnInit {
   }
   
   formatDate(date: Date): string {
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    try {
+      if (!date) return '';
+      let d: Date;
+      if (date instanceof Date) {
+        d = date;
+      } else if (typeof date === 'number') {
+        // assume seconds
+        d = new Date(date * 1000);
+      } else if (typeof (date as any) === 'string') {
+        const parsed = Date.parse(date as any);
+        d = isNaN(parsed) ? new Date() : new Date(parsed);
+      } else if ((date as any)?.toNumber) {
+        // ethers BigNumber-like
+        d = new Date((date as any).toNumber() * 1000);
+      } else {
+        d = new Date();
+      }
+      return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    } catch {
+      return '';
+    }
   }
 }

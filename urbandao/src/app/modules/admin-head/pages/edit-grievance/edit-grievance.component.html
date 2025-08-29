@@ -147,8 +147,9 @@
 
         <!-- History Records would go here, if available from the contract -->
 
-        <!-- Admin Actions Form -->
-        <div *ngIf="grievance.status === 'VALIDATED' || grievance.status === 'PENDING'">
+        <!-- Admin Actions -->
+        <!-- For VALIDATED grievances, show action form -->
+        <div *ngIf="grievance.status === 'VALIDATED'">
           <div class="glass-card action-card">
             <div class="card-header">
               <h2>Admin Action</h2>
@@ -165,8 +166,8 @@
                     [class.invalid]="actionForm.get('action')?.invalid && actionForm.get('action')?.touched"
                   >
                     <option value="" disabled selected>Select an action...</option>
-                    <option *ngIf="grievance.status === 'VALIDATED'" value="escalate_to_project">Escalate to Project</option>
-                    <option *ngIf="grievance.status === 'VALIDATED'" value="reject">Reject Grievance</option>
+                    <option value="escalate_to_project">Escalate to Project</option>
+                    <option value="reject">Reject Grievance</option>
                   </select>
                   <div *ngIf="actionForm.get('action')?.invalid && actionForm.get('action')?.touched" class="error-message">
                     Please select an action
@@ -231,6 +232,18 @@
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- For PENDING grievances, show helpful message -->
+        <div *ngIf="grievance.status === 'PENDING'">
+          <div class="glass-card action-card">
+            <div class="card-header">
+              <h2>Admin Action</h2>
+            </div>
+            <div class="card-content">
+              <p>This grievance is pending validator review. Admin actions will become available once it is validated.</p>
             </div>
           </div>
         </div>

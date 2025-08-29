@@ -107,16 +107,21 @@ export class EditGrievanceComponent implements OnInit {
       
       for (const id of grievanceIds) {
         const grievance = await this.contractService.getGrievance(id);
-        
         if (grievance) {
-          // Get IPFS content for title
-          const title = await this.contractService.getIPFSContent(grievance.titleHash);
-          
+          // Prefer already-resolved text from service; fallback to IPFS; fallback to CID
+          let title = grievance.titleText;
+          try {
+            if (!title && grievance.titleHash) {
+              title = await this.contractService.getIPFSContent(grievance.titleHash);
+            }
+          } catch {}
+          title = title || grievance.title || 'Unknown Grievance';
+
           this.grievances.push({
             id: grievance.id,
-            title: title || 'Unknown Grievance',
+            title,
             status: grievance.status,
-            citizenAddress: grievance.citizen,
+            citizenAddress: grievance.citizenAddress || grievance.citizen,
             severityLevel: grievance.severityLevel,
             createdAt: new Date(grievance.createdAt * 1000),
             lastUpdated: new Date(grievance.lastUpdated * 1000),
@@ -146,20 +151,24 @@ export class EditGrievanceComponent implements OnInit {
         return;
       }
       
-      // Get IPFS content
-      const title = await this.contractService.getIPFSContent(grievance.titleHash);
-      const description = await this.contractService.getIPFSContent(grievance.descriptionHash);
-      
+      // Use resolved fields first, then IPFS, then CID fallbacks
+      let title = grievance.titleText;
+      let description = grievance.descriptionText;
+      try {
+        if (!title && grievance.titleHash) title = await this.contractService.getIPFSContent(grievance.titleHash);
+      } catch {}
+      try {
+        if (!description && grievance.descriptionHash) description = await this.contractService.getIPFSContent(grievance.descriptionHash);
+      } catch {}
       this.grievance = {
         ...grievance,
-        title: title || 'Unknown Grievance',
-        description: description || 'No description available.',
+        title: title || grievance.title || 'Unknown Grievance',
+        description: description || grievance.description || 'No description available.',
         createdAt: new Date(grievance.createdAt * 1000),
         lastUpdated: new Date(grievance.lastUpdated * 1000)
       };
-      
-      this.grievanceTitle = title || '';
-      this.grievanceDescription = description || '';
+      this.grievanceTitle = this.grievance.title || '';
+      this.grievanceDescription = this.grievance.description || '';
       
       // Set form values based on current status
       if (grievance.status === 'VALIDATED') {
