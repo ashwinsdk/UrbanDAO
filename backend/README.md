@@ -138,10 +138,30 @@ The contracts are deployed on Sepolia testnet. Addresses are stored in `deployed
 
 ```bash
 # Deploy all contracts
-npx hardhat run scripts/deploy.js --network sepolia
+npx hardhat run scripts/deploy/deploy.js --network sepolia
 
 # Deploy only token
-npx hardhat run scripts/deploy-token.js --network sepolia
+npx hardhat run scripts/deploy/deploy-token.js --network sepolia
+
+# Deploy only grievancehub
+npx hardhat run scripts/deploy/deploy-grievancehub.js --network sepolia
+
+# Grant roles - GrievanceHub
+# ADMIN_HEAD
+GH=<GH_ADDRESS> ADMIN_HEAD=<ADMIN_HEAD_ADDRESS> \
+npx hardhat run scripts/grant/grant-grievancehub-roles.js --network sepolia
+
+# VALIDATOR
+GH=<GH_ADDRESS> VALIDATOR=<VALIDATOR_ADDRESS> \
+npx hardhat run scripts/grant/grant-grievancehub-roles.js --network sepolia
+
+# Grant roles - token to core
+OWNER_ROLE_PRIVATE_KEY=<OWNER_ROLE_PRIVATE_KEY> URBAN_TOKEN_ADDRESS=<URBAN_TOKEN_ADDRESS> URBAN_CORE_ADDRESS=<URBAN_CORE_ADDRESS> \
+npx hardhat run scripts/grant/grant-owner-on-token-to-core.js --network sepolia
+
+# Grant roles - core to token
+OWNER_ROLE_PRIVATE_KEY=<OWNER_ROLE_PRIVATE_KEY> URBAN_CORE_ADDRESS=<URBAN_CORE_ADDRESS> URBAN_TOKEN_ADDRESS=<URBAN_TOKEN_ADDRESS> \
+npx hardhat run scripts/grant/grant-core-on-token-to-core.js --network sepolia
 ```
 
 ### Verify Contracts on Etherscan
@@ -211,10 +231,10 @@ URBAN_CORE_ADDRESS=your_deployed_urbancore_address
 
 ```bash
 # Verify current role assignments
-node scripts/run-role-management.js verify
+node scripts/run/run-role-management.js verify
 
 # Assign missing roles according to hierarchy
-node scripts/run-role-management.js assign
+node scripts/run/run-role-management.js assign
 ```
 
 #### Role Assignment Process

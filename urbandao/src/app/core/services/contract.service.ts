@@ -599,9 +599,23 @@ export class ContractService {
       if (!this.urbanCoreContract) await this.initContracts();
       if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
       
-      // Mock implementation
-      // In a real scenario would check all roles for this address
-      return Math.random() > 0.5; // Randomly return true or false for testing
+      // Check if the address has any role other than CITIZEN
+      const rolesToCheck: UserRole[] = [
+        UserRole.OWNER_ROLE,
+        UserRole.ADMIN_GOVT_ROLE,
+        UserRole.ADMIN_HEAD_ROLE,
+        UserRole.PROJECT_MANAGER_ROLE,
+        UserRole.TAX_COLLECTOR_ROLE,
+        UserRole.VALIDATOR_ROLE,
+        UserRole.TX_PAYER_ROLE
+      ];
+      for (const role of rolesToCheck) {
+        try {
+          const has = await this.hasRole(role, address);
+          if (has) return true;
+        } catch {}
+      }
+      return false;
     } catch (error) {
       console.error('Error checking for other roles:', error);
       return false;
@@ -686,13 +700,83 @@ export class ContractService {
       if (!this.grievanceHubContract) await this.initContracts();
       if (!this.grievanceHubContract) throw new Error('Grievance Hub contract not initialized');
       
-      // Mock implementation
-      console.log(`Rejecting grievance ${grievanceId} with feedback: ${feedback}`);
-      return 'mock-transaction-hash';
+      // Optionally submit feedback along with rejection if provided
+      if (feedback && feedback.trim().length > 0) {
+        const txFb = await this.submitFeedback(grievanceId, feedback, false);
+        // Wait for feedback tx before rejecting so index is recorded on-chain first
+        // Ignore errors here; proceed to rejection attempt regardless
+        try {
+          const provider = this.web3Service.getProvider();
+          if (provider) {
+            await provider.waitForTransaction(txFb);
+          }
+        } catch {}
+      }
+
+      const tx = await this.approveGrievance(grievanceId, false);
+      return tx;
     } catch (error) {
       console.error('Error rejecting grievance:', error);
       return null;
     }
+  }
+
+  // Approve or reject a grievance (Validator action)
+  public async approveGrievance(grievanceId: string | number, approve: boolean): Promise<string> {
+    if (!this.grievanceHubContract) await this.initContracts();
+    if (!this.grievanceHubContract) throw new Error('Grievance Hub contract not initialized');
+    const idNum = Number(grievanceId);
+    const tx = await this.grievanceHubContract['approveGrievance'](idNum, approve);
+    const receipt = await tx.wait();
+    return receipt?.hash ?? tx.hash;
+  }
+
+  // Approve or reject a feedback entry (Admin Head action)
+  public async approveFeedback(grievanceId: string | number, feedbackIndex: string | number, approve: boolean): Promise<string> {
+    if (!this.grievanceHubContract) await this.initContracts();
+    if (!this.grievanceHubContract) throw new Error('Grievance Hub contract not initialized');
+    const idNum = Number(grievanceId);
+    const idxNum = Number(feedbackIndex);
+    const tx = await this.grievanceHubContract['approveFeedback'](idNum, idxNum, approve);
+    const receipt = await tx.wait();
+    return receipt?.hash ?? tx.hash;
+  }
+
+  // Admin Head accepts a validated grievance
+  public async acceptValidated(grievanceId: string | number): Promise<string> {
+    if (!this.grievanceHubContract) await this.initContracts();
+    if (!this.grievanceHubContract) throw new Error('Grievance Hub contract not initialized');
+    const idNum = Number(grievanceId);
+    const tx = await this.grievanceHubContract['acceptValidated'](idNum);
+    const receipt = await tx.wait();
+    return receipt?.hash ?? tx.hash;
+  }
+
+  // Citizen or Admin submits feedback text or IPFS reference; contract expects bytes32 feedbackHash and resolved flag
+  public async submitFeedback(grievanceId: string | number, feedbackTextOrHash: string, resolved: boolean): Promise<string> {
+    if (!this.grievanceHubContract) await this.initContracts();
+    if (!this.grievanceHubContract) throw new Error('Grievance Hub contract not initialized');
+    const idNum = Number(grievanceId);
+
+    // Determine the bytes32 digest to send:
+    // - If already 0x-32byte hex, use as-is
+    // - If IPFS URI (ipfs://...) or CIDv0 (Qm...), convert to bytes32 digest via cidToBytes32
+    // - Else hash the UTF-8 content text
+    let feedbackHash: string = feedbackTextOrHash;
+    const isBytes32 = typeof feedbackTextOrHash === 'string' && /^0x[0-9a-fA-F]{64}$/.test(feedbackTextOrHash);
+    const isIpfsUri = typeof feedbackTextOrHash === 'string' && feedbackTextOrHash.startsWith('ipfs://');
+    const isCidV0 = typeof feedbackTextOrHash === 'string' && /^Qm[1-9A-HJ-NP-Za-km-z]{44}$/.test(feedbackTextOrHash);
+    if (!isBytes32) {
+      if (isIpfsUri || isCidV0) {
+        feedbackHash = this.cidToBytes32(feedbackTextOrHash);
+      } else {
+        feedbackHash = ethers.keccak256(ethers.toUtf8Bytes(String(feedbackTextOrHash)));
+      }
+    }
+
+    const tx = await this.grievanceHubContract['submitFeedback'](idNum, feedbackHash, !!resolved);
+    const receipt = await tx.wait();
+    return receipt?.hash ?? tx.hash;
   }
   
   // Get grievances for an area

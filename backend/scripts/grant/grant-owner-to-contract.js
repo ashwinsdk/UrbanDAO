@@ -7,7 +7,7 @@ require('dotenv').config();
 const { ethers } = require('ethers');
 
 // Import contract artifacts
-const UrbanCoreArtifact = require('../artifacts/contracts/UrbanCore.sol/UrbanCore.json');
+const UrbanCoreArtifact = require('../../artifacts/contracts/UrbanCore.sol/UrbanCore.json');
 
 async function grantOwnerRoleToContract() {
   try {

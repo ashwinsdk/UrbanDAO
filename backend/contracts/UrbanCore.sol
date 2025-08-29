@@ -71,6 +71,7 @@ contract UrbanCore is
     event TrustedForwarderUpdated(address indexed oldForwarder, address indexed newForwarder);
     event AreaHeadAssigned(uint256 indexed areaId, address indexed head);
     event SystemUpgraded(address indexed newImplementation, address indexed upgrader);
+    event GrievanceHubUpdated(address indexed oldHub, address indexed newHub, address indexed updater);
 
     // Custom errors
     error AddressAlreadyHasRole(address account, bytes32 existingRole);
@@ -295,6 +296,17 @@ contract UrbanCore is
         // In a real implementation, this would update the forwarder
         // For now, emit event for tracking
         emit TrustedForwarderUpdated(oldForwarder, newForwarder);
+    }
+
+    /**
+     * @notice Update the GrievanceHub reference
+     * @param newHub Address of the new GrievanceHub
+     */
+    function setGrievanceHub(address newHub) external onlyRole(AccessRoles.OWNER_ROLE) {
+        if (newHub == address(0)) revert InvalidContractAddress(newHub);
+        address old = address(grievanceHub);
+        grievanceHub = GrievanceHub(newHub);
+        emit GrievanceHubUpdated(old, newHub, _msgSender());
     }
 
     /**

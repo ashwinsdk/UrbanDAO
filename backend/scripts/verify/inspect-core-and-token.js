@@ -1,8 +1,8 @@
 require('dotenv').config();
 const { ethers } = require('ethers');
 
-const UrbanCoreArtifact = require('../artifacts/contracts/UrbanCore.sol/UrbanCore.json');
-const UrbanTokenArtifact = require('../artifacts/contracts/UrbanToken.sol/UrbanToken.json');
+const UrbanCoreArtifact = require('../../artifacts/contracts/UrbanCore.sol/UrbanCore.json');
+const UrbanTokenArtifact = require('../../artifacts/contracts/UrbanToken.sol/UrbanToken.json');
 
 async function main() {
   const rpcUrl = process.env.SEPOLIA_RPC_URL;

@@ -121,9 +121,25 @@ contract GrievanceHub is AccessControl, Pausable, ERC2771Context {
     error InvalidAreaId(uint256 areaId);
     error EmptyHash(bytes32 hash);
 
-    constructor(address owner, address trustedForwarder) ERC2771Context(trustedForwarder) {
+    constructor(address owner, address adminGovt, address trustedForwarder) ERC2771Context(trustedForwarder) {
+        // Seed owner and configure role admin hierarchy
         _grantRole(AccessRoles.OWNER_ROLE, owner);
         _setRoleAdmin(AccessRoles.OWNER_ROLE, AccessRoles.OWNER_ROLE);
+
+        // Configure role admin mapping to mirror system hierarchy
+        _setRoleAdmin(AccessRoles.ADMIN_GOVT_ROLE, AccessRoles.OWNER_ROLE);
+        _setRoleAdmin(AccessRoles.ADMIN_HEAD_ROLE, AccessRoles.ADMIN_GOVT_ROLE);
+        _setRoleAdmin(AccessRoles.VALIDATOR_ROLE, AccessRoles.ADMIN_HEAD_ROLE);
+        _setRoleAdmin(AccessRoles.TAX_COLLECTOR_ROLE, AccessRoles.ADMIN_HEAD_ROLE);
+        _setRoleAdmin(AccessRoles.PROJECT_MANAGER_ROLE, AccessRoles.ADMIN_HEAD_ROLE);
+        _setRoleAdmin(AccessRoles.CITIZEN_ROLE, AccessRoles.VALIDATOR_ROLE);
+        _setRoleAdmin(AccessRoles.TX_PAYER_ROLE, AccessRoles.OWNER_ROLE);
+
+        // Ensure there is an initial admin govt that can manage heads/validators on this module
+        if (adminGovt != address(0)) {
+            _grantRole(AccessRoles.ADMIN_GOVT_ROLE, adminGovt);
+        }
+
         _nextGrievanceId = 1;
     }
 

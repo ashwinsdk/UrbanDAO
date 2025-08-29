@@ -8,7 +8,7 @@ require('dotenv').config();
 const { ethers } = require('ethers');
 
 // Import token artifact
-const UrbanTokenArtifact = require('../artifacts/contracts/UrbanToken.sol/UrbanToken.json');
+const UrbanTokenArtifact = require('../../artifacts/contracts/UrbanToken.sol/UrbanToken.json');
 
 async function main() {
   // Basic env checks

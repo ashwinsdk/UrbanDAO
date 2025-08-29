@@ -16,10 +16,10 @@ const fs = require('fs');
 const path = require('path');
 
 // Import contract artifacts
-const UrbanCoreArtifact = require('../artifacts/contracts/UrbanCore.sol/UrbanCore.json');
+const UrbanCoreArtifact = require('../../artifacts/contracts/UrbanCore.sol/UrbanCore.json');
 
 // Load deployment addresses and role configuration
-const DEPLOYED_ADDRESSES = require('../deployed/addresses.json');
+const DEPLOYED_ADDRESSES = require('../../deployed/addresses.json');
 const ROLES_JSON_PATH = path.join(__dirname, '../../docs/roles.json');
 const ROLES_CONFIG = require(ROLES_JSON_PATH);
 

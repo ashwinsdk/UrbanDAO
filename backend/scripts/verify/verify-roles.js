@@ -13,12 +13,12 @@ const fs = require('fs');
 const path = require('path');
 
 // Import contract artifacts
-const UrbanCoreArtifact = require('../artifacts/contracts/UrbanCore.sol/UrbanCore.json');
-const AccessRolesArtifact = require('../artifacts/contracts/AccessRoles.sol/AccessRoles.json');
+const UrbanCoreArtifact = require('../../artifacts/contracts/UrbanCore.sol/UrbanCore.json');
+const AccessRolesArtifact = require('../../artifacts/contracts/AccessRoles.sol/AccessRoles.json');
 
 // Load deployment addresses and role configuration
-const DEPLOYED_ADDRESSES = require('../deployed/addresses.json');
-const ROLES_CONFIG = require('../../docs/roles.json');
+const DEPLOYED_ADDRESSES = require('../../deployed/addresses.json');
+const ROLES_CONFIG = require('../../../docs/roles.json');
 
 // Role constants - these match the constants in AccessRoles.sol
 const ROLE_CONSTANTS = {

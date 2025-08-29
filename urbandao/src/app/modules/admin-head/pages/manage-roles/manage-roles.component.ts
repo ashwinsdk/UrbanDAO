@@ -257,9 +257,19 @@ export class ManageRolesComponent implements OnInit {
       this.error = null;
       
       const formData = this.assignRoleForm.value;
+      const targetAddress: string = formData.address;
+      const targetRole: UserRole = formData.role;
       
-      // Check if address already has another role
-      const hasAnotherRole = await this.contractService.hasAnyOtherRole(formData.address);
+      // If the address already has the selected role, short-circuit with a friendly message
+      const alreadyHasSelectedRole = await this.contractService.hasRole(targetRole, targetAddress);
+      if (alreadyHasSelectedRole) {
+        this.success = `${this.formatAddress(targetAddress)} already has the ${this.getRoleLabel(targetRole)} role. No action needed.`;
+        this.loadingAction = false;
+        return;
+      }
+
+      // Check if address already has another (different) role
+      const hasAnotherRole = await this.contractService.hasAnyOtherRole(targetAddress);
       
       if (hasAnotherRole) {
         if (!confirm(`Warning: This address already has another role assigned. Assigning a new role may cause issues with role collisions. Do you want to proceed anyway?`)) {
@@ -269,7 +279,7 @@ export class ManageRolesComponent implements OnInit {
       }
       
       // Check if the address is already registered as a citizen
-      const isCitizen = await this.contractService.hasRole(UserRole.CITIZEN_ROLE, formData.address);
+      const isCitizen = await this.contractService.hasRole(UserRole.CITIZEN_ROLE, targetAddress);
       
       if (!isCitizen) {
         this.error = 'This address is not registered as a citizen. Only citizens can be assigned roles.';
@@ -291,14 +301,14 @@ export class ManageRolesComponent implements OnInit {
       
       // Call contract to assign role
       const result = await this.contractService.assignRole(
-        formData.address,
-        formData.role,
+        targetAddress,
+        targetRole,
         this.areaId!,
         metadataHash
       );
       
       if (result) {
-        this.success = `Role assigned successfully! ${this.formatAddress(formData.address)} has been assigned as ${this.getRoleLabel(formData.role)}.`;
+        this.success = `Role assigned successfully! ${this.formatAddress(targetAddress)} has been assigned as ${this.getRoleLabel(targetRole)}.`;
         this.assignRoleForm.reset();
         
         // Reload role assignments after a short delay
