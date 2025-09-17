@@ -6,18 +6,6 @@ require("hardhat-contract-sizer");
 require("@openzeppelin/hardhat-upgrades");
 require("dotenv").config();
 
-/**
- * Example .env variables (create .env file in backend/ directory):
- * PRIVATE_KEY=07446a2aab1e7449202eaad0a2fc66089511a091218acc4414288b80dd7e18b1
- * SEPOLIA_RPC_URL=https://sepolia.infura.io/v3/fce8183a885b4d70a55129db4665bf8d
- * OWNER_GOVT=0x1234567890123456789012345678901234567890
- * RELAYER=0x2345678901234567890123456789012345678901
- * TREASURY=0x3456789012345678901234567890123456789012
- * PINATA_API_KEY=b56e744235550696bd6f
- * PINATA_SECRET=5da143f033a42cc06915d65c5f8db9b70a0843fb0579aed3447059d13f0af0cd
- * ETHERSCAN_API_KEY=42NY9A6AY4TD77QAEVS121QGS74AXVTFAI
- */
-
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   solidity: {

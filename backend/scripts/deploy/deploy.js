@@ -2,23 +2,6 @@ const { ethers, upgrades } = require("hardhat");
 const fs = require("fs");
 const path = require("path");
 
-/**
- * Example .env variables:
- * PRIVATE_KEY=07446a2aab1e7449202eaad0a2fc66089511a091218acc4414288b80dd7e18b1
- * SEPOLIA_RPC_URL=https://sepolia.infura.io/v3/fce8183a885b4d70a55129db4665bf8d
- * OWNER_GOVT=0x1234567890123456789012345678901234567890
- * RELAYER=0x2345678901234567890123456789012345678901
- * TREASURY=0x3456789012345678901234567890123456789012
- * PINATA_API_KEY=b56e744235550696bd6f
- * PINATA_SECRET=5da143f033a42cc06915d65c5f8db9b70a0843fb0579aed3447059d13f0af0cd
- * ETHERSCAN_API_KEY=42NY9A6AY4TD77QAEVS121QGS74AXVTFAI
- * 
- * Sample meta-tx sign/execute roundtrip:
- * 1. Build EIP-712 typed data for MetaForwarder domain
- * 2. Sign with Wallet.signTypedData(domain, types, value)
- * 3. Submit to forwarder.execute(request, signature)
- * 4. MetaForwarder validates signature and executes call with correct _msgSender()
- */
 
 async function main() {
     console.log("🚀 Starting UrbanDAO deployment...\n");
@@ -145,6 +128,7 @@ async function main() {
         const GrievanceHub = await ethers.getContractFactory("GrievanceHub");
         const grievanceHub = await GrievanceHub.deploy(
             deployer.address,
+            config.ownerGovt,
             deployedContracts.MetaForwarder
         );
         await grievanceHub.waitForDeployment();
@@ -196,13 +180,19 @@ async function main() {
         await taxReceipt.grantRole(OWNER_ROLE, deployedContracts.TaxModule);
         console.log("✅ TaxReceipt minting role granted");
 
-        // Configure UrbanCore roles
+        // Configure UrbanCore roles (use hashed role constants)
         console.log("⚙️ Configuring UrbanCore roles...");
+        const ADMIN_GOVT_ROLE = ethers.keccak256(ethers.toUtf8Bytes("ADMIN_GOVT_ROLE"));
+        const TX_PAYER_ROLE = ethers.keccak256(ethers.toUtf8Bytes("TX_PAYER_ROLE"));
         if (config.ownerGovt !== deployer.address) {
-            await urbanCore.assignRole(await urbanCore.ADMIN_GOVT_ROLE(), config.ownerGovt);
+            await urbanCore.assignRole(ADMIN_GOVT_ROLE, config.ownerGovt);
         }
-        await urbanCore.assignRole(await urbanCore.TX_PAYER_ROLE(), config.relayer);
-        console.log("✅ UrbanCore roles configured");
+        if (config.relayer.toLowerCase() !== deployer.address.toLowerCase()) {
+            await urbanCore.assignRole(TX_PAYER_ROLE, config.relayer);
+            console.log("✅ UrbanCore roles configured");
+        } else {
+            console.log("⚠️ Skipping TX_PAYER_ROLE assignment: relayer equals deployer (collision with OWNER_ROLE). Set RELAYER env to a distinct address to enable assignment.");
+        }
 
         // Transfer UrbanToken ownership to Timelock
         console.log("⚙️ Transferring UrbanToken ownership to Timelock...");
@@ -210,7 +200,8 @@ async function main() {
         console.log("✅ UrbanToken ownership transferred");
 
         // Create deployed addresses directory and file
-        const deployedDir = path.join(__dirname, "../deployed");
+        // Write to backend/deployed for consistency with the rest of the tooling
+        const deployedDir = path.join(__dirname, "../../deployed");
         if (!fs.existsSync(deployedDir)) {
             fs.mkdirSync(deployedDir, { recursive: true });
         }
@@ -234,6 +225,22 @@ async function main() {
             path.join(deployedDir, "addresses.json"),
             JSON.stringify(deploymentData, null, 2)
         );
+
+        // Also write a copy under docs for frontend consumption if desired
+        try {
+            const docsPath = path.join(__dirname, "../../../docs/contract_addresses.json");
+            fs.writeFileSync(docsPath, JSON.stringify({
+                network: network.name,
+                chainId: network.chainId.toString(),
+                timestamp: new Date().toISOString(),
+                contracts: deployedContracts,
+                metadata: deploymentData.metadata,
+                config: { treasury: config.treasury, ownerGovt: config.ownerGovt }
+            }, null, 2));
+            console.log("📄 Wrote docs/contract_addresses.json");
+        } catch (e) {
+            console.warn("Could not write docs/contract_addresses.json:", e.message);
+        }
 
         // Handle Pinata API keys if present
         if (process.env.PINATA_API_KEY && process.env.PINATA_SECRET) {
