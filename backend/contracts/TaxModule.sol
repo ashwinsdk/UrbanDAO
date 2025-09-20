@@ -9,6 +9,13 @@ import "./AccessRoles.sol";
 import "./TaxReceipt.sol";
 import "./UrbanToken.sol";
 
+// Minimal interface to UrbanCore for area scoping
+interface IUrbanCoreForTax {
+    function isApprovedCitizen(address citizen) external view returns (bool);
+    function citizenArea(address citizen) external view returns (uint256);
+    function isAreaTaxCollector(uint256 areaId, address account) external view returns (bool);
+}
+
 /**
  * @title TaxModule
  * @notice Handles tax assessments and payments with gasless transactions via ERC-2771
@@ -42,6 +49,9 @@ contract TaxModule is AccessControl, Pausable, ReentrancyGuard, ERC2771Context {
     TaxReceipt public immutable taxReceipt;
     UrbanToken public immutable urbanToken;
     address public treasury;
+    address public urbanCore;
+
+    event UrbanCoreUpdated(address indexed oldCore, address indexed newCore, address indexed updater);
 
     // Events
     event TaxAssessed(
@@ -100,6 +110,15 @@ contract TaxModule is AccessControl, Pausable, ReentrancyGuard, ERC2771Context {
     }
 
     /**
+     * @notice Set UrbanCore for area-based validation
+     */
+    function setUrbanCore(address core) external onlyRole(AccessRoles.OWNER_ROLE) {
+        address old = urbanCore;
+        urbanCore = core;
+        emit UrbanCoreUpdated(old, core, _msgSender());
+    }
+
+    /**
      * @notice Assess tax for a citizen for a specific year
      * @param citizen The citizen to assess
      * @param year The tax year
@@ -115,6 +134,11 @@ contract TaxModule is AccessControl, Pausable, ReentrancyGuard, ERC2771Context {
         if (year < 2020 || year > 2100) revert InvalidYear(year);
         if (amount == 0) revert InvalidAmount(amount);
         if (assessments[citizen][year].amount > 0) revert AssessmentAlreadyExists(citizen, year);
+        // Enforce area-scoped collector and approved citizen
+        require(urbanCore != address(0), "TaxModule: core not set");
+        require(IUrbanCoreForTax(urbanCore).isApprovedCitizen(citizen), "TaxModule: citizen not approved");
+        uint256 areaId = IUrbanCoreForTax(urbanCore).citizenArea(citizen);
+        require(IUrbanCoreForTax(urbanCore).isAreaTaxCollector(areaId, _msgSender()), "TaxModule: not area collector");
 
         assessments[citizen][year] = Assessment({
             amount: amount,
@@ -145,6 +169,8 @@ contract TaxModule is AccessControl, Pausable, ReentrancyGuard, ERC2771Context {
         if (assessment.amount == 0) revert AssessmentNotFound(citizen, year);
         if (assessment.paid) revert AssessmentAlreadyPaid(citizen, year);
         if (treasury == address(0)) revert TreasuryNotSet();
+        require(urbanCore != address(0), "TaxModule: core not set");
+        require(IUrbanCoreForTax(urbanCore).isApprovedCitizen(citizen), "TaxModule: citizen not approved");
 
         uint256 citizenBalance = urbanToken.balanceOf(citizen);
         if (citizenBalance < assessment.amount) {
@@ -176,6 +202,8 @@ contract TaxModule is AccessControl, Pausable, ReentrancyGuard, ERC2771Context {
         if (assessment.amount == 0) revert AssessmentNotFound(citizen, year);
         if (assessment.objectionFiled) revert ObjectionAlreadyFiled(citizen, year);
         if (assessment.paid) revert AssessmentAlreadyPaid(citizen, year);
+        require(urbanCore != address(0), "TaxModule: core not set");
+        require(IUrbanCoreForTax(urbanCore).isApprovedCitizen(citizen), "TaxModule: citizen not approved");
 
         assessment.objectionFiled = true;
         assessment.objectionHash = reasonHash;
@@ -199,6 +227,10 @@ contract TaxModule is AccessControl, Pausable, ReentrancyGuard, ERC2771Context {
         if (assessment.amount == 0) revert AssessmentNotFound(citizen, year);
         if (assessment.meetingTimestamp > 0) revert MeetingAlreadyScheduled(citizen, year);
         if (timestamp <= block.timestamp) revert InvalidMeetingTime(timestamp);
+        // Enforce area-scoped collector
+        require(urbanCore != address(0), "TaxModule: core not set");
+        uint256 areaId = IUrbanCoreForTax(urbanCore).citizenArea(citizen);
+        require(IUrbanCoreForTax(urbanCore).isAreaTaxCollector(areaId, _msgSender()), "TaxModule: not area collector");
 
         assessment.meetingTimestamp = timestamp;
 

@@ -8,8 +8,9 @@ const { ethers } = require("hardhat");
 const DEFAULT_ADMIN_ROLE = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
 // Calculate role hashes using the same keccak256 function as the contract
-const OWNER_ROLE = ethers.keccak256(ethers.toUtf8Bytes("OWNER_ROLE"));
+// OWNER and ADMIN_GOVT are aliases on-chain; both use ADMIN_GOVT_ROLE hash
 const ADMIN_GOVT_ROLE = ethers.keccak256(ethers.toUtf8Bytes("ADMIN_GOVT_ROLE"));
+const OWNER_ROLE = ADMIN_GOVT_ROLE;
 const ADMIN_HEAD_ROLE = ethers.keccak256(ethers.toUtf8Bytes("ADMIN_HEAD_ROLE"));
 const PROJECT_MANAGER_ROLE = ethers.keccak256(ethers.toUtf8Bytes("PROJECT_MANAGER_ROLE"));
 const TAX_COLLECTOR_ROLE = ethers.keccak256(ethers.toUtf8Bytes("TAX_COLLECTOR_ROLE"));

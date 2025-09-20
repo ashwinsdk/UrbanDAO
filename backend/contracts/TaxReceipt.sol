@@ -297,39 +297,39 @@ contract TaxReceipt is ERC721, ERC721Enumerable, ERC721URIStorage, AccessControl
      * @dev Reverts on any transfer attempt except minting
      */
     // Override transferFrom to prevent transfers (soul-bound)
-    function transferFrom(address, address, uint256) public pure override(IERC721, ERC721) {
+    function transferFrom(address, address, uint256) public override(IERC721, ERC721) {
         revert SoulBoundToken();
     }
     
     // Override safeTransferFrom to prevent transfers (soul-bound)
-    function safeTransferFrom(address, address, uint256) public pure override(IERC721, ERC721) {
+    function safeTransferFrom(address, address, uint256) public override(IERC721, ERC721) {
         revert SoulBoundToken();
     }
     
     // Override safeTransferFrom with data to prevent transfers (soul-bound)
-    function safeTransferFrom(address, address, uint256, bytes memory) public pure override(IERC721, ERC721) {
+    function safeTransferFrom(address, address, uint256, bytes memory) public override(IERC721, ERC721) {
         revert SoulBoundToken();
     }
 
     /**
      * @notice Override approve to prevent approvals (soul-bound)
      */
-    function approve(address, uint256) public pure override(IERC721, ERC721) {
+    function approve(address, uint256) public override(IERC721, ERC721) {
         revert SoulBoundToken();
     }
 
     // Override setApprovalForAll to prevent approval
-    function setApprovalForAll(address, bool) public pure override(IERC721, ERC721) {
+    function setApprovalForAll(address, bool) public override(IERC721, ERC721) {
         revert SoulBoundToken();
     }
 
     // Override getApproved to return zero address
-    function getApproved(uint256) public pure override(IERC721, ERC721) returns (address) {
+    function getApproved(uint256) public view override(IERC721, ERC721) returns (address) {
         return address(0);
     }
 
     // Override isApprovedForAll to return false
-    function isApprovedForAll(address, address) public pure override(IERC721, ERC721) returns (bool) {
+    function isApprovedForAll(address, address) public view override(IERC721, ERC721) returns (bool) {
         return false;
     }
 

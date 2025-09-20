@@ -8,8 +8,10 @@ pragma solidity ^0.8.24;
  */
 library AccessRoles {
     // Role constants
-    bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
+    // OWNER and ADMIN_GOVT are treated as the SAME top-level role on-chain.
+    // Both identifiers map to the same bytes32 value to avoid ambiguity.
     bytes32 public constant ADMIN_GOVT_ROLE = keccak256("ADMIN_GOVT_ROLE");
+    bytes32 public constant OWNER_ROLE = ADMIN_GOVT_ROLE; // alias to ADMIN_GOVT_ROLE
     bytes32 public constant ADMIN_HEAD_ROLE = keccak256("ADMIN_HEAD_ROLE");
     bytes32 public constant PROJECT_MANAGER_ROLE = keccak256("PROJECT_MANAGER_ROLE");
     bytes32 public constant TAX_COLLECTOR_ROLE = keccak256("TAX_COLLECTOR_ROLE");
@@ -63,8 +65,8 @@ library AccessRoles {
      * @return The admin role
      */
     function getRoleAdmin(bytes32 role) internal pure returns (bytes32) {
-        if (role == OWNER_ROLE) return OWNER_ROLE; // Owner is self-administered
-        if (role == ADMIN_GOVT_ROLE) return OWNER_ROLE;
+        if (role == OWNER_ROLE) return OWNER_ROLE; // Top admin is self-administered
+        if (role == ADMIN_GOVT_ROLE) return OWNER_ROLE; // alias -> self-admin
         if (role == ADMIN_HEAD_ROLE) return ADMIN_GOVT_ROLE;
         if (role == VALIDATOR_ROLE) return ADMIN_HEAD_ROLE;
         if (role == TAX_COLLECTOR_ROLE) return ADMIN_HEAD_ROLE;
@@ -108,3 +110,4 @@ library AccessRoles {
         return roles;
     }
 }
+

@@ -1,0 +1,33 @@
+{
+  "network": "sepolia",
+  "chainId": "11155111",
+  "core": "0x2C080380959400E023d340A9df6a2D819f51b938",
+  "timestamp": "2025-09-20T09:09:03.783Z",
+  "assignments": [
+    {
+      "role": "ADMIN_HEAD_ROLE",
+      "account": "0x224C1f97FF0570E3447D2A18E46ba5244ef19a6c",
+      "txHash": "0xb589b62ca3d8b1b2985139a38f7b07e449ff222f52a5772604cffaa8a24c4c33"
+    },
+    {
+      "role": "VALIDATOR_ROLE",
+      "account": "0x29b0AeFf310BC99ce4009b6599Ac45471354CbA4",
+      "txHash": "0x436dd7224cfafc4cb8b41e961e246f6259b8948a05d50f792d26894b58bb4782"
+    },
+    {
+      "role": "TAX_COLLECTOR_ROLE",
+      "account": "0x99da9Ab65660a4cbcd7B56b3055cB9794fCd7B9a",
+      "txHash": "0xdb5aa1a4caef50b74302e7e80fbc45b5c86495efd14526880556164d8cda90ac"
+    },
+    {
+      "role": "PROJECT_MANAGER_ROLE",
+      "account": "0x15900204E45560D7efb2df13e859824746da0A82",
+      "txHash": "0x3e697b764024a2bf71ab579a97fbc0a1c92d401d3b1185667a25d01ae7ab9b04"
+    },
+    {
+      "role": "TX_PAYER_ROLE",
+      "account": "0xA2b8748E6aD8efa24C7Eda95517DB76C0dFc68F1",
+      "txHash": "0xbbadea0fcb121869680d87783f6f5e31abfbbb052fed6ec1fa36677fb634f03e"
+    }
+  ]
+}

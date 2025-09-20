@@ -61,15 +61,23 @@ contract UrbanCore is
     // Area management
     mapping(uint256 => address) public areaHeads;
     mapping(address => uint256[]) public headAreas;
+    // Area-scoped role assignments
+    mapping(uint256 => mapping(address => bool)) private _areaValidators;
+    mapping(uint256 => mapping(address => bool)) private _areaTaxCollectors;
+    mapping(uint256 => mapping(address => bool)) private _areaProjectManagers;
+
+    // Citizen area mapping
+    mapping(address => uint256) public citizenArea; // citizen => areaId
 
     // Events
-    event CitizenRegistrationRequested(address indexed citizen, bytes32 docsHash);
+    event CitizenRegistrationRequested(address indexed citizen, uint256 indexed areaId, bytes32 docsHash);
     event CitizenApproved(address indexed citizen, address indexed validator, uint256 tokenReward);
     event CitizenRejected(address indexed citizen, address indexed validator, string reason);
     event RoleAssigned(address indexed account, bytes32 indexed role, address indexed assigner);
     event RoleRevoked(address indexed account, bytes32 indexed role, address indexed revoker);
     event TrustedForwarderUpdated(address indexed oldForwarder, address indexed newForwarder);
     event AreaHeadAssigned(uint256 indexed areaId, address indexed head);
+    event AreaRoleAssigned(uint256 indexed areaId, bytes32 indexed role, address indexed account);
     event SystemUpgraded(address indexed newImplementation, address indexed upgrader);
     event GrievanceHubUpdated(address indexed oldHub, address indexed newHub, address indexed updater);
 
@@ -81,6 +89,8 @@ contract UrbanCore is
     error InvalidContractAddress(address contractAddr);
     error RoleCollisionDetected(address account, bytes32 existing, bytes32 requested);
     error UnauthorizedUpgrade(address caller);
+    error NotAreaHead(address caller, uint256 areaId);
+    error NotAreaValidator(address caller, uint256 areaId);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(address trustedForwarder) ERC2771Context(trustedForwarder) {
@@ -154,11 +164,14 @@ contract UrbanCore is
      * @notice Request citizen registration (gasless via ERC-2771)
      * @param docsHash IPFS hash of KYC documents
      */
-    function registerCitizen(bytes32 docsHash) external whenNotPaused {
+    function registerCitizen(uint256 areaId, bytes32 docsHash) external whenNotPaused {
         address citizen = _msgSender(); // ERC-2771 context
         
         if (citizenRequests[citizen].citizen != address(0)) revert CitizenRequestAlreadyExists(citizen);
         if (approvedCitizens[citizen]) revert CitizenAlreadyApproved(citizen);
+        require(areaId != 0, "UrbanCore: invalid areaId");
+        // Ensure area has a head assigned before allowing registration
+        require(areaHeads[areaId] != address(0), "UrbanCore: area not initialized");
 
         citizenRequests[citizen] = CitizenRequest({
             citizen: citizen,
@@ -168,9 +181,12 @@ contract UrbanCore is
             validator: address(0)
         });
 
+        // Track citizen's desired area
+        citizenArea[citizen] = areaId;
+
         pendingRequests.push(citizen);
 
-        emit CitizenRegistrationRequested(citizen, docsHash);
+        emit CitizenRegistrationRequested(citizen, areaId, docsHash);
     }
 
     /**
@@ -181,6 +197,10 @@ contract UrbanCore is
         CitizenRequest storage request = citizenRequests[citizen];
         if (request.citizen == address(0)) revert CitizenRequestNotFound(citizen);
         if (approvedCitizens[citizen]) revert CitizenAlreadyApproved(citizen);
+
+        // Enforce area-scoped validation: validator must be assigned to citizen's area
+        uint256 areaId = citizenArea[citizen];
+        if (!_areaValidators[areaId][_msgSender()]) revert NotAreaValidator(_msgSender(), areaId);
 
         // Check role collision before granting CITIZEN_ROLE
         bytes32 existingRole = addressRole[citizen];
@@ -229,7 +249,7 @@ contract UrbanCore is
      * @param role The role to assign
      * @param account The account to assign the role to
      */
-    function assignRole(bytes32 role, address account) external whenNotPaused {
+    function assignRole(bytes32 role, address account) public whenNotPaused {
         // Check authorization
         if (!AccessRoles.isAuthorizedToAssign(_msgSender(), role, this.hasRole)) {
             revert("UrbanCore: unauthorized to assign role");
@@ -281,10 +301,81 @@ contract UrbanCore is
             _grantRole(AccessRoles.ADMIN_HEAD_ROLE, head);
         }
 
+        // Update role mapping for frontend detection
+        addressRole[head] = AccessRoles.ADMIN_HEAD_ROLE;
+
         areaHeads[areaId] = head;
         headAreas[head].push(areaId);
 
         emit AreaHeadAssigned(areaId, head);
+    }
+
+    /**
+     * @notice Assign a validator to an area (enforces that caller is that area's head)
+     */
+    function assignValidatorToArea(uint256 areaId, address validator)
+        external
+        whenNotPaused
+        onlyRole(AccessRoles.ADMIN_HEAD_ROLE)
+    {
+        if (areaHeads[areaId] != _msgSender()) revert NotAreaHead(_msgSender(), areaId);
+        // Ensure role granted
+        if (!hasRole(AccessRoles.VALIDATOR_ROLE, validator)) {
+            // Check for collisions via generic assignment path
+            assignRole(AccessRoles.VALIDATOR_ROLE, validator);
+        }
+        _areaValidators[areaId][validator] = true;
+        emit AreaRoleAssigned(areaId, AccessRoles.VALIDATOR_ROLE, validator);
+    }
+
+    /**
+     * @notice Assign a tax collector to an area (enforces that caller is that area's head)
+     */
+    function assignTaxCollectorToArea(uint256 areaId, address collector)
+        external
+        whenNotPaused
+        onlyRole(AccessRoles.ADMIN_HEAD_ROLE)
+    {
+        if (areaHeads[areaId] != _msgSender()) revert NotAreaHead(_msgSender(), areaId);
+        if (!hasRole(AccessRoles.TAX_COLLECTOR_ROLE, collector)) {
+            assignRole(AccessRoles.TAX_COLLECTOR_ROLE, collector);
+        }
+        _areaTaxCollectors[areaId][collector] = true;
+        emit AreaRoleAssigned(areaId, AccessRoles.TAX_COLLECTOR_ROLE, collector);
+    }
+
+    /**
+     * @notice Assign a project manager to an area (enforces that caller is that area's head)
+     */
+    function assignProjectManagerToArea(uint256 areaId, address manager)
+        external
+        whenNotPaused
+        onlyRole(AccessRoles.ADMIN_HEAD_ROLE)
+    {
+        if (areaHeads[areaId] != _msgSender()) revert NotAreaHead(_msgSender(), areaId);
+        if (!hasRole(AccessRoles.PROJECT_MANAGER_ROLE, manager)) {
+            assignRole(AccessRoles.PROJECT_MANAGER_ROLE, manager);
+        }
+        _areaProjectManagers[areaId][manager] = true;
+        emit AreaRoleAssigned(areaId, AccessRoles.PROJECT_MANAGER_ROLE, manager);
+    }
+
+    // -------- View helpers for area scoping --------
+
+    function isAreaHead(uint256 areaId, address account) public view returns (bool) {
+        return areaHeads[areaId] == account;
+    }
+
+    function isAreaValidator(uint256 areaId, address account) public view returns (bool) {
+        return _areaValidators[areaId][account];
+    }
+
+    function isAreaTaxCollector(uint256 areaId, address account) public view returns (bool) {
+        return _areaTaxCollectors[areaId][account];
+    }
+
+    function isAreaProjectManager(uint256 areaId, address account) public view returns (bool) {
+        return _areaProjectManagers[areaId][account];
     }
 
     /**

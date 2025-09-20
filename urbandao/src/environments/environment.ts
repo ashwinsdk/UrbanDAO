@@ -1,5 +1,5 @@
 // Get private key from environment variable or use a placeholder for development
-const TX_PAYER_PRIVATE_KEY = 'e2e7813cd14e8e7765b848d4eb48bf8257e1367ba4d896a867b9e1224a0b07fe';
+const TX_PAYER_PRIVATE_KEY = '6fdf99576bab4b8bd5073d888b5d403f329e652b3fc398a7dee49f1a192f0ef7';
 
 export const environment = {
   production: false,
@@ -11,15 +11,15 @@ export const environment = {
     blockExplorer: 'https://sepolia.etherscan.io'
   },
   contracts: {
-    MetaForwarder: '0x3C099955E96d2bf9709b88d3051a9d3B323a508F',
-    UrbanToken: '0x7d7E3659FCBaC7718C8E1Eb3CC6CD2ef98dB0bdD',
-    TimelockController: '0x8C8f27e9C1eaB946a76069D7CaB366DB8aF51512',
-    UrbanGovernor: '0xcB688CBDA710B887754bCb50213a3D219C05EEeD',
-    TaxReceipt: '0xB94996264EBf47725d6c6C4f9FdcDA42dAA67628',
-    TaxModule: '0x96AAB8Bad87725C7FD032f29d7D4240a306b1Dc1',
-    ProjectRegistry: '0x67dea35EB0Dd7AC01B50FD01D11518219F9B6B08',
-    GrievanceHub: '0x54559861870A40411d3b8ae2bC8A22D056c5252D',
-    UrbanCore: '0x0b67690EDDb4e2bc094b996183bAcD77F18B2D55'
+    MetaForwarder: '0x91604F4F941F87d09cDC2C4b8BdA138Ea59002ab',
+    UrbanToken: '0x54eBDEe59cF92D01729B59b70Bd35e6Dd077fD50',
+    TimelockController: '0x18AF4168428D8b0cABD2AC4f1Dc72F74bAf40a2c',
+    UrbanGovernor: '0x8BbaAbA578A107eC0240A98a3f6Fe3fe31746D2D',
+    TaxReceipt: '0x078d160aF5380F4F37C25F547048dBFe7ABfd3f7',
+    TaxModule: '0x47F09Cc7887293f851ab7f63693636ea2d84B3f1',
+    ProjectRegistry: '0x08c083B002FDC6431Ff98E103a930b178c37ba7C',
+    GrievanceHub: '0xc5a012651635C92a6CCD7f0388c49DcB796409A1',
+    UrbanCore: '0x2C080380959400E023d340A9df6a2D819f51b938'
   },
   rolesMapping: {
     OWNER_ROLE: '0xE1d7C37f7fa7e189e0191c02379fE97BcB1c5984',
@@ -28,8 +28,7 @@ export const environment = {
     PROJECT_MANAGER_ROLE: '0x15900204E45560D7efb2df13e859824746da0A82',
     TAX_COLLECTOR_ROLE: '0x99da9Ab65660a4cbcd7B56b3055cB9794fCd7B9a',
     VALIDATOR_ROLE: '0x29b0AeFf310BC99ce4009b6599Ac45471354CbA4',
-    CITIZEN_ROLE: '0x76798487eD5C8E0bC849C2DB53eD880E4a9fcCdE',
-    TX_PAYER_ROLE: '0xe0b1Ee4660E296BAe4054F67C5D46493ff455061'
+    TX_PAYER_ROLE: '0xA2b8748E6aD8efa24C7Eda95517DB76C0dFc68F1'
   },
   // Private key for the TX_PAYER account (only for development)
   // This should be replaced with a real private key for testing

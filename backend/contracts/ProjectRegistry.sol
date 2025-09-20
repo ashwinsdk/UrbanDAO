@@ -6,6 +6,12 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./AccessRoles.sol";
 
+// Minimal interface to UrbanCore for area scoping
+interface IUrbanCoreForProject {
+    function isAreaHead(uint256 areaId, address account) external view returns (bool);
+    function isAreaProjectManager(uint256 areaId, address account) external view returns (bool);
+}
+
 /**
  * @title ProjectRegistry
  * @notice Tracks project lifecycle from proposal to completion with escrow functionality
@@ -13,6 +19,10 @@ import "./AccessRoles.sol";
  */
 contract ProjectRegistry is AccessControl, Pausable, ReentrancyGuard {
     using AccessRoles for bytes32;
+
+    // Reference to UrbanCore for area scoping
+    address public urbanCore;
+    event UrbanCoreUpdated(address indexed oldCore, address indexed newCore, address indexed updater);
 
     // Project status enum (packed as uint8)
     enum Status {
@@ -120,6 +130,15 @@ contract ProjectRegistry is AccessControl, Pausable, ReentrancyGuard {
     }
 
     /**
+     * @notice Set UrbanCore for area-based permission checks
+     */
+    function setUrbanCore(address core) external onlyRole(AccessRoles.OWNER_ROLE) {
+        address old = urbanCore;
+        urbanCore = core;
+        emit UrbanCoreUpdated(old, core, _msgSender());
+    }
+
+    /**
      * @notice Create a new project proposal
      * @param areaId The area ID where the project will be implemented
      * @param titleHash IPFS hash of the project title
@@ -137,6 +156,10 @@ contract ProjectRegistry is AccessControl, Pausable, ReentrancyGuard {
     ) external onlyRole(AccessRoles.ADMIN_HEAD_ROLE) whenNotPaused returns (uint256) {
         if (fundingGoal == 0) revert InvalidAmount(fundingGoal);
         if (manager == address(0)) revert UnauthorizedManager(address(0), manager);
+        // Enforce area-scoped permissions
+        require(urbanCore != address(0), "ProjectRegistry: core not set");
+        require(IUrbanCoreForProject(urbanCore).isAreaHead(areaId, _msgSender()), "ProjectRegistry: not area head");
+        require(IUrbanCoreForProject(urbanCore).isAreaProjectManager(areaId, manager), "ProjectRegistry: manager not assigned to area");
 
         uint256 projectId = _nextProjectId++;
 
@@ -242,6 +265,9 @@ contract ProjectRegistry is AccessControl, Pausable, ReentrancyGuard {
         Project storage project = projects[projectId];
         if (project.id == 0) revert ProjectNotFound(projectId);
         if (project.status != Status.InProgress) revert InvalidProjectStatus(project.status, Status.InProgress);
+        // Enforce area-scoped head
+        require(urbanCore != address(0), "ProjectRegistry: core not set");
+        require(IUrbanCoreForProject(urbanCore).isAreaHead(project.areaId, _msgSender()), "ProjectRegistry: not area head");
 
         project.status = Status.Completed;
 
@@ -264,6 +290,9 @@ contract ProjectRegistry is AccessControl, Pausable, ReentrancyGuard {
         if (project.status == Status.Completed || project.status == Status.Cancelled) {
             revert InvalidProjectStatus(project.status, Status.InProgress);
         }
+        // Enforce area-scoped head
+        require(urbanCore != address(0), "ProjectRegistry: core not set");
+        require(IUrbanCoreForProject(urbanCore).isAreaHead(project.areaId, _msgSender()), "ProjectRegistry: not area head");
 
         uint256 remainingFunds = project.escrowed - project.released;
         project.status = Status.Cancelled;

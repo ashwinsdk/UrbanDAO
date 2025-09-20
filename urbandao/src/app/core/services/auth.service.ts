@@ -257,12 +257,12 @@ export class AuthService {
       const docsHash = this.contractService.cidToBytes32(ipfsUri);
       console.log('Derived docsHash (bytes32) from CID:', docsHash);
 
-      // 5) Use gasless transaction via MetaForwarder
-      console.log('Using gasless transaction for registration');
+      // 5) Use gasless transaction via MetaForwarder with new signature registerCitizen(uint256 areaId, bytes32 docsHash)
+      console.log('Using gasless transaction for registration with areaId:', area);
       const txHash = await this.contractService.sendMetaTransaction(
         environment.contracts.UrbanCore,
         'registerCitizen',
-        [docsHash]
+        [Number(area), docsHash]
       );
       
       if (!txHash) {

@@ -6,6 +6,14 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import "./AccessRoles.sol";
 
+// Minimal interface to UrbanCore to avoid circular dependencies
+interface IUrbanCoreForGrievance {
+    function isAreaValidator(uint256 areaId, address account) external view returns (bool);
+    function isAreaHead(uint256 areaId, address account) external view returns (bool);
+    function isApprovedCitizen(address citizen) external view returns (bool);
+    function citizenArea(address citizen) external view returns (uint256);
+}
+
 /**
  * @title GrievanceHub
  * @notice Handles grievance filing, validation, review, and feedback with monthly limits
@@ -18,6 +26,11 @@ contract GrievanceHub is AccessControl, Pausable, ERC2771Context {
         return ERC2771Context._contextSuffixLength();
     }
     using AccessRoles for bytes32;
+
+    // Reference to UrbanCore for area scoping
+    address public urbanCore;
+
+    event UrbanCoreUpdated(address indexed oldCore, address indexed newCore, address indexed updater);
 
     // Grievance status enum (packed as uint8)
     enum Status {
@@ -144,6 +157,15 @@ contract GrievanceHub is AccessControl, Pausable, ERC2771Context {
     }
 
     /**
+     * @notice Set UrbanCore address for area-based validations
+     */
+    function setUrbanCore(address core) external onlyRole(AccessRoles.OWNER_ROLE) {
+        address old = urbanCore;
+        urbanCore = core;
+        emit UrbanCoreUpdated(old, core, _msgSender());
+    }
+
+    /**
      * @notice File a new grievance (gasless via ERC-2771)
      * @param areaId The area ID where the grievance occurred
      * @param titleHash IPFS hash of the grievance title
@@ -160,6 +182,12 @@ contract GrievanceHub is AccessControl, Pausable, ERC2771Context {
         if (areaId == 0) revert InvalidAreaId(areaId);
         if (titleHash == bytes32(0)) revert EmptyHash(titleHash);
         if (bodyHash == bytes32(0)) revert EmptyHash(bodyHash);
+
+        // Require UrbanCore to be set and citizen to be approved for this area
+        require(urbanCore != address(0), "GrievanceHub: core not set");
+        require(IUrbanCoreForGrievance(urbanCore).isApprovedCitizen(citizen), "GrievanceHub: citizen not approved");
+        uint256 citizenAreaId = IUrbanCoreForGrievance(urbanCore).citizenArea(citizen);
+        require(citizenAreaId == areaId, "GrievanceHub: citizen not in area");
 
         // Check monthly limit
         uint256 currentMonth = _getCurrentMonth();
@@ -207,6 +235,10 @@ contract GrievanceHub is AccessControl, Pausable, ERC2771Context {
         if (grievance.id == 0) revert GrievanceNotFound(grievanceId);
         if (grievance.status != Status.Pending) revert InvalidStatus(grievance.status, Status.Pending);
 
+        // Enforce area-scoped validator
+        require(urbanCore != address(0), "GrievanceHub: core not set");
+        require(IUrbanCoreForGrievance(urbanCore).isAreaValidator(grievance.areaId, _msgSender()), "GrievanceHub: not area validator");
+
         grievance.validator = _msgSender();
         grievance.status = approve ? Status.Validated : Status.Rejected;
 
@@ -225,6 +257,10 @@ contract GrievanceHub is AccessControl, Pausable, ERC2771Context {
         Grievance storage grievance = grievances[grievanceId];
         if (grievance.id == 0) revert GrievanceNotFound(grievanceId);
         if (grievance.status != Status.Validated) revert InvalidStatus(grievance.status, Status.Validated);
+
+        // Enforce area-scoped head
+        require(urbanCore != address(0), "GrievanceHub: core not set");
+        require(IUrbanCoreForGrievance(urbanCore).isAreaHead(grievance.areaId, _msgSender()), "GrievanceHub: not area head");
 
         grievance.headReviewer = _msgSender();
         grievance.status = Status.AcceptedByHead;
@@ -246,6 +282,10 @@ contract GrievanceHub is AccessControl, Pausable, ERC2771Context {
         Grievance storage grievance = grievances[grievanceId];
         if (grievance.id == 0) revert GrievanceNotFound(grievanceId);
         if (grievance.status != Status.AcceptedByHead) revert InvalidStatus(grievance.status, Status.AcceptedByHead);
+
+        // Enforce area-scoped head
+        require(urbanCore != address(0), "GrievanceHub: core not set");
+        require(IUrbanCoreForGrievance(urbanCore).isAreaHead(grievance.areaId, _msgSender()), "GrievanceHub: not area head");
 
         grievance.linkedProjectId = projectId;
         grievance.status = Status.InProject;
@@ -341,7 +381,10 @@ contract GrievanceHub is AccessControl, Pausable, ERC2771Context {
     {
         Grievance storage grievance = grievances[grievanceId];
         if (grievance.id == 0) revert GrievanceNotFound(grievanceId);
-        
+        // Enforce area-scoped head
+        require(urbanCore != address(0), "GrievanceHub: core not set");
+        require(IUrbanCoreForGrievance(urbanCore).isAreaHead(grievance.areaId, _msgSender()), "GrievanceHub: not area head");
+
         grievance.status = Status.Resolved;
     }
 

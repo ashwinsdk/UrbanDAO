@@ -1,30 +1,29 @@
 {
   "network": "sepolia",
   "chainId": "11155111",
-  "timestamp": "2025-08-19T15:57:42.000Z",
+  "deployer": "0xE1d7C37f7fa7e189e0191c02379fE97BcB1c5984",
+  "timestamp": "2025-09-20T09:04:25.480Z",
   "contracts": {
-    "MetaForwarder": "0x3C099955E96d2bf9709b88d3051a9d3B323a508F",
-    "UrbanToken": "0x7d7E3659FCBaC7718C8E1Eb3CC6CD2ef98dB0bdD",
-    "TimelockController": "0x8C8f27e9C1eaB946a76069D7CaB366DB8aF51512",
-    "UrbanGovernor": "0xcB688CBDA710B887754bCb50213a3D219C05EEeD",
-    "TaxReceipt": "0xB94996264EBf47725d6c6C4f9FdcDA42dAA67628",
-    "TaxModule": "0x96AAB8Bad87725C7FD032f29d7D4240a306b1Dc1",
-    "ProjectRegistry": "0x67dea35EB0Dd7AC01B50FD01D11518219F9B6B08",
-    "GrievanceHub": "0x54559861870A40411d3b8ae2bC8A22D056c5252D",
-    "UrbanCore": "0x0b67690EDDb4e2bc094b996183bAcD77F18B2D55"
+    "MetaForwarder": "0x91604F4F941F87d09cDC2C4b8BdA138Ea59002ab",
+    "UrbanToken": "0x54eBDEe59cF92D01729B59b70Bd35e6Dd077fD50",
+    "TimelockController": "0x18AF4168428D8b0cABD2AC4f1Dc72F74bAf40a2c",
+    "UrbanGovernor": "0x8BbaAbA578A107eC0240A98a3f6Fe3fe31746D2D",
+    "TaxReceipt": "0x078d160aF5380F4F37C25F547048dBFe7ABfd3f7",
+    "TaxModule": "0x47F09Cc7887293f851ab7f63693636ea2d84B3f1",
+    "ProjectRegistry": "0x08c083B002FDC6431Ff98E103a930b178c37ba7C",
+    "GrievanceHub": "0xc5a012651635C92a6CCD7f0388c49DcB796409A1",
+    "UrbanCore": "0x2C080380959400E023d340A9df6a2D819f51b938"
+  },
+  "config": {
+    "ownerGovt": "0xE1d7C37f7fa7e189e0191c02379fE97BcB1c5984",
+    "relayer": "0xe0b1Ee4660E296BAe4054F67C5D46493ff455061",
+    "treasury": "0xE1d7C37f7fa7e189e0191c02379fE97BcB1c5984",
+    "minDelay": 86400
   },
   "metadata": {
-    "urbanToken": {
-      "imageURI": "ipfs://bafybeihnesjjdqhqvlnei5kep52tqv6zv3k7nposxaqfdwzlkgh6zorxtu",
-      "description": "UrbanDAO governance token for city management and community voting"
-    },
     "taxReceipt": {
       "defaultImageCID": "bafybeihnesjjdqhqvlnei5kep52tqv6zv3k7nposxaqfdwzlkgh6zorxtu",
       "baseTokenURI": "ipfs://"
     }
-  },
-  "config": {
-    "treasury": "0xE1d7C37f7fa7e189e0191c02379fE97BcB1c5984",
-    "ownerGovt": "0xE1d7C37f7fa7e189e0191c02379fE97BcB1c5984"
   }
 }

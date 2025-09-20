@@ -325,19 +325,15 @@ export class ContractService {
    * @returns The bytes32 role constant or null if not found
    */
   public getRoleConstant(roleName: UserRole): string | null {
-    // Map from enum values to hardcoded bytes32 constants (from role-verification.json)
-    const roleConstants: {[key in UserRole]?: string} = {
-      [UserRole.OWNER_ROLE]: '0xb19546dff01e856fb3f010c267a7b1c60363cf8a4664e21cc89c26224620214e', // Verified from contract
-      [UserRole.ADMIN_GOVT_ROLE]: '0x0c79c71313e07ef49c5e10d46bbd278f8ec590008f378c219bb3e54b15bb0e84', // Corrected from verification
-      [UserRole.ADMIN_HEAD_ROLE]: '0xb302d06c4efadeded1e387e0955d9d440d227b6b55549296dd39bd21dc8eddf9', // Corrected from verification
-      [UserRole.PROJECT_MANAGER_ROLE]: '0xa88d484f5aeb539ab60f9bd084e23511bc356a4f715a255e909643bb69ddcb41', // Corrected from verification
-      [UserRole.TAX_COLLECTOR_ROLE]: '0x7cb8da4815c5c7bfec597d7479bf1f02def0b6d0f50cd2ad5eb80c69ac5c1a1b', // Corrected from verification
-      [UserRole.VALIDATOR_ROLE]: '0x21702c8af46127c7fa207f89d0b0a8441bb32959a0ac7df790e9ab1a25c98926', // Corrected from verification
-      [UserRole.CITIZEN_ROLE]: '0x8f1426173eb922d2001706a308dabfa96e3c06475230fb5111184f70a4b5776d', // Corrected from verification
-      [UserRole.TX_PAYER_ROLE]: '0x56e46fdde77b111e5bb65b63a6dac3eb9e218dc429289c985fdd859cca14412b' // Corrected from verification
-    };
-    
-    return roleConstants[roleName] || null;
+    try {
+      // OWNER and ADMIN_GOVT are the same on-chain. Alias OWNER to ADMIN_GOVT here.
+      const name = roleName === UserRole.OWNER_ROLE ? UserRole.ADMIN_GOVT_ROLE : roleName;
+      const hash = ethers.keccak256(ethers.toUtf8Bytes(String(name)));
+      return hash;
+    } catch (e) {
+      console.warn('Failed to compute role constant for', roleName, e);
+      return null;
+    }
   }
 
   // Urban Core contract functions
@@ -1384,26 +1380,42 @@ export class ContractService {
     }
   }
 
-  public async fileGrievance(title: string, description: string, documents: string): Promise<string | null> {
+  public async fileGrievance(title: string, description: string, documentsIpfsUri: string): Promise<string | null> {
     try {
       if (!this.grievanceHubContract) await this.initContracts();
       if (!this.grievanceHubContract) throw new Error('Grievance Hub contract not initialized');
-      
+
+      // Determine user's areaId from UrbanCore citizen info
+      const userAddr = this.web3Service.getAccount();
+      if (!userAddr) throw new Error('Wallet not connected');
+      const citizenInfo = await this.getCitizenInfo(userAddr);
+      const areaIdStr = citizenInfo?.areaId?.toString?.() || '0';
+      const areaIdNum = parseInt(areaIdStr, 10);
+      if (!Number.isFinite(areaIdNum) || areaIdNum <= 0) {
+        throw new Error('Unable to determine your area. Ensure your account is registered and approved.');
+      }
+
+      // Upload title/description to IPFS if raw strings were provided previously; here we assume title/description are raw text
+      const titleIpfsUri = await this.uploadToIpfs({ kind: 'grievance_title', title, createdAt: Date.now() });
+      const bodyIpfsUri = await this.uploadToIpfs({ kind: 'grievance_body', description, documents: documentsIpfsUri, createdAt: Date.now() });
+
+      // Convert to bytes32 digests expected by contract
+      const titleDigest = this.cidToBytes32(titleIpfsUri);
+      const bodyDigest = this.cidToBytes32(bodyIpfsUri);
+
       // Check if we should use meta-transactions
       const useMeta = await this.shouldUseMetaTransaction();
-      
       if (useMeta) {
-        // Use meta transaction
-        return await this.sendMetaTransaction(
+        const txHash = await this.sendMetaTransaction(
           environment.contracts.GrievanceHub,
           'fileGrievance',
-          [title, description, documents]
+          [areaIdNum, titleDigest, bodyDigest]
         );
+        return txHash || null;
       } else {
-        // Direct transaction
-        const tx = await this.grievanceHubContract['fileGrievance'](title, description, documents);
+        const tx = await this.grievanceHubContract['fileGrievance'](areaIdNum, titleDigest, bodyDigest);
         const receipt = await tx.wait();
-        return receipt.hash;
+        return receipt?.hash ?? null;
       }
     } catch (error) {
       console.error('Error filing grievance:', error);
@@ -2325,29 +2337,26 @@ export class ContractService {
    */
   public convertRoleToEnum(roleBytes: string): UserRole {
     // If null, undefined or zero bytes, return NONE
-    if (!roleBytes || roleBytes === '0x0000000000000000000000000000000000000000000000000000000000000000') {
+    if (!roleBytes || roleBytes.toLowerCase() === '0x' + '0'.repeat(64)) {
       return UserRole.NONE;
     }
-    
-    // Map of role hash bytes to enum values (from role-verification.json)
-    const roleMap: {[key: string]: UserRole} = {
-      '0xb19546dff01e856fb3f010c267a7b1c60363cf8a4664e21cc89c26224620214e': UserRole.OWNER_ROLE,              // Verified from contract
-      '0x0c79c71313e07ef49c5e10d46bbd278f8ec590008f378c219bb3e54b15bb0e84': UserRole.ADMIN_GOVT_ROLE,         // Corrected from verification
-      '0xb302d06c4efadeded1e387e0955d9d440d227b6b55549296dd39bd21dc8eddf9': UserRole.ADMIN_HEAD_ROLE,         // Corrected from verification
-      '0xa88d484f5aeb539ab60f9bd084e23511bc356a4f715a255e909643bb69ddcb41': UserRole.PROJECT_MANAGER_ROLE,    // Corrected from verification
-      '0x7cb8da4815c5c7bfec597d7479bf1f02def0b6d0f50cd2ad5eb80c69ac5c1a1b': UserRole.TAX_COLLECTOR_ROLE,      // Corrected from verification
-      '0x21702c8af46127c7fa207f89d0b0a8441bb32959a0ac7df790e9ab1a25c98926': UserRole.VALIDATOR_ROLE,          // Corrected from verification
-      '0x8f1426173eb922d2001706a308dabfa96e3c06475230fb5111184f70a4b5776d': UserRole.CITIZEN_ROLE,            // Corrected from verification
-      '0x56e46fdde77b111e5bb65b63a6dac3eb9e218dc429289c985fdd859cca14412b': UserRole.TX_PAYER_ROLE            // Corrected from verification
-    };
-    
-    // Log the role for debugging
-    console.log('Converting role bytes to enum:', roleBytes);
-    const resolvedRole = roleMap[roleBytes] || UserRole.NONE;
-    console.log('Resolved to role:', UserRole[resolvedRole]);
-    
-    // Return the mapped enum value or NONE if not found
-    return resolvedRole;
+
+    // Build dynamic hash map at runtime to avoid staleness
+    const dynamicMap: Array<{ hash: string; role: UserRole }> = [
+      { hash: this.getRoleConstant(UserRole.ADMIN_GOVT_ROLE)!, role: UserRole.ADMIN_GOVT_ROLE },
+      { hash: this.getRoleConstant(UserRole.ADMIN_HEAD_ROLE)!, role: UserRole.ADMIN_HEAD_ROLE },
+      { hash: this.getRoleConstant(UserRole.PROJECT_MANAGER_ROLE)!, role: UserRole.PROJECT_MANAGER_ROLE },
+      { hash: this.getRoleConstant(UserRole.TAX_COLLECTOR_ROLE)!, role: UserRole.TAX_COLLECTOR_ROLE },
+      { hash: this.getRoleConstant(UserRole.VALIDATOR_ROLE)!, role: UserRole.VALIDATOR_ROLE },
+      { hash: this.getRoleConstant(UserRole.CITIZEN_ROLE)!, role: UserRole.CITIZEN_ROLE },
+      { hash: this.getRoleConstant(UserRole.TX_PAYER_ROLE)!, role: UserRole.TX_PAYER_ROLE },
+      // OWNER_ROLE is an alias to ADMIN_GOVT_ROLE on-chain; map to ADMIN_GOVT_ROLE for UI
+      { hash: this.getRoleConstant(UserRole.OWNER_ROLE)!, role: UserRole.ADMIN_GOVT_ROLE }
+    ].filter(e => !!e.hash);
+
+    const target = String(roleBytes).toLowerCase();
+    const found = dynamicMap.find(e => String(e.hash).toLowerCase() === target);
+    return found ? found.role : UserRole.NONE;
   }
 
   public async approveRoleRequest(requestId: string): Promise<any> {

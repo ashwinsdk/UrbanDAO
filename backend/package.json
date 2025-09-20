@@ -8,6 +8,8 @@
     "compile": "npx hardhat compile",
     "deploy": "npx hardhat run scripts/deploy.js",
     "deploy:sepolia": "npx hardhat run scripts/deploy.js --network sepolia",
+    "roles": "npx hardhat run scripts/assign-roles.js",
+    "roles:sepolia": "npx hardhat run scripts/assign-roles.js --network sepolia",
     "verify": "npx hardhat verify",
     "clean": "npx hardhat clean",
     "coverage": "npx hardhat coverage",
