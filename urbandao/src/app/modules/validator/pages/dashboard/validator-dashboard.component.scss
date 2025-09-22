@@ -1,10 +1,12 @@
+@import '../../../../../styles/variables';
+@import '../../../../../styles/mixins';
 // Variables
 $dark-bg: #121212;
 $card-bg: rgba(30, 30, 30, 0.7);
 $border-color: rgba(75, 75, 75, 0.5);
 $text-primary: #ffffff;
 $text-secondary: #b0b0b0;
-$accent-gradient: linear-gradient(135deg, #5f2c82 0%, #49a09d 100%);
+$accent-gradient: linear-gradient(135deg, #a259d9 0%, #5e239d 100%);
 
 // Status colors
 $pending-color: #ffc107;
@@ -67,20 +69,17 @@ $total-color: #2196f3;
     }
     
     .refresh-btn {
-      background-color: transparent;
-      color: $text-secondary;
-      border: 1px solid $border-color;
+      @include button-base;
+      background-color: transparentize($primary-color, 0.8);
+      color: $primary-color;
       padding: 0.5rem 1rem;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: all 0.2s ease;
+      border-radius: 20px;
       
-      &:hover:not([disabled]) {
-        background-color: rgba(255, 255, 255, 0.1);
-        color: $text-primary;
+      &:hover {
+        background-color: transparentize($primary-color, 0.7);
       }
       
-      &[disabled] {
+      &:disabled {
         opacity: 0.5;
         cursor: not-allowed;
       }

@@ -83,9 +83,14 @@ export class MilestoneFormComponent implements OnInit {
       
       // Get project details
       const projectData = await this.contractService.getProject(this.projectId);
+      if (!projectData) {
+        this.error = 'Project not found or unavailable.';
+        this.loading = false;
+        return;
+      }
       
       // Check if this user is the manager of the project
-      if (projectData.manager.toLowerCase() !== this.userAddress.toLowerCase()) {
+      if (projectData.manager && projectData.manager.toLowerCase() !== this.userAddress.toLowerCase()) {
         this.error = "You don't have permission to submit milestones for this project.";
         this.loading = false;
         return;
@@ -100,7 +105,13 @@ export class MilestoneFormComponent implements OnInit {
       }
       
       // Fetch IPFS content
-      const title = await this.contractService.getIPFSContent(projectData.titleHash);
+      let titleRef = projectData.titleHash ? String(projectData.titleHash) : '';
+      try {
+        if (titleRef && /^0x[0-9a-fA-F]{64}$/.test(titleRef)) {
+          titleRef = `ipfs://${this.contractService.bytes32ToCid(titleRef)}`;
+        }
+      } catch {}
+      const title = await this.contractService.getIPFSContent(titleRef);
       
       // Get remaining funds
       const remainingFunds = await this.contractService.getRemainingFunds(this.projectId);
@@ -162,23 +173,10 @@ export class MilestoneFormComponent implements OnInit {
       // Upload proof content to IPFS
       const proofHash = await this.contractService.uploadToIpfs(proofContent);
       
-      try {
-        // Submit milestone to contract - create a mock implementation since actual method doesn't exist
-        // Use createProject as a reference which is already implemented
-        const tx = {
-          hash: `0x${Math.random().toString(16).substring(2, 10)}`,
-          wait: async () => ({
-            status: 1,
-            events: [{ args: { projectId: this.projectId } }]
-          })
-        };
-        
-        console.log(`Mock milestone submission for project ${this.projectId} with proof ${proofHash} and amount ${amountInWei}`);
-        // Simulate transaction success
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      } catch (error) {
-        console.error('Error submitting milestone:', error);
-        this.error = 'Failed to submit milestone. Please try again.';
+      // Submit milestone via ProjectRegistry
+      const result = await this.contractService.submitProjectMilestone(this.projectId, proofHash, String(amount));
+      if (!result.success) {
+        this.error = result.error || 'Failed to submit milestone. Please try again.';
         this.submitting = false;
         return;
       }

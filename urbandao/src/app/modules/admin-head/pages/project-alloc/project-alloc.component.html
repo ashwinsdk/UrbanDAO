@@ -43,6 +43,28 @@
         </button>
       </div>
 
+      <!-- Accepted Grievances (Not Yet Escalated) -->
+      <div *ngIf="acceptedGrievances.length > 0" class="glass-card" style="margin-bottom: 16px;">
+        <div class="card-header">
+          <h2 class="gradient-text">Accepted Grievances Pending Escalation</h2>
+        </div>
+        <div class="card-content">
+          <div class="accepted-list">
+            <div class="accepted-row" *ngFor="let g of acceptedGrievances">
+              <div class="accepted-info">
+                <div class="accepted-title">#{{ g.id }} — {{ g.title }}</div>
+                <div class="accepted-sub">No project linked yet</div>
+              </div>
+              <div class="accepted-actions">
+                <button class="primary-btn gradient-btn" (click)="startProjectFromGrievance(g)">
+                  <i class="fas fa-diagram-project"></i> Create Project
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Project Form -->
       <div *ngIf="projectForm.dirty" class="project-form-container">
         <div class="form-card glass-card">
@@ -249,15 +271,15 @@
     <div class="project-detail-view">
       <header class="detail-header">
         <h1 class="gradient-text">
-          Project #{{ selectedProject?.id || '' }}
-          <span class="status-badge" [ngClass]="selectedProject?.status?.toLowerCase() || ''">{{ selectedProject?.status || '' }}</span>
+          Project #{{ selectedProject.id || '' }}
+          <span class="status-badge" [ngClass]="selectedProject.status.toLowerCase() || ''">{{ selectedProject.status || '' }}</span>
         </h1>
       </header>
 
       <div class="detail-section">
         <div class="detail-card glass-card">
           <div class="card-header">
-            <h2 class="gradient-text">{{ selectedProject?.title || 'Project Details' }}</h2>
+            <h2 class="gradient-text">{{ selectedProject.title || 'Project Details' }}</h2>
             <button class="close-btn" (click)="closeDetails()">
               <i class="fas fa-times"></i>
             </button>
@@ -265,31 +287,31 @@
           <div class="card-content">
             <div class="detail-row">
               <div class="detail-label">Budget</div>
-              <div class="detail-value budget">{{ selectedProject?.budget || '0' }} ETH</div>
+              <div class="detail-value budget">{{ selectedProject.budget || '0' }} ETH</div>
             </div>
             <div class="detail-row">
               <div class="detail-label">Project Manager</div>
-              <div class="detail-value manager-address">{{ selectedProject?.managerAddress || 'Not assigned' }}</div>
+              <div class="detail-value manager-address">{{ selectedProject.managerAddress || 'Not assigned' }}</div>
             </div>
             <div class="detail-row">
               <div class="detail-label">Status</div>
               <div class="detail-value">
-                <span class="status-badge" [ngClass]="selectedProject?.status?.toLowerCase() || ''">{{ selectedProject?.status || 'Unknown' }}</span>
+                <span class="status-badge" [ngClass]="selectedProject.status.toLowerCase() || ''">{{ selectedProject.status || 'Unknown' }}</span>
               </div>
             </div>
             <div class="detail-row">
               <div class="detail-label">Milestones</div>
               <div class="detail-value milestone-progress">
-                <div class="progress-count">{{ selectedProject?.completedMilestones || 0 }} / {{ selectedProject?.totalMilestones || 0 }} completed</div>
+                <div class="progress-count">{{ selectedProject.completedMilestones || 0 }} / {{ selectedProject.totalMilestones || 0 }} completed</div>
                 <div class="progress-bar">
-                  <div class="progress-fill" [style.width.%]="getProgressPercentage(selectedProject?.completedMilestones || 0, selectedProject?.totalMilestones || 1)"></div>
+                  <div class="progress-fill" [style.width.%]="getProgressPercentage(selectedProject.completedMilestones || 0, selectedProject.totalMilestones || 1)"></div>
                 </div>
-                <div class="progress-percent">{{ getProgressPercentage(selectedProject?.completedMilestones || 0, selectedProject?.totalMilestones || 1) }}%</div>
+                <div class="progress-percent">{{ getProgressPercentage(selectedProject.completedMilestones || 0, selectedProject.totalMilestones || 1) }}%</div>
               </div>
             </div>
             <div class="detail-row description">
               <div class="detail-label">Description</div>
-              <div class="detail-value description-text">{{ selectedProject?.description || 'No description available' }}</div>
+              <div class="detail-value description-text">{{ selectedProject.description || 'No description available' }}</div>
             </div>
           </div>
         </div>

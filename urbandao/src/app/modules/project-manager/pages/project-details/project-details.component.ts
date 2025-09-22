@@ -85,6 +85,11 @@ export class ProjectDetailsComponent implements OnInit {
       
       // Get project details
       const projectData = await this.contractService.getProject(this.projectId);
+      if (!projectData) {
+        this.error = 'Project not found or unavailable.';
+        this.loading = false;
+        return;
+      }
       
       // Check if this user is the manager of the project
       if (projectData.manager.toLowerCase() !== this.userAddress.toLowerCase()) {
@@ -93,9 +98,21 @@ export class ProjectDetailsComponent implements OnInit {
         return;
       }
       
-      // Fetch IPFS content
-      const title = await this.contractService.getIPFSContent(projectData.titleHash);
-      const description = await this.contractService.getIPFSContent(projectData.descriptionHash);
+      // Fetch IPFS content (convert bytes32 -> ipfs://CID if necessary)
+      let titleRef = projectData.titleHash ? String(projectData.titleHash) : '';
+      let descRef = projectData.descriptionHash ? String(projectData.descriptionHash) : '';
+      try {
+        if (titleRef && /^0x[0-9a-fA-F]{64}$/.test(titleRef)) {
+          titleRef = `ipfs://${this.contractService.bytes32ToCid(titleRef)}`;
+        }
+      } catch {}
+      try {
+        if (descRef && /^0x[0-9a-fA-F]{64}$/.test(descRef)) {
+          descRef = `ipfs://${this.contractService.bytes32ToCid(descRef)}`;
+        }
+      } catch {}
+      const title = await this.contractService.getIPFSContent(titleRef);
+      const description = await this.contractService.getIPFSContent(descRef);
       
       // Get remaining funds
       const remainingFunds = await this.contractService.getRemainingFunds(this.projectId);
@@ -145,8 +162,14 @@ export class ProjectDetailsComponent implements OnInit {
           // Skip if milestone doesn't exist or is not completed
           if (!milestone || !milestone.completed) continue;
           
-          // Fetch IPFS proof content
-          const proofContent = await this.contractService.getIPFSContent(milestone.proofHash);
+          // Fetch IPFS proof content (convert bytes32 digest to CID)
+          let proofRef = milestone.proofHash ? String(milestone.proofHash) : '';
+          try {
+            if (proofRef && /^0x[0-9a-fA-F]{64}$/.test(proofRef)) {
+              proofRef = `ipfs://${this.contractService.bytes32ToCid(proofRef)}`;
+            }
+          } catch {}
+          const proofContent = await this.contractService.getIPFSContent(proofRef);
           
           this.milestones.push({
             projectId: milestone.projectId,

@@ -168,7 +168,8 @@ export class ManageRolesComponent implements OnInit {
           this.roleAssignments.push({
             address: holder.address,
             role: roleObj.value,
-            timestamp: holder.timestamp || 0,
+            // Assignment timestamp not available from service; leave 0 so UI shows N/A
+            timestamp: 0,
             name: holder.name || ''
           });
         }
@@ -278,14 +279,8 @@ export class ManageRolesComponent implements OnInit {
         }
       }
       
-      // Check if the address is already registered as a citizen
-      const isCitizen = await this.contractService.hasRole(UserRole.CITIZEN_ROLE, targetAddress);
-      
-      if (!isCitizen) {
-        this.error = 'This address is not registered as a citizen. Only citizens can be assigned roles.';
-        this.loadingAction = false;
-        return;
-      }
+      // Note: Do not require CITIZEN_ROLE to assign area-scoped roles (Validator/TaxCollector/ProjectManager)
+      // The UrbanCore contract allows AdminHead to assign these roles without prior citizen registration.
       
       // Prepare metadata if name or email is provided
       let metadataHash = '';

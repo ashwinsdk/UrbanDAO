@@ -125,6 +125,19 @@ contract ProjectRegistry is AccessControl, Pausable, ReentrancyGuard {
     constructor(address owner, address _treasury) {
         _grantRole(AccessRoles.OWNER_ROLE, owner);
         _setRoleAdmin(AccessRoles.OWNER_ROLE, AccessRoles.OWNER_ROLE);
+
+        // Configure role admin mapping to mirror system hierarchy
+        // OWNER (aka ADMIN_GOVT) can manage ADMIN_GOVT role
+        _setRoleAdmin(AccessRoles.ADMIN_GOVT_ROLE, AccessRoles.OWNER_ROLE);
+        // AdminGovt manages AdminHead
+        _setRoleAdmin(AccessRoles.ADMIN_HEAD_ROLE, AccessRoles.ADMIN_GOVT_ROLE);
+        // AdminHead manages ProjectManager
+        _setRoleAdmin(AccessRoles.PROJECT_MANAGER_ROLE, AccessRoles.ADMIN_HEAD_ROLE);
+        // Validator manages Citizen (for upvotes etc.)
+        _setRoleAdmin(AccessRoles.CITIZEN_ROLE, AccessRoles.VALIDATOR_ROLE);
+        // Owner manages TxPayer on modules
+        _setRoleAdmin(AccessRoles.TX_PAYER_ROLE, AccessRoles.OWNER_ROLE);
+
         treasury = _treasury;
         _nextProjectId = 1;
     }

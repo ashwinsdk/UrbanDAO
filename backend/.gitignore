@@ -7,3 +7,6 @@ build-info/
 .env
 .openzeppelin/
 .role.env
+
+scripts/deploy-project-registry.js
+scripts/grant-project-registry-roles.js

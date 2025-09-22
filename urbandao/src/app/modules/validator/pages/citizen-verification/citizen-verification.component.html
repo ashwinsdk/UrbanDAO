@@ -113,14 +113,14 @@
           <div class="verification-actions">
             <h3>Action Required</h3>
             
-            <div class="feedback-section" *ngIf="!loading">
+            <!-- <div class="feedback-section" *ngIf="!loading">
               <label for="feedback">Feedback (required for rejection):</label>
               <textarea 
                 id="feedback" 
                 [(ngModel)]="feedback" 
                 placeholder="Enter feedback or reason for rejection here..."
                 rows="3"></textarea>
-            </div>
+            </div> -->
             
             <div class="action-buttons">
               <button class="reject-btn" (click)="rejectCitizen()" [disabled]="!feedback || loading">

@@ -234,4 +234,43 @@ export class GrievanceDetailComponent implements OnInit {
   canSubmitFeedback(): boolean {
     return !!this.grievance && (this.grievance.status === 'resolved' || this.grievance.status === 'assigned');
   }
+
+  // Helper methods to get human-readable content with proper fallbacks
+  getDisplayTitle(): string {
+    if (!this.grievance) return '';
+    
+    // If we have resolved text, use it
+    if (this.grievance.titleText && this.grievance.titleText.trim() && 
+        !this.grievance.titleText.startsWith('0x') && 
+        !this.grievance.titleText.startsWith('Qm')) {
+      return this.grievance.titleText;
+    }
+    
+    // If title looks like a hash/CID, show a placeholder
+    if (this.grievance.title && (this.grievance.title.startsWith('0x') || this.grievance.title.startsWith('Qm'))) {
+      return 'Grievance Title (Loading...)';
+    }
+    
+    // Fallback to raw title or placeholder
+    return this.grievance.title || 'Untitled Grievance';
+  }
+
+  getDisplayDescription(): string {
+    if (!this.grievance) return '';
+    
+    // If we have resolved text, use it
+    if (this.grievance.descriptionText && this.grievance.descriptionText.trim() && 
+        !this.grievance.descriptionText.startsWith('0x') && 
+        !this.grievance.descriptionText.startsWith('Qm')) {
+      return this.grievance.descriptionText;
+    }
+    
+    // If description looks like a hash/CID, show a placeholder
+    if (this.grievance.description && (this.grievance.description.startsWith('0x') || this.grievance.description.startsWith('Qm'))) {
+      return 'Description content is loading from IPFS...';
+    }
+    
+    // Fallback to raw description or placeholder
+    return this.grievance.description || 'No description available';
+  }
 }

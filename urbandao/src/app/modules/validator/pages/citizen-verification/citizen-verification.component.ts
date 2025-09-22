@@ -65,19 +65,8 @@ export class CitizenVerificationComponent implements OnInit {
     try {
       this.loading = true;
       
-      // Prefer meta-tx only if relayer is properly configured and funded
-      const useMeta = await (this.contractService as any).shouldUseMetaTransaction?.() || false;
-      let result;
-      
-      if (useMeta) {
-        result = await this.contractService.sendMetaTransaction(
-          environment.contracts.UrbanCore,
-          'approveCitizen',
-          [this.selectedCitizen.id]
-        );
-      } else {
-        result = await this.contractService.approveRoleRequest(this.selectedCitizen.id);
-      }
+      // Let ContractService decide meta vs direct and handle forwarder trust
+      const result = await this.contractService.approveRoleRequest(this.selectedCitizen.id);
       
       if (result) {
         // Remove the approved citizen from the list
@@ -103,20 +92,8 @@ export class CitizenVerificationComponent implements OnInit {
     try {
       this.loading = true;
       
-      // Prefer meta-tx only if relayer is properly configured and funded
-      const useMeta = await (this.contractService as any).shouldUseMetaTransaction?.() || false;
-      let result;
-      
-      if (useMeta) {
-        result = await this.contractService.sendMetaTransaction(
-          environment.contracts.UrbanCore,
-          'rejectCitizen', // Use the correct contract method
-          [this.selectedCitizen.id, this.feedback]
-        );
-      } else {
-        // Pass the feedback parameter to the rejectRoleRequest method
-        result = await this.contractService.rejectRoleRequest(this.selectedCitizen.id, this.feedback);
-      }
+      // Route through service; it will choose meta vs direct and validate forwarder trust
+      const result = await this.contractService.rejectRoleRequest(this.selectedCitizen.id, this.feedback);
       
       if (result) {
         // Remove the rejected citizen from the list

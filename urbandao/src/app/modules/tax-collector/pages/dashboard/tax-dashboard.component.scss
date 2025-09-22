@@ -4,7 +4,7 @@ $card-bg: #1e1e1e;
 $border-color: #333333;
 $text-primary: #ffffff;
 $text-secondary: #b0b0b0;
-$accent-gradient: linear-gradient(135deg, #5f2c82 0%, #49a09d 100%);
+$accent-gradient: linear-gradient(135deg, #a259d9 0%, #5e239d 100%);
 
 // Card colors
 $total-assessments-color: #4fc3f7;
@@ -103,7 +103,7 @@ $total-collected-color: #4db6ac;
       width: 40px;
       height: 40px;
       border: 3px solid rgba(255, 255, 255, 0.1);
-      border-top-color: #5f2c82;
+      border-top-color: #a259d9;
       border-radius: 50%;
       animation: spin 1s linear infinite;
     }
@@ -331,14 +331,14 @@ $total-collected-color: #4db6ac;
         }
         
         .view-all {
-          color: #5f2c82;
+          color: #a259d9;
           text-decoration: none;
           font-size: 0.9rem;
           font-weight: 500;
           transition: all 0.2s ease;
           
           &:hover {
-            color: #49a09d;
+            color: #5e239d;
             text-decoration: underline;
           }
         }
@@ -409,7 +409,7 @@ $total-collected-color: #4db6ac;
         .action-link {
           background-color: transparent;
           border: none;
-          color: #5f2c82;
+          color: #a259d9;
           cursor: pointer;
           font-size: 0.9rem;
           padding: 0;
@@ -417,7 +417,7 @@ $total-collected-color: #4db6ac;
           transition: all 0.2s ease;
           
           &:hover {
-            color: #49a09d;
+            color: #5e239d;
             text-decoration: underline;
           }
           

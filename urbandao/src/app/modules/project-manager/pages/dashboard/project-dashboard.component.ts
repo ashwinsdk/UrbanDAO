@@ -93,31 +93,50 @@ export class ProjectDashboardComponent implements OnInit {
       const projectIds = await this.contractService.getManagerProjects(this.userAddress);
       
       if (projectIds && projectIds.length > 0) {
-        this.projects = await Promise.all(
+        const items = await Promise.all(
           projectIds.map(async (id: number) => {
-            const project = await this.contractService.getProject(id);
-            
-            // Assuming the IPFS hashes are stored in hex format
-            const title = await this.contractService.getIPFSContent(project.titleHash);
-            const description = await this.contractService.getIPFSContent(project.descriptionHash);
-            
-            return {
-              id: project.id,
-              areaId: project.areaId,
-              title: title || 'Unknown Project',
-              description: description || 'No description available',
-              manager: project.manager,
-              fundingGoal: this.contractService.fromWei(project.fundingGoal),
-              escrowed: this.contractService.fromWei(project.escrowed),
-              released: this.contractService.fromWei(project.released),
-              status: this.statusMap[project.status] || 'UNKNOWN',
-              milestoneCount: project.milestoneCount,
-              currentMilestone: project.currentMilestone,
-              citizenUpvotes: project.citizenUpvotes,
-              createdAt: new Date(project.createdAt * 1000)
-            };
+            try {
+              const project = await this.contractService.getProject(id);
+              if (!project) return null; // project may not exist
+              
+              // Convert bytes32 hashes to ipfs://CID if needed before fetching
+              let titleRef = project.titleHash ? String(project.titleHash) : '';
+              let descRef = project.descriptionHash ? String(project.descriptionHash) : '';
+              try {
+                if (titleRef && /^0x[0-9a-fA-F]{64}$/.test(titleRef)) {
+                  titleRef = `ipfs://${this.contractService.bytes32ToCid(titleRef)}`;
+                }
+              } catch {}
+              try {
+                if (descRef && /^0x[0-9a-fA-F]{64}$/.test(descRef)) {
+                  descRef = `ipfs://${this.contractService.bytes32ToCid(descRef)}`;
+                }
+              } catch {}
+              const title = await this.contractService.getIPFSContent(titleRef);
+              const description = await this.contractService.getIPFSContent(descRef);
+              
+              return {
+                id: project.id,
+                areaId: project.areaId,
+                title: title || 'Unknown Project',
+                description: description || 'No description available',
+                manager: project.manager,
+                fundingGoal: this.contractService.fromWei(project.fundingGoal),
+                escrowed: this.contractService.fromWei(project.escrowed),
+                released: this.contractService.fromWei(project.released),
+                status: this.statusMap[project.status] || 'UNKNOWN',
+                milestoneCount: project.milestoneCount,
+                currentMilestone: project.currentMilestone,
+                citizenUpvotes: project.citizenUpvotes,
+                createdAt: new Date(project.createdAt * 1000)
+              };
+            } catch (inner) {
+              console.warn('Skipping project due to error:', inner);
+              return null;
+            }
           })
         );
+        this.projects = (items.filter((p: any): p is Project => !!p));
         
         // Sort by creation date (newest first) for recent projects
         this.recentProjects = [...this.projects]

@@ -30,6 +30,7 @@ export class EditGrievanceComponent implements OnInit {
   userAddress: string | null = null;
   grievance: any = null;
   grievances: any[] = [];
+  projectManagers: Array<{ address: string; name?: string }> = [];
   
   // Detail view content
   grievanceTitle: string = '';
@@ -88,6 +89,8 @@ export class EditGrievanceComponent implements OnInit {
       
       // Load all grievances for this area
       await this.loadAllGrievances();
+      // Load available project managers for this area
+      await this.loadProjectManagers();
       this.loading = false;
     } catch (error: any) {
       console.error('Error loading admin area ID:', error);
@@ -169,6 +172,17 @@ export class EditGrievanceComponent implements OnInit {
       };
       this.grievanceTitle = this.grievance.title || '';
       this.grievanceDescription = this.grievance.description || '';
+      // Determine areaId for this admin head and load managers for dropdown
+      if (!this.areaId && this.userAddress) {
+        this.areaId = await this.contractService.getAdminAreaId(this.userAddress);
+      }
+      if (this.areaId) {
+        await this.loadProjectManagers();
+        // If there's only one PM, preselect
+        if (this.projectManagers.length === 1) {
+          this.actionForm.get('projectManagerAddress')?.setValue(this.projectManagers[0].address);
+        }
+      }
       
       // Set form values based on current status
       if (grievance.status === 'VALIDATED') {
@@ -194,6 +208,14 @@ export class EditGrievanceComponent implements OnInit {
       // Enable project manager field and priority
       this.actionForm.get('projectManagerAddress')?.setValidators([Validators.required]);
       this.actionForm.get('priorityLevel')?.setValidators([Validators.required, Validators.min(1), Validators.max(5)]);
+      // If not loaded yet, try to load managers for dropdown
+      if (this.projectManagers.length === 0 && this.areaId) {
+        this.loadProjectManagers();
+      }
+      // Auto-select sole manager
+      if (this.projectManagers.length === 1) {
+        this.actionForm.get('projectManagerAddress')?.setValue(this.projectManagers[0].address);
+      }
     } else {
       // Disable project manager field for other actions
       this.actionForm.get('projectManagerAddress')?.clearValidators();
@@ -265,10 +287,20 @@ export class EditGrievanceComponent implements OnInit {
       this.grievanceId,
       `Project from Grievance #${this.grievanceId}`,  // Project name
       feedback || `Project created from Grievance #${this.grievanceId}`,  // Project description
-      "0",  // Budget in ETH
+      "0.01",  // Minimal non-zero budget in ETH to satisfy contract
       "0",  // Initial funding in ETH
       projectManagerAddress  // Project manager address
     );
+  }
+
+  private async loadProjectManagers(): Promise<void> {
+    try {
+      if (!this.areaId) return;
+      this.projectManagers = await this.contractService.getRoleHoldersByArea(this.areaId, UserRole.PROJECT_MANAGER_ROLE);
+    } catch (e) {
+      console.warn('Failed to load project managers', e);
+      this.projectManagers = [];
+    }
   }
 
   async rejectGrievance(feedback: string): Promise<void> {

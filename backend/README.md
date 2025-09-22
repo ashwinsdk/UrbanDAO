@@ -235,6 +235,14 @@ node scripts/run/run-role-management.js verify
 
 # Assign missing roles according to hierarchy
 node scripts/run/run-role-management.js assign
+
+# Assign roles
+AREA_ID=11161361 \
+ADMIN_HEAD_ADDRESS=0xAdminHead... \
+VALIDATOR_ADDRESS=0xValidator... \
+TAX_COLLECTOR_ADDRESS=0xCollector... \
+PROJECT_MANAGER_ADDRESS=0xManager... \
+npx hardhat run scripts/setup-area-and-assign.js --network sepolia
 ```
 
 #### Role Assignment Process

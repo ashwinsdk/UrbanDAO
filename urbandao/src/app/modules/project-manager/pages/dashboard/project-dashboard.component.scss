@@ -1,6 +1,10 @@
 @import '../../../../../styles/variables';
 @import '../../../../../styles/mixins';
 
+// Override accent colors to match Citizen module theme
+$primary-color: #a259d9;
+$info-color: #5e239d;
+
 .project-dashboard {
   padding: 1.5rem;
   font-family: $main-font;

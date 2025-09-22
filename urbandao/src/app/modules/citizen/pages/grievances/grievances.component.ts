@@ -9,6 +9,8 @@ interface Grievance {
   id: string;
   title: string;
   description: string;
+  titleHash?: string;
+  descriptionHash?: string;
   status: 'pending' | 'validated' | 'rejected' | 'accepted' | 'in_project' | 'resolved' | 'reopened' | 'assigned';
   createdAt: Date;
   lastUpdated: Date;
@@ -65,6 +67,8 @@ export class GrievancesComponent implements OnInit {
           id: g.id,
           title: g.title,
           description: g.description,
+          titleHash: g.titleHash,
+          descriptionHash: g.descriptionHash,
           status: this.mapContractStatusToUI(g.status),
           createdAt: new Date(g.timestamp * 1000),
           lastUpdated: new Date(g.lastUpdated * 1000),
@@ -181,5 +185,33 @@ export class GrievancesComponent implements OnInit {
   
   refreshGrievances(): void {
     this.fetchGrievances();
+  }
+
+  // Helper methods to get human-readable content with proper fallbacks
+  getDisplayTitle(grievance: Grievance): string {
+    // If title looks like a hash/CID, show a placeholder
+    if (grievance.title && (grievance.title.startsWith('0x') || grievance.title.startsWith('Qm'))) {
+      return 'Grievance Title (Loading...)';
+    }
+    
+    // Use resolved title or fallback
+    return grievance.title || 'Untitled Grievance';
+  }
+
+  getDisplayDescription(grievance: Grievance): string {
+    // If description looks like a hash/CID, show a placeholder
+    if (grievance.description && (grievance.description.startsWith('0x') || grievance.description.startsWith('Qm'))) {
+      return 'Description loading from IPFS...';
+    }
+    
+    // Use resolved description or fallback
+    return grievance.description || 'No description available';
+  }
+
+  // Truncate long descriptions for list view
+  getTruncatedDescription(grievance: Grievance, maxLength: number = 100): string {
+    const desc = this.getDisplayDescription(grievance);
+    if (desc.length <= maxLength) return desc;
+    return desc.substring(0, maxLength) + '...';
   }
 }

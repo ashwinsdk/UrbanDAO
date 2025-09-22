@@ -174,18 +174,24 @@
                   </div>
                 </div>
 
-                <!-- Project Manager Address (only for escalate_to_project) -->
+                <!-- Project Manager (dropdown) shown only for escalate_to_project -->
                 <div *ngIf="actionForm.get('action')?.value === 'escalate_to_project'" class="form-group">
-                  <label for="project-manager">Project Manager Address:</label>
-                  <input 
-                    type="text" 
-                    id="project-manager" 
+                  <label for="project-manager">Project Manager:</label>
+                  <select
+                    id="project-manager"
                     formControlName="projectManagerAddress"
-                    placeholder="0x..."
                     [class.invalid]="actionForm.get('projectManagerAddress')?.invalid && actionForm.get('projectManagerAddress')?.touched"
                   >
+                    <option value="" disabled selected>Select a project manager</option>
+                    <option *ngFor="let manager of projectManagers" [value]="manager.address">
+                      {{ formatAddress(manager.address) }}
+                    </option>
+                  </select>
+                  <div class="helper-text" *ngIf="projectManagers.length === 0">
+                    No project managers are assigned to your area yet. Assign at least one to proceed.
+                  </div>
                   <div *ngIf="actionForm.get('projectManagerAddress')?.invalid && actionForm.get('projectManagerAddress')?.touched" class="error-message">
-                    Valid Ethereum address required
+                    Project manager is required
                   </div>
                 </div>
 

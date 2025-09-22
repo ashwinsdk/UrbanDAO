@@ -58,6 +58,75 @@ export class ContractService {
     });
   }
 
+  /**
+   * Try to decode a custom error from a revert using known interfaces.
+   */
+  private decodeCustomError(err: any): string | null {
+    try {
+      const data: string | undefined = err?.data || err?.error?.data;
+      if (!data || typeof data !== 'string' || !data.startsWith('0x')) return null;
+      const interfaces: any[] = [];
+      if (this.urbanCoreContract?.interface) interfaces.push(this.urbanCoreContract.interface);
+      if (this.metaForwarderContract?.interface) interfaces.push(this.metaForwarderContract.interface);
+      if (this.projectRegistryContract?.interface) interfaces.push(this.projectRegistryContract.interface);
+      if (this.taxModuleContract?.interface) interfaces.push(this.taxModuleContract.interface);
+      for (const iface of interfaces) {
+        try {
+          const parsed = iface.parseError(data);
+          if (parsed) {
+            const name = parsed.name || 'UnknownError';
+            const args = parsed.args ? Array.from(parsed.args).map((a: any) => String(a)) : [];
+            // Map known errors to friendly text
+            if (name === 'NotAreaValidator') {
+              const caller = args[0];
+              const areaId = args[1];
+              return `NotAreaValidator: ${caller} is not the validator for area ${areaId}.`;
+            }
+            if (name === 'CitizenRequestNotFound') {
+              const citizen = args[0];
+              return `CitizenRequestNotFound: No pending request found for ${citizen}.`;
+            }
+            if (name === 'CitizenAlreadyApproved') {
+              const citizen = args[0];
+              return `CitizenAlreadyApproved: ${citizen} is already approved.`;
+            }
+            if (name === 'AddressAlreadyHasRole') {
+              const account = args[0];
+              return `AddressAlreadyHasRole: ${account} already has this role.`;
+            }
+            return `${name}(${args.join(', ')})`;
+          }
+        } catch {}
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Check if a given target contract trusts our configured forwarder.
+   * Falls back to false if target does not expose isTrustedForwarder(address).
+   */
+  public async isTrustedForwarderFor(targetAddress: string): Promise<boolean> {
+    try {
+      const forwarder = environment.contracts.MetaForwarder;
+      if (!forwarder || !targetAddress) return false;
+      const provider = this.web3Service.getProvider();
+      if (!provider) return false;
+      // Minimal ABI for isTrustedForwarder(address)
+      const minimalAbi = [
+        'function isTrustedForwarder(address) view returns (bool)'
+      ];
+      const target = new ethers.Contract(targetAddress, minimalAbi, provider);
+      const res = await target['isTrustedForwarder'](forwarder).catch(() => false);
+      return Boolean(res);
+    } catch (e) {
+      console.warn('isTrustedForwarderFor check failed:', e);
+      return false;
+    }
+  }
+
   public async initContracts(): Promise<boolean> {
     // Don't try to initialize contracts if they are already initialized
     if (this.contractsInitialized) {
@@ -144,6 +213,35 @@ export class ContractService {
     } catch (error) {
       console.error('Error in checkPendingTransactions:', error);
       // Non-critical error, don't throw
+    }
+  }
+
+  // Submit a project milestone (proof + amount) according to ABI
+  public async submitProjectMilestone(projectId: number, proofIpfsUri: string, amountEth: string): Promise<{ success: boolean; hash?: string; error?: string }> {
+    try {
+      if (!this.projectRegistryContract) await this.initContracts();
+      if (!this.projectRegistryContract) throw new Error('Project Registry contract not initialized');
+
+      // Convert ipfs URI/CIDv0 to bytes32 digest expected by contract
+      const proofDigest = this.cidToBytes32(proofIpfsUri);
+      const amountWei = ethers.parseEther(amountEth);
+
+      const useMeta = await this.shouldUseMetaTransaction();
+      if (useMeta) {
+        const hash = await this.sendMetaTransaction(
+          environment.contracts.ProjectRegistry,
+          'submitMilestone',
+          [projectId, proofDigest, amountWei.toString()]
+        );
+        return { success: !!hash, hash: hash || undefined };
+      } else {
+        const tx = await this.projectRegistryContract['submitMilestone'](projectId, proofDigest, amountWei);
+        const receipt = await tx.wait();
+        return { success: true, hash: receipt.hash };
+      }
+    } catch (error: any) {
+      console.error('Error submitting project milestone:', error);
+      return { success: false, error: error?.message || String(error) };
     }
   }
   
@@ -245,12 +343,20 @@ export class ContractService {
           }
 
           if (environment.contracts.ProjectRegistry) {
-            this.projectRegistryContract = new ethers.Contract(
-              environment.contracts.ProjectRegistry,
-              (projectRegistryABI as any).abi ?? projectRegistryABI,
-              signer
-            );
-            console.log('ProjectRegistry contract initialized');
+            // Rebind only if not initialized or address changed (e.g., after a redeploy)
+            const desiredAddress = environment.contracts.ProjectRegistry;
+            const currentAddress = this.projectRegistryContract
+              ? String((this.projectRegistryContract as any).target || (this.projectRegistryContract as any).address || '').toLowerCase()
+              : '';
+            const desiredLower = desiredAddress.toLowerCase();
+            if (!this.projectRegistryContract || currentAddress !== desiredLower) {
+              this.projectRegistryContract = new ethers.Contract(
+                desiredAddress,
+                (projectRegistryABI as any).abi ?? projectRegistryABI,
+                signer
+              );
+              console.log(`ProjectRegistry contract initialized${currentAddress && currentAddress !== desiredLower ? ' (rebound to new address)' : ''}`);
+            }
           }
 
           if (environment.contracts.TaxModule) {
@@ -375,27 +481,11 @@ export class ContractService {
         return UserRole.NONE;
       }
       
-      // First try getAddressRole method
-      try {
-        console.log('Calling getAddressRole on UrbanCore contract');
-        const roleBytes = await this.urbanCoreContract['getAddressRole'](address);
-        console.log('Raw role bytes from getAddressRole:', roleBytes);
-        
-        const userRole = this.convertRoleToEnum(roleBytes);
-        console.log(`Role converted to enum: ${userRole} (${UserRole[userRole]})`);
-        
-        if (userRole !== UserRole.NONE) {
-          return userRole;
-        }
-      } catch (error) {
-        console.error('Error calling getAddressRole:', error);
-        // Continue to fallback checks
-      }
+      // SKIP getAddressRole method as it can return incorrect priority due to area head assignments
+      // Always use individual role checks to ensure proper priority
+      console.log('Checking roles individually to ensure proper priority');
       
-      // Fallback to checking each role individually
-      console.log('Falling back to individual role checks');
-      
-      // Check roles in priority order
+      // Check roles in priority order - ADMIN_GOVT should always take precedence over ADMIN_HEAD
       const rolesToCheck = [
         { role: UserRole.OWNER_ROLE, name: 'OWNER_ROLE' },
         { role: UserRole.ADMIN_GOVT_ROLE, name: 'ADMIN_GOVT_ROLE' },
@@ -412,7 +502,7 @@ export class ContractService {
           console.log(`Checking if address has role: ${name}`);
           const hasRole = await this.hasRole(role, address);
           if (hasRole) {
-            console.log(`Address has role: ${name}`);
+            console.log(`Address has role: ${name} - returning this as primary role`);
             return role;
           }
         } catch (error) {
@@ -537,15 +627,15 @@ export class ContractService {
     }
   }
   
-  // Get role holders by area
-  public async getRoleHoldersByArea(areaId: string, role: UserRole): Promise<any[]> {
+  // Get role holders by area (returns array of { address, name? })
+  public async getRoleHoldersByArea(areaId: string, role: UserRole): Promise<Array<{ address: string; name?: string }>> {
     try {
       if (!this.urbanCoreContract) await this.initContracts();
       if (!this.urbanCoreContract) throw new Error('Urban Core contract not initialized');
       
       // Get all role holders first
       const allHolders = await this.getRoleHolders(role);
-      const areaHolders: string[] = [];
+      const areaHolders: Array<{ address: string; name?: string }> = [];
       
       // Filter role holders by area
       for (const address of allHolders) {
@@ -572,24 +662,35 @@ export class ContractService {
               holderAreaId = validatorData.areaId.toString();
             }
             break;
+
+          case UserRole.PROJECT_MANAGER_ROLE:
+            // Use UrbanCore.isAreaProjectManager for explicit area check
+            try {
+              const isPm = await this.urbanCoreContract['isAreaProjectManager'](Number(areaId), address);
+              if (isPm) {
+                areaHolders.push({ address });
+                continue;
+              }
+            } catch {}
+            break;
             
           default:
             // For other roles, we might need specific contract methods
             // For now, include all role holders if we can't determine their area
-            areaHolders.push(address);
+            areaHolders.push({ address });
             continue;
         }
         
         // Add to area holders if the area matches
         if (holderAreaId && holderAreaId === areaId) {
-          areaHolders.push(address);
+          areaHolders.push({ address });
         }
       }
       
       return areaHolders;
     } catch (error) {
       console.error('Error getting role holders by area:', error);
-      return [];
+      return [] as Array<{ address: string; name?: string }>;
     }
   }
   
@@ -639,7 +740,19 @@ export class ContractService {
       }
       
       console.log(`Assigning role ${role} to ${address} in area ${areaId}`);
-      const tx = await this.urbanCoreContract['assignRole'](roleConstant, address);
+      const numericAreaId = parseInt(areaId, 10);
+      let tx: any;
+      // Route area-scoped roles through their dedicated functions to populate area mappings
+      if (role === UserRole.VALIDATOR_ROLE) {
+        tx = await this.urbanCoreContract['assignValidatorToArea'](numericAreaId, address);
+      } else if (role === UserRole.TAX_COLLECTOR_ROLE) {
+        tx = await this.urbanCoreContract['assignTaxCollectorToArea'](numericAreaId, address);
+      } else if (role === UserRole.PROJECT_MANAGER_ROLE) {
+        tx = await this.urbanCoreContract['assignProjectManagerToArea'](numericAreaId, address);
+      } else {
+        // Fallback to generic assignRole for roles that are not area-scoped
+        tx = await this.urbanCoreContract['assignRole'](roleConstant, address);
+      }
       await tx.wait();
       return true;
     } catch (error) {
@@ -650,8 +763,16 @@ export class ContractService {
   
   // Get projects by area
   public async getProjectsByArea(areaId: string): Promise<number[]> {
-    const numericAreaId = parseInt(areaId, 10);
-    return this.getProjectsInArea(numericAreaId);
+    try {
+      if (!this.projectRegistryContract) await this.initContracts();
+      if (!this.projectRegistryContract) throw new Error('Project Registry contract not initialized');
+      const numericAreaId = parseInt(areaId, 10);
+      const ids: any[] = await this.projectRegistryContract['getAreaProjects'](numericAreaId);
+      return (ids || []).map((x: any) => Number(x));
+    } catch (e) {
+      console.error('Error getting projects by area:', e);
+      return [];
+    }
   }
   
   // Helper methods for currency conversion
@@ -1285,6 +1406,8 @@ export class ContractService {
       if (areaId === 0) throw new Error('Invalid derived areaId');
 
       // Use current account as initial Admin Head for this area
+      // NOTE: This will temporarily assign ADMIN_GOVT as area head
+      // Use the remove-area-head script to clean this up after creating the area
       const account = this.web3Service.getAccount();
       if (!account) throw new Error('No connected account');
 
@@ -1339,10 +1462,139 @@ export class ContractService {
     try {
       if (!this.grievanceHubContract) await this.initContracts();
       if (!this.grievanceHubContract) throw new Error('Grievance Hub contract not initialized');
-      
-      // Mock implementation
-      console.log(`Escalating grievance ${grievanceId} to project: ${projectName}`);
-      return 'mock-transaction-hash';
+      // Ensure ProjectRegistry is initialized and rebound to current env address if needed
+      if (!this.projectRegistryContract) await this.initContracts();
+      const desiredPR = environment.contracts.ProjectRegistry?.toLowerCase();
+      const currentPR = this.projectRegistryContract
+        ? String(((this.projectRegistryContract as any).target || (this.projectRegistryContract as any).address) || '').toLowerCase()
+        : '';
+      if (desiredPR && currentPR && desiredPR !== currentPR) {
+        console.warn('ProjectRegistry address changed in environment; rebinding cached instance');
+        this.projectRegistryContract = null;
+        await this.initContracts();
+      }
+      if (!this.projectRegistryContract) throw new Error('Project Registry contract not initialized');
+
+      // Determine AdminHead's area
+      const caller = this.web3Service.getAccount();
+      if (!caller) throw new Error('No connected account');
+      const areaIdStr = await this.getAdminAreaId(caller);
+      const areaIdNum = parseInt(areaIdStr || '0', 10);
+      if (!Number.isFinite(areaIdNum) || areaIdNum <= 0) throw new Error('Unable to determine admin area for escalation');
+
+      // Step 1: Ensure the grievance is marked as accepted by AdminHead on GrievanceHub
+      const grievanceIdNum = parseInt(grievanceId || '0', 10);
+      if (!Number.isFinite(grievanceIdNum) || grievanceIdNum <= 0) {
+        throw new Error('Invalid grievanceId');
+      }
+      try {
+        const hubMetaReady = await this.shouldUseMetaTransaction();
+        const hubTrusts = await this.isTrustedForwarderFor(environment.contracts.GrievanceHub).catch(() => false);
+        if (hubMetaReady && hubTrusts) {
+          await this.sendMetaTransaction(
+            environment.contracts.GrievanceHub,
+            'acceptValidated',
+            [grievanceIdNum]
+          );
+        } else {
+          const tx = await this.grievanceHubContract['acceptValidated'](grievanceIdNum);
+          await tx.wait();
+        }
+      } catch (acceptErr: any) {
+        // If already accepted, proceed; otherwise bubble up
+        const msg = String(acceptErr?.message || acceptErr);
+        if (!/InvalidStatus|already/i.test(msg)) {
+          throw new Error(`Failed to accept grievance before project creation: ${msg}`);
+        }
+      }
+
+      // Upload title/description to IPFS
+      const titleIpfsUri = await this.uploadToIpfs({ kind: 'project_title', title: projectName, fromGrievance: grievanceId, createdAt: Date.now() });
+      const descIpfsUri = await this.uploadToIpfs({ kind: 'project_description', description: projectDescription, fromGrievance: grievanceId, createdAt: Date.now() });
+
+      // Convert to bytes32 digests
+      const titleDigest = this.cidToBytes32(titleIpfsUri);
+      const descDigest = this.cidToBytes32(descIpfsUri);
+      const fundingGoal = ethers.parseEther(budget || '0');
+
+      // Step 2: Attempt to create the project in ProjectRegistry
+      // Prefer meta, but only if ProjectRegistry trusts the forwarder; otherwise fall back to direct.
+      const metaReady = await this.shouldUseMetaTransaction();
+      const registryTrustsForwarder = await this.isTrustedForwarderFor(environment.contracts.ProjectRegistry).catch(() => false);
+      if (metaReady && registryTrustsForwarder) {
+        const hash = await this.sendMetaTransaction(
+          environment.contracts.ProjectRegistry,
+          'createProject',
+          [areaIdNum, titleDigest, descDigest, projectManager, fundingGoal.toString()]
+        );
+        // Try to link grievance -> project by parsing the emitted ProjectCreated from the tx receipt
+        try {
+          const provider = this.web3Service.getProvider();
+          const receipt = (provider && hash) ? await provider.getTransactionReceipt(hash as string) : null;
+          if (receipt && this.projectRegistryContract?.interface) {
+            const iface = this.projectRegistryContract.interface;
+            let createdId: number | null = null;
+            for (const log of receipt.logs || []) {
+              try {
+                const parsed = iface.parseLog(log);
+                if (parsed && parsed.name === 'ProjectCreated') {
+                  const pid = (parsed.args && (parsed.args['projectId'] ?? parsed.args[0])) as any;
+                  createdId = Number(pid);
+                  break;
+                }
+              } catch {}
+            }
+            if (createdId && this.grievanceHubContract) {
+              try {
+                const linkTx = await this.grievanceHubContract['linkToProject'](grievanceIdNum, createdId);
+                await linkTx.wait();
+              } catch (linkErr) {
+                console.warn('Failed to link grievance to project after meta create:', linkErr);
+              }
+            }
+          }
+        } catch {}
+        return hash;
+      } else {
+        try {
+          const tx = await this.projectRegistryContract['createProject'](areaIdNum, titleDigest, descDigest, projectManager, fundingGoal);
+          const receipt = await tx.wait();
+          // Parse ProjectCreated to obtain projectId and link it
+          try {
+            if (receipt && this.projectRegistryContract?.interface) {
+              const iface = this.projectRegistryContract.interface;
+              let createdId: number | null = null;
+              for (const log of receipt.logs || []) {
+                try {
+                  const parsed = iface.parseLog(log);
+                  if (parsed && parsed.name === 'ProjectCreated') {
+                    const pid = (parsed.args && (parsed.args['projectId'] ?? parsed.args[0])) as any;
+                    createdId = Number(pid);
+                    break;
+                  }
+                } catch {}
+              }
+              if (createdId && this.grievanceHubContract) {
+                try {
+                  const linkTx = await this.grievanceHubContract['linkToProject'](grievanceIdNum, createdId);
+                  await linkTx.wait();
+                } catch (linkErr) {
+                  console.warn('Failed to link grievance to project:', linkErr);
+                }
+              }
+            }
+          } catch {}
+          return receipt?.hash ?? null;
+        } catch (e: any) {
+          // If AccessControl reverts due to missing ADMIN_HEAD_ROLE on ProjectRegistry, continue gracefully
+          const reason = String(e?.reason || e?.message || e);
+          if (/AccessControl: account .* is missing role/i.test(reason)) {
+            console.warn('ProjectRegistry permission denied for createProject: ADMIN_HEAD_ROLE not granted on ProjectRegistry. Marking grievance accepted; project creation must be handled via ops/governance and linked later.');
+            return null;
+          }
+          throw e;
+        }
+      }
     } catch (error) {
       console.error('Error escalating grievance to project:', error);
       return null;
@@ -1566,6 +1818,11 @@ export class ContractService {
         finalTargetContract = environment.contracts.UrbanCore;
         console.log('Setting target contract to UrbanCore for registration:', finalTargetContract);
       }
+      // Guard: ensure target trusts forwarder; otherwise meta-tx will revert in target
+      const trustedTarget = await this.isTrustedForwarderFor(finalTargetContract).catch(() => false);
+      if (!trustedTarget) {
+        throw new Error('Target contract does not trust configured forwarder; meta-transaction not supported for this call');
+      }
       
       // Create forward request object expected by the MetaForwarder.execute method
       const forwardRequest = {
@@ -1731,8 +1988,9 @@ export class ContractService {
             await this.simulateMetaForwarderExecute(forwardRequestForContract, signature);
             console.log('Preflight callStatic.execute passed (user TX_PAYER)');
           } catch (preErr) {
-            console.error('Meta-tx preflight failed (user TX_PAYER):', preErr);
-            throw preErr;
+            const decoded = this.decodeCustomError(preErr);
+            console.error('Meta-tx preflight failed (user TX_PAYER):', decoded || preErr);
+            throw new Error(decoded || ((preErr as any)?.message || 'Meta-tx preflight failed'));
           }
           
           const tx = await (metaForwarderWithSigner as any).execute(
@@ -1773,7 +2031,8 @@ export class ContractService {
             // Return transaction hash as confirmation
             return 'meta-tx-executed-' + tx.hash;
           } catch (confirmError: any) {
-            console.error('Error waiting for transaction confirmation:', confirmError);
+            const decoded = this.decodeCustomError(confirmError);
+            console.error('Error waiting for transaction confirmation:', decoded || confirmError);
             
             // Store the pending transaction info even if we couldn't confirm it
             // This allows recovery on page refresh
@@ -1984,17 +2243,19 @@ export class ContractService {
             // Return transaction hash as confirmation
             return 'meta-tx-executed-' + tx.hash;
           } catch (txPayerError: any) {
-            console.error('Error executing meta-transaction with TX_PAYER account:', txPayerError);
+            const decoded = this.decodeCustomError(txPayerError);
+            console.error('Error executing meta-transaction with TX_PAYER account:', decoded || txPayerError);
             throw new Error('Failed to execute meta-transaction with TX_PAYER account: ' + 
-              (txPayerError.message || 'Unknown error'));
+              (decoded || (txPayerError as any).message || 'Unknown error'));
           }
         }
       } catch (txError: any) {
         console.error('Error executing meta-transaction:', txError);
-        throw new Error('Failed to execute meta-transaction: ' + (txError.message || 'Unknown error'));
+        throw new Error('Failed to execute meta-transaction: ' + ((txError as any).message || 'Unknown error'));
       }
     } catch (error) {
-      console.error('Error sending meta transaction:', error);
+      const decoded = this.decodeCustomError(error);
+      console.error('Error sending meta transaction:', decoded || error);
       return null;
     }
   }
@@ -2051,9 +2312,20 @@ export class ContractService {
   }
 
   public async getProjectRegistryContract(): Promise<ethers.Contract | null> {
-    // Initialize contracts if not already done
+    // Ensure contracts are initialized
     if (!this.projectRegistryContract) {
       await this.initContracts();
+    } else {
+      // If cached instance points to old address, reset and re-init
+      try {
+        const desired = environment.contracts.ProjectRegistry?.toLowerCase();
+        const current = String(((this.projectRegistryContract as any).target || (this.projectRegistryContract as any).address) || '').toLowerCase();
+        if (desired && current && desired !== current) {
+          console.warn('Detected ProjectRegistry address mismatch; refreshing contract binding');
+          this.projectRegistryContract = null;
+          await this.initContracts();
+        }
+      } catch {}
     }
     return this.projectRegistryContract || null;
   }
@@ -2222,33 +2494,54 @@ export class ContractService {
         return [];
       }
 
-      // For TX_PAYER_ROLE specifically, return the configured address if it has the role on-chain
-      if (role === UserRole.TX_PAYER_ROLE) {
-        const configuredTxPayer = environment.rolesMapping?.TX_PAYER_ROLE;
-        if (!configuredTxPayer) {
-          console.warn('TX_PAYER_ROLE address not configured in environment.rolesMapping');
-          return [];
-        }
-        const hasRole = await this.urbanCoreContract['hasRole'](roleBytes, configuredTxPayer);
-        return hasRole ? [configuredTxPayer] : [];
+      // If TX_PAYER is requested and configured, prefer returning the configured address when it has the role
+      if (role === UserRole.TX_PAYER_ROLE && environment.rolesMapping?.TX_PAYER_ROLE) {
+        const configured = environment.rolesMapping.TX_PAYER_ROLE;
+        try {
+          const ok = await this.urbanCoreContract['hasRole'](roleBytes, configured);
+          if (ok) return [configured];
+        } catch {}
       }
-      
-      // Fallback method: check if the role is held using hasRole
-      // Since we don't have a getRoleMemberCount/getRoleMember, we'll try another approach
-      // This only works for specific addresses we want to check
-      const knownAddresses = [
-        '0xe0b1ee4660e296bae4054f67c5d46493ff455061' // TX_PAYER
-      ];
-      
-      const addresses: string[] = [];
-      for (const address of knownAddresses) {
-        const hasRole = await this.urbanCoreContract['hasRole'](roleBytes, address);
-        if (hasRole) {
-          addresses.push(address);
-        }
+
+      // Discover role holders by scanning UrbanCore events
+      const provider = this.web3Service.getProvider();
+      if (!provider) throw new Error('No provider available');
+      const latestBlock = await provider.getBlockNumber();
+      // Use specific signatures to avoid ambiguity (OZ vs custom events)
+      const assignedCustomFilter = (this.urbanCoreContract as any).filters['RoleAssigned'](null, roleBytes, null);
+      const grantedFilter = (this.urbanCoreContract as any).filters['RoleGranted(bytes32,address,address)'](roleBytes, null, null);
+      const revokedCustomFilter = (this.urbanCoreContract as any).filters['RoleRevoked(address,bytes32,address)'](null, roleBytes, null);
+      const revokedAccessFilter = (this.urbanCoreContract as any).filters['RoleRevoked(bytes32,address,address)'](roleBytes, null, null);
+      const [assignedLogs, grantedLogs, revokedCustomLogs, revokedAccessLogs] = await Promise.all([
+        this.urbanCoreContract.queryFilter(assignedCustomFilter, 0, latestBlock),
+        this.urbanCoreContract.queryFilter(grantedFilter, 0, latestBlock),
+        this.urbanCoreContract.queryFilter(revokedCustomFilter, 0, latestBlock),
+        this.urbanCoreContract.queryFilter(revokedAccessFilter, 0, latestBlock)
+      ]);
+
+      const holders = new Set<string>();
+      for (const log of assignedLogs) {
+        const anyLog = log as any;
+        const account: string = anyLog?.args?.account ?? anyLog?.args?.[0];
+        if (account) holders.add(String(account).toLowerCase());
       }
-      
-      return addresses;
+      for (const log of grantedLogs) {
+        const anyLog = log as any;
+        const account: string = anyLog?.args?.account ?? anyLog?.args?.[1];
+        if (account) holders.add(String(account).toLowerCase());
+      }
+      for (const log of revokedCustomLogs) {
+        const anyLog = log as any;
+        const account: string = anyLog?.args?.account ?? anyLog?.args?.[0];
+        if (account) holders.delete(String(account).toLowerCase());
+      }
+      for (const log of revokedAccessLogs) {
+        const anyLog = log as any;
+        const account: string = anyLog?.args?.account ?? anyLog?.args?.[1];
+        if (account) holders.delete(String(account).toLowerCase());
+      }
+
+      return Array.from(holders);
     } catch (error) {
       console.error(`Error getting role holders for ${role}:`, error);
       return [];
@@ -2366,13 +2659,73 @@ export class ContractService {
       
       // For citizen requests, requestId is the citizen's address
       // The contract uses approveCitizen method instead of approveRoleRequest
+      // Pre-check: ensure current wallet is validator for the citizen's area to avoid revert
+      const signer = this.web3Service.getSigner();
+      const caller = await signer!.getAddress();
+      // Verify request exists and not processed
+      const req = await this.urbanCoreContract['getCitizenRequest'](requestId);
+      const requestedAt = Number(req?.requestedAt ?? 0);
+      const processed = Boolean(req?.processed ?? false);
+      if (!req || requestedAt === 0) {
+        throw new Error('Citizen request not found. The request may have been withdrawn or already processed.');
+      }
+      if (processed) {
+        throw new Error('This citizen request has already been processed.');
+      }
+      // If request is assigned to a specific validator, enforce that
+      const assignedValidator = String(req?.validator || '').toLowerCase();
+      if (assignedValidator && assignedValidator !== '0x0000000000000000000000000000000000000000') {
+        if (assignedValidator !== String(caller).toLowerCase()) {
+          throw new Error(`Only the assigned validator (${assignedValidator}) can process this request. Switch to that account.`);
+        }
+      }
+      // Not already approved
+      const alreadyApproved = await this.urbanCoreContract['isApprovedCitizen'](requestId);
+      if (alreadyApproved) {
+        throw new Error('Citizen is already approved.');
+      }
+      // Derive areaId
+      const areaIdBn = await this.urbanCoreContract['citizenArea'](requestId);
+      let areaId = Number(areaIdBn);
+      if (!Number.isFinite(areaId) || areaId <= 0) {
+        // Try to derive areaId from the address metadata (IPFS)
+        try {
+          const meta = await this.getAddressMetadata(requestId);
+          const metaAreaId = meta?.areaId ? Number(meta.areaId) : 0;
+          if (Number.isFinite(metaAreaId) && metaAreaId > 0) {
+            areaId = metaAreaId;
+          }
+        } catch {}
+      }
+      if (!Number.isFinite(areaId) || areaId <= 0) {
+        throw new Error('Cannot determine the citizen\'s area. The registration metadata may be missing areaId.');
+      }
+      const isValidator = await this.urbanCoreContract['isAreaValidator'](areaId, caller);
+      console.log(`[approveRoleRequest] caller=${caller} derivedAreaId=${areaId} isValidator=${isValidator}`);
+      if (!isValidator) {
+        throw new Error(`You are not the validator for this citizen's area (Area ${areaId}). Assign the validator role for this area or switch to the correct validator account.`);
+      }
+      const canMeta = (await this.shouldUseMetaTransaction()) && (await this.isTrustedForwarderFor(environment.contracts.UrbanCore));
+      if (canMeta) {
+        try {
+          const hash = await this.sendMetaTransaction(environment.contracts.UrbanCore, 'approveCitizen', [requestId]);
+          if (hash) {
+            console.log('Citizen approved via meta-tx:', hash);
+            return { hash, meta: true };
+          }
+          console.warn('Meta-tx returned null hash; falling back to direct transaction');
+        } catch (e) {
+          console.warn('Meta-tx path failed; falling back to direct transaction:', e);
+        }
+      }
       const tx = await this.urbanCoreContract['approveCitizen'](requestId);
       const receipt = await tx.wait();
-      console.log('Citizen approved:', receipt);
+      console.log('Citizen approved (direct):', receipt);
       return receipt;
     } catch (error) {
-      console.error(`Error approving citizen request ${requestId}:`, error);
-      throw error;
+      const friendly = this.decodeCustomError(error) || (error as any)?.message || String(error);
+      console.error(`Error approving citizen request ${requestId}:`, friendly);
+      throw new Error(friendly);
     }
   }
 
@@ -2383,13 +2736,43 @@ export class ContractService {
       
       // For citizen requests, requestId is the citizen's address
       // The contract uses rejectCitizen method which requires a reason
+      // Pre-check: ensure current wallet is validator for the citizen's area to avoid revert
+      const signer = this.web3Service.getSigner();
+      const caller = await signer!.getAddress();
+      const areaIdBn = await this.urbanCoreContract['citizenArea'](requestId);
+      const areaId = Number(areaIdBn);
+      if (!Number.isFinite(areaId) || areaId === 0) {
+        // Double-check whether request exists
+        const req = await this.urbanCoreContract['getCitizenRequest'](requestId);
+        if (!req || (Number(req.requestedAt) === 0 && !req.citizen)) {
+          throw new Error('Citizen request not found. The request may have been withdrawn or already processed.');
+        }
+      }
+      const isValidator = await this.urbanCoreContract['isAreaValidator'](areaId, caller);
+      if (!isValidator) {
+        throw new Error(`You are not the validator for this citizen's area (Area ${areaId}). Assign the validator role for this area or switch to the correct validator account.`);
+      }
+      const canMeta = (await this.shouldUseMetaTransaction()) && (await this.isTrustedForwarderFor(environment.contracts.UrbanCore));
+      if (canMeta) {
+        try {
+          const hash = await this.sendMetaTransaction(environment.contracts.UrbanCore, 'rejectCitizen', [requestId, reason]);
+          if (hash) {
+            console.log('Citizen rejected via meta-tx:', hash);
+            return { hash, meta: true };
+          }
+          console.warn('Meta-tx returned null hash for reject; falling back to direct transaction');
+        } catch (e) {
+          console.warn('Meta-tx reject path failed; falling back to direct transaction:', e);
+        }
+      }
       const tx = await this.urbanCoreContract['rejectCitizen'](requestId, reason);
       const receipt = await tx.wait();
-      console.log('Citizen rejected:', receipt);
+      console.log('Citizen rejected (direct):', receipt);
       return receipt;
     } catch (error) {
-      console.error(`Error rejecting citizen request ${requestId}:`, error);
-      throw error;
+      const friendly = this.decodeCustomError(error) || (error as any)?.message || String(error);
+      console.error(`Error rejecting citizen request ${requestId}:`, friendly);
+      throw new Error(friendly);
     }
   }
 
@@ -3031,23 +3414,16 @@ export class ContractService {
       const useMeta = await this.shouldUseMetaTransaction();
       
       if (useMeta) {
-        // Use meta transaction
-        const methodName = isApproved ? 'approveGrievance' : 'rejectGrievance';
+        // Use meta transaction: GrievanceHub.approveGrievance(uint256 grievanceId, bool approve)
         const hash = await this.sendMetaTransaction(
           environment.contracts.GrievanceHub,
-          methodName,
-          [grievanceIdBN, comments]
+          'approveGrievance',
+          [grievanceIdBN, isApproved]
         );
         return !!hash;
       } else {
-        // Direct transaction
-        let tx;
-        if (isApproved) {
-          tx = await this.grievanceHubContract['approveGrievance'](grievanceIdBN, comments);
-        } else {
-          tx = await this.grievanceHubContract['rejectGrievance'](grievanceIdBN, comments);
-        }
-        
+        // Direct transaction: call approveGrievance with boolean flag
+        const tx = await this.grievanceHubContract['approveGrievance'](grievanceIdBN, isApproved);
         await tx.wait();
         return true;
       }
@@ -3328,21 +3704,22 @@ export class ContractService {
       if (!this.projectRegistryContract) await this.initContracts();
       if (!this.projectRegistryContract) throw new Error('Project Registry contract not initialized');
       
-      const project = await this.projectRegistryContract['getProject'](projectId);
-      
+      const p = await this.projectRegistryContract['getProject'](projectId);
+      // Map to ABI-correct shape; keep wei values for callers to format
       return {
-        id: projectId,
-        title: project.title,
-        description: project.description,
-        status: this.getProjectStatusText(project.status),
-        budget: ethers.formatEther(project.budget),
-        area: project.areaId.toString(),
-        manager: project.manager,
-        completedMilestones: project.completedMilestones.toString(),
-        totalMilestones: project.totalMilestones.toString(),
-        votes: project.votes.toString(),
-        dateCreated: new Date(Number(project.timestamp) * 1000),
-        milestonesData: []  // This would be filled in by another method
+        id: Number(p.id ?? projectId),
+        areaId: Number(p.areaId),
+        titleHash: String(p.titleHash),
+        descriptionHash: String(p.descriptionHash),
+        manager: String(p.manager),
+        fundingGoal: p.fundingGoal,
+        escrowed: p.escrowed,
+        released: p.released,
+        status: Number(p.status),
+        milestoneCount: Number(p.milestoneCount),
+        currentMilestone: Number(p.currentMilestone),
+        citizenUpvotes: Number(p.citizenUpvotes),
+        createdAt: Number(p.createdAt)
       };
     } catch (error) {
       console.error(`Error getting project ${projectId}:`, error);
@@ -3616,24 +3993,18 @@ export class ContractService {
       if(!this.taxModuleContract) await this.initContracts();
       if (!this.taxModuleContract) throw new Error('Tax Module contract not initialized');
       
-      // In a real implementation, this would call a contract method
-      // For now, return mock statistics
-      return {
-        totalAssessments: 75,
-        totalCollected: ethers.parseEther('150'),
-        totalPending: ethers.parseEther('50'),
-        collectionRate: 75, // percentage
-        paymentCount: 120
-      };
+      const totalAssessmentsBn = await this.taxModuleContract['getTotalTaxAssessmentCount']();
+      const paidAssessmentsBn = await this.taxModuleContract['getPaidTaxAssessmentCount']();
+      const totalAssessments = Number(totalAssessmentsBn);
+      const completedPayments = Number(paidAssessmentsBn);
+      const pendingPayments = Math.max(0, totalAssessments - completedPayments);
+      const totalCollected = await this.getTotalTaxCollected();
+      const collectionRate = totalAssessments > 0 ? Math.round((completedPayments / totalAssessments) * 100) : 0;
+      
+      return { totalAssessments, pendingPayments, completedPayments, collectionRate, totalCollected };
     } catch (error) {
       console.error('Error getting tax collection stats:', error);
-      return {
-        totalAssessments: 0,
-        totalCollected: ethers.parseEther('0'),
-        totalPending: ethers.parseEther('0'),
-        collectionRate: 0,
-        paymentCount: 0
-      };
+      return { totalAssessments: 0, pendingPayments: 0, completedPayments: 0, collectionRate: 0, totalCollected: '0' };
     }
   }
 
@@ -3655,8 +4026,10 @@ export class ContractService {
         if (!g) return null;
         return {
           id: id,
-          title: g.titleHash || '',
-          description: g.descriptionHash || '',
+          title: g.titleText || g.titleHash || 'Untitled Grievance',
+          description: g.descriptionText || g.descriptionHash || 'No description',
+          titleHash: g.titleHash || '',
+          descriptionHash: g.descriptionHash || '',
           status: g.statusCode, // numeric enum per canonical mapping
           timestamp: Number(g.createdAt),
           lastUpdated: Number(g.lastUpdated),
@@ -4161,10 +4534,8 @@ export class ContractService {
     try {
       if (!this.projectRegistryContract) await this.initContracts();
       if (!this.projectRegistryContract) throw new Error('Project Registry contract not initialized');
-      
-      // In a real implementation, this would call a contract method to get all project IDs
-      // For now, return mock data
-      return [1, 2, 3, 4, 5];
+      const ids: any[] = await this.projectRegistryContract['getManagerProjects'](managerAddress);
+      return (ids || []).map((x: any) => Number(x));
     } catch (error) {
       console.error('Error getting manager projects:', error);
       return [];
@@ -4175,16 +4546,10 @@ export class ContractService {
     try {
       if (!this.projectRegistryContract) await this.initContracts();
       if (!this.projectRegistryContract) throw new Error('Project Registry contract not initialized');
-      
-      const project = await this.getProject(projectId);
-      if (!project) return '0';
-      
-      // Calculate remaining funds (budget - released)
-      const budget = project.fundingGoal || project.budget || ethers.parseEther('0');
-      const released = project.released || ethers.parseEther('0');
-      const remaining = budget - released;
-      
-      return this.fromWei(remaining);
+      // Use contract's helper for correctness
+      const remainingWei = await this.projectRegistryContract['getRemainingFunds'](projectId);
+      // Return as wei string/BigNumberish for callers to format
+      return remainingWei;
     } catch (error) {
       console.error(`Error getting remaining funds for project ${projectId}:`, error);
       return '0';
@@ -4296,48 +4661,20 @@ export class ContractService {
     try {
       if (!this.projectRegistryContract) await this.initContracts();
       if (!this.projectRegistryContract) throw new Error('Project Registry contract not initialized');
-      
-      // In a real implementation, this would call a contract method to get milestone data
-      // For now, return mock data
-      const milestoneData = [
-        {
-          title: 'Project Initiation',
-          description: 'Initial planning and requirements gathering',
-          targetDate: new Date('2023-06-15'),
-          fundAmount: 1000,
-          completed: true
-        },
-        {
-          title: 'Design Phase',
-          description: 'System design and architecture',
-          targetDate: new Date('2023-08-01'),
-          fundAmount: 2000,
-          completed: false
-        },
-        {
-          title: 'Development Phase',
-          description: 'Implementation of core features',
-          targetDate: new Date('2023-10-15'),
-          fundAmount: 3000,
-          completed: false
-        },
-        {
-          title: 'Testing and Deployment',
-          description: 'Quality assurance and deployment',
-          targetDate: new Date('2023-12-01'),
-          fundAmount: 2000,
-          completed: false
-        }
-      ];
-      
-      if (milestoneIndex >= 0 && milestoneIndex < milestoneData.length) {
-        return { success: true, milestone: milestoneData[milestoneIndex] };
-      } else {
-        throw new Error(`Milestone index ${milestoneIndex} out of range`);
-      }
+      const m = await this.projectRegistryContract['getMilestone'](projectId, milestoneIndex);
+      // Map directly from ABI struct
+      return {
+        projectId: Number(m.projectId),
+        milestoneNumber: Number(m.milestoneNumber),
+        proofHash: String(m.proofHash),
+        amount: m.amount,
+        completed: Boolean(m.completed),
+        completedAt: Number(m.completedAt),
+        submittedBy: String(m.submittedBy)
+      };
     } catch (error: any) {
       console.error(`Error getting milestone for project ${projectId}:`, error);
-      return { success: false, message: `Failed to get milestone: ${error.message || error}` };
+      return null;
     }
   }
 
@@ -4423,11 +4760,49 @@ export class ContractService {
     try {
       if (!this.projectRegistryContract) await this.initContracts();
       if (!this.projectRegistryContract) throw new Error('Project Registry contract not initialized');
-      
-      // Mock implementation for AdminHead module
-      console.log(`Creating project with title hash ${titleIpfsHash}, manager ${managerAddress}, in area ${areaId}`);
-      console.log(`Budget: ${budgetInWei}, initial funding: ${initialFundingInWei}, milestones: ${totalMilestones}`);
-      
+      if (!environment.contracts.ProjectRegistry) throw new Error('ProjectRegistry address not configured');
+      // Ensure binding matches environment in case of redeploy
+      const desired = environment.contracts.ProjectRegistry.toLowerCase();
+      const current = String(((this.projectRegistryContract as any).target || (this.projectRegistryContract as any).address) || '').toLowerCase();
+      if (desired && current && desired !== current) {
+        this.projectRegistryContract = null;
+        await this.initContracts();
+        if (!this.projectRegistryContract) throw new Error('Project Registry contract not initialized');
+      }
+
+      // Convert inputs to bytes32 and numeric
+      const toDigest = (v: string): string => {
+        if (!v) return ethers.ZeroHash;
+        const s = String(v);
+        if (s.startsWith('ipfs://')) return this.cidToBytes32(s);
+        if (/^0x[0-9a-fA-F]{64}$/.test(s)) return s;
+        // Fallback: keccak of text
+        return ethers.keccak256(ethers.toUtf8Bytes(s));
+      };
+      const titleDigest = toDigest(titleIpfsHash);
+      const descDigest = toDigest(descriptionIpfsHash);
+      const areaIdNum = Number(areaId);
+      const fundingGoal = BigInt(budgetInWei || '0');
+
+      // Create project
+      const tx = await this.projectRegistryContract['createProject'](areaIdNum, titleDigest, descDigest, managerAddress, fundingGoal);
+      const receipt = await tx.wait();
+
+      // Optionally parse ProjectCreated for feedback/logging
+      try {
+        const iface = this.projectRegistryContract.interface;
+        for (const log of receipt.logs || []) {
+          try {
+            const parsed = iface.parseLog(log);
+            if (parsed && parsed.name === 'ProjectCreated') {
+              const pid = (parsed.args && (parsed.args['projectId'] ?? parsed.args[0])) as any;
+              console.log('Project created with ID', Number(pid));
+              break;
+            }
+          } catch {}
+        }
+      } catch {}
+
       return true;
     } catch (error) {
       console.error('Error creating project:', error);

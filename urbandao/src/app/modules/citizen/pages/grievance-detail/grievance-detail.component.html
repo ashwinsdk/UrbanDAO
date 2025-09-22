@@ -23,7 +23,7 @@
   <div *ngIf="!loading && !error && grievance" class="grievance-content">
     <header class="grievance-header">
       <div class="title-section">
-        <h1>{{ grievance.titleText || grievance.title }}</h1>
+        <h1 class="grievance-title">{{ getDisplayTitle() }}</h1>
         <div class="header-meta">
           <div class="meta-item">
             <span class="meta-label">ID:</span>
@@ -48,7 +48,7 @@
       <div class="grievance-main-section">
         <div class="info-card">
           <h2>Description</h2>
-          <p class="description">{{ grievance.descriptionText || grievance.description }}</p>
+          <p class="grievance-description">{{ getDisplayDescription() }}</p>
           
           <div class="location">
             <h3>Location</h3>

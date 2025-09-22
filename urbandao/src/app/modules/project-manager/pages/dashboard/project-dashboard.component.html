@@ -165,14 +165,14 @@
           <div class="action-text">View All Projects</div>
         </div>
         
-        <div class="action-card" [routerLink]="['/project-manager/project', recentProjects[0]?.id]" [class.disabled]="!recentProjects.length">
+        <div class="action-card" [routerLink]="recentProjects.length ? ['/project-manager/project', recentProjects[0].id] : undefined" [class.disabled]="!recentProjects.length">
           <div class="action-icon">
             <i class="fas fa-file-alt"></i>
           </div>
           <div class="action-text">Latest Project Details</div>
         </div>
         
-        <div class="action-card" [routerLink]="['/project-manager/project', recentProjects[0]?.id, 'milestone']" [class.disabled]="!recentProjects.length || recentProjects[0]?.status !== 'IN_PROGRESS' && recentProjects[0]?.status !== 'FUNDED'">
+        <div class="action-card" [routerLink]="recentProjects.length ? ['/project-manager/project', recentProjects[0].id, 'milestone'] : undefined" [class.disabled]="!recentProjects.length || (recentProjects[0].status !== 'IN_PROGRESS' && recentProjects[0].status !== 'FUNDED')">
           <div class="action-icon">
             <i class="fas fa-flag"></i>
           </div>

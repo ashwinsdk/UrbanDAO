@@ -10,6 +10,8 @@
     "deploy:sepolia": "npx hardhat run scripts/deploy.js --network sepolia",
     "roles": "npx hardhat run scripts/assign-roles.js",
     "roles:sepolia": "npx hardhat run scripts/assign-roles.js --network sepolia",
+    "remove-area-head": "npx hardhat run scripts/remove-area-head.js",
+    "remove-area-head:sepolia": "npx hardhat run scripts/remove-area-head.js --network sepolia",
     "verify": "npx hardhat verify",
     "clean": "npx hardhat clean",
     "coverage": "npx hardhat coverage",
