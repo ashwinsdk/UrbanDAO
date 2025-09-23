@@ -2503,42 +2503,61 @@ export class ContractService {
         } catch {}
       }
 
-      // Discover role holders by scanning UrbanCore events
+      // Discover role holders by scanning UrbanCore events via raw topic filters to avoid ambiguity
       const provider = this.web3Service.getProvider();
       if (!provider) throw new Error('No provider available');
       const latestBlock = await provider.getBlockNumber();
-      // Use specific signatures to avoid ambiguity (OZ vs custom events)
-      const assignedCustomFilter = (this.urbanCoreContract as any).filters['RoleAssigned'](null, roleBytes, null);
-      const grantedFilter = (this.urbanCoreContract as any).filters['RoleGranted(bytes32,address,address)'](roleBytes, null, null);
-      const revokedCustomFilter = (this.urbanCoreContract as any).filters['RoleRevoked(address,bytes32,address)'](null, roleBytes, null);
-      const revokedAccessFilter = (this.urbanCoreContract as any).filters['RoleRevoked(bytes32,address,address)'](roleBytes, null, null);
-      const [assignedLogs, grantedLogs, revokedCustomLogs, revokedAccessLogs] = await Promise.all([
-        this.urbanCoreContract.queryFilter(assignedCustomFilter, 0, latestBlock),
-        this.urbanCoreContract.queryFilter(grantedFilter, 0, latestBlock),
-        this.urbanCoreContract.queryFilter(revokedCustomFilter, 0, latestBlock),
-        this.urbanCoreContract.queryFilter(revokedAccessFilter, 0, latestBlock)
-      ]);
+      const contractAddress: string = String(((this.urbanCoreContract as any).target || (this.urbanCoreContract as any).address) || '');
+      const topicAssignedCustom = ethers.id('RoleAssigned(address,bytes32,address)');
+      const topicRevokedCustom = ethers.id('RoleRevoked(address,bytes32,address)');
+      const topicGrantedOZ = ethers.id('RoleGranted(bytes32,address,address)');
+      const topicRevokedOZ = ethers.id('RoleRevoked(bytes32,address,address)');
+
+      const logsAssignedCustom = await provider.getLogs({
+        address: contractAddress,
+        fromBlock: 0,
+        toBlock: latestBlock,
+        topics: [topicAssignedCustom, null, roleBytes, null]
+      });
+      const logsRevokedCustom = await provider.getLogs({
+        address: contractAddress,
+        fromBlock: 0,
+        toBlock: latestBlock,
+        topics: [topicRevokedCustom, null, roleBytes, null]
+      });
+      const logsGrantedOZ = await provider.getLogs({
+        address: contractAddress,
+        fromBlock: 0,
+        toBlock: latestBlock,
+        topics: [topicGrantedOZ, roleBytes, null, null]
+      });
+      const logsRevokedOZ = await provider.getLogs({
+        address: contractAddress,
+        fromBlock: 0,
+        toBlock: latestBlock,
+        topics: [topicRevokedOZ, roleBytes, null, null]
+      });
 
       const holders = new Set<string>();
-      for (const log of assignedLogs) {
-        const anyLog = log as any;
-        const account: string = anyLog?.args?.account ?? anyLog?.args?.[0];
-        if (account) holders.add(String(account).toLowerCase());
+      const topicToAddress = (topic: string): string => {
+        try { return ethers.getAddress('0x' + topic.slice(26)); } catch { return ''; }
+      };
+
+      for (const log of logsAssignedCustom) {
+        const account = topicToAddress(log.topics[1]);
+        if (account) holders.add(account.toLowerCase());
       }
-      for (const log of grantedLogs) {
-        const anyLog = log as any;
-        const account: string = anyLog?.args?.account ?? anyLog?.args?.[1];
-        if (account) holders.add(String(account).toLowerCase());
+      for (const log of logsGrantedOZ) {
+        const account = topicToAddress(log.topics[2]);
+        if (account) holders.add(account.toLowerCase());
       }
-      for (const log of revokedCustomLogs) {
-        const anyLog = log as any;
-        const account: string = anyLog?.args?.account ?? anyLog?.args?.[0];
-        if (account) holders.delete(String(account).toLowerCase());
+      for (const log of logsRevokedCustom) {
+        const account = topicToAddress(log.topics[1]);
+        if (account) holders.delete(account.toLowerCase());
       }
-      for (const log of revokedAccessLogs) {
-        const anyLog = log as any;
-        const account: string = anyLog?.args?.account ?? anyLog?.args?.[1];
-        if (account) holders.delete(String(account).toLowerCase());
+      for (const log of logsRevokedOZ) {
+        const account = topicToAddress(log.topics[2]);
+        if (account) holders.delete(account.toLowerCase());
       }
 
       return Array.from(holders);

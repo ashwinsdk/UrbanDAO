@@ -174,22 +174,33 @@
                   </div>
                 </div>
 
-                <!-- Project Manager (dropdown) shown only for escalate_to_project -->
+                <!-- Project Manager shown only for escalate_to_project -->
                 <div *ngIf="actionForm.get('action')?.value === 'escalate_to_project'" class="form-group">
                   <label for="project-manager">Project Manager:</label>
-                  <select
-                    id="project-manager"
-                    formControlName="projectManagerAddress"
-                    [class.invalid]="actionForm.get('projectManagerAddress')?.invalid && actionForm.get('projectManagerAddress')?.touched"
-                  >
-                    <option value="" disabled selected>Select a project manager</option>
-                    <option *ngFor="let manager of projectManagers" [value]="manager.address">
-                      {{ formatAddress(manager.address) }}
-                    </option>
-                  </select>
-                  <div class="helper-text" *ngIf="projectManagers.length === 0">
-                    No project managers are assigned to your area yet. Assign at least one to proceed.
-                  </div>
+                  <ng-container *ngIf="projectManagers.length > 0; else pmManualEntry">
+                    <select
+                      id="project-manager"
+                      formControlName="projectManagerAddress"
+                      [class.invalid]="actionForm.get('projectManagerAddress')?.invalid && actionForm.get('projectManagerAddress')?.touched"
+                    >
+                      <option value="" disabled selected>Select a project manager</option>
+                      <option *ngFor="let manager of projectManagers" [value]="manager.address">
+                        {{ formatAddress(manager.address) }}
+                      </option>
+                    </select>
+                  </ng-container>
+                  <ng-template #pmManualEntry>
+                    <input
+                      type="text"
+                      id="project-manager"
+                      formControlName="projectManagerAddress"
+                      placeholder="Enter project manager address (0x...)"
+                      [class.invalid]="actionForm.get('projectManagerAddress')?.invalid && actionForm.get('projectManagerAddress')?.touched"
+                    />
+                    <div class="helper-text">
+                      No project managers found for your area. Enter an address manually.
+                    </div>
+                  </ng-template>
                   <div *ngIf="actionForm.get('projectManagerAddress')?.invalid && actionForm.get('projectManagerAddress')?.touched" class="error-message">
                     Project manager is required
                   </div>

@@ -166,16 +166,28 @@
               <!-- Project Manager -->
               <div class="form-group">
                 <label for="manager-address">Project Manager:</label>
-                <select
-                  id="manager-address"
-                  formControlName="managerAddress"
-                  [class.invalid]="projectForm.get('managerAddress')?.invalid && projectForm.get('managerAddress')?.touched"
-                >
-                  <option value="" disabled selected>Select a project manager</option>
-                  <option *ngFor="let manager of projectManagers" [value]="manager.address">
-                    {{ formatAddress(manager.address) }} - {{ manager.name || 'Project Manager' }}
-                  </option>
-                </select>
+                <ng-container *ngIf="projectManagers.length > 0; else pmManual">
+                  <select
+                    id="manager-address"
+                    formControlName="managerAddress"
+                    [class.invalid]="projectForm.get('managerAddress')?.invalid && projectForm.get('managerAddress')?.touched"
+                  >
+                    <option value="" disabled selected>Select a project manager</option>
+                    <option *ngFor="let manager of projectManagers" [value]="manager.address">
+                      {{ formatAddress(manager.address) }} - {{ manager.name || 'Project Manager' }}
+                    </option>
+                  </select>
+                </ng-container>
+                <ng-template #pmManual>
+                  <input
+                    type="text"
+                    id="manager-address"
+                    formControlName="managerAddress"
+                    placeholder="Enter project manager address (0x...)"
+                    [class.invalid]="projectForm.get('managerAddress')?.invalid && projectForm.get('managerAddress')?.touched"
+                  />
+                  <div class="helper-text">No project managers found for your area. Enter an address manually.</div>
+                </ng-template>
                 <div *ngIf="projectForm.get('managerAddress')?.invalid && projectForm.get('managerAddress')?.touched" class="error-message">
                   <span *ngIf="projectForm.get('managerAddress')?.errors?.['required']">Project manager is required</span>
                 </div>
